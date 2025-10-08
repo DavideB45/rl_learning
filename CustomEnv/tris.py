@@ -46,11 +46,11 @@ class TrisEnv(gym.Env):
 		A move can be illegal if the cell is already in use
 		or if it is a number greater than 8
 		'''
-		if player == self.AGENT:
+		if place is not None:
 			x:int =  place//3
 			y = place % 3
 			if self.board[x,y] == -1:
-				self.board[x,y] = 0
+				self.board[x,y] = player
 				return True
 			else:
 				return False
@@ -62,7 +62,7 @@ class TrisEnv(gym.Env):
 			x, y = empty_cells[choice]
 			self.board[x, y] = 1
 			return True
-
+			
 	# Check if the game is over (win or draw)
 	def _checkWinner(self) -> int:
 		'''
@@ -91,7 +91,7 @@ class TrisEnv(gym.Env):
 			return -1  # draw
 		return None  # game not over
 
-	def step(self, action):
+	def step(self, action, interactive=False):
 		"""
 		here we take a step from the agent and then we do a step from the opponent
 		If the action is illegal we give a negative reward and end the game
@@ -121,7 +121,23 @@ class TrisEnv(gym.Env):
 			)
 		
 		# Opponent plays
-		self._playMove(self.OPPONENT, None)
+		if interactive:
+			self.render()
+			while True:
+				input_str = input("Enter your move (0-8): ")
+				try:
+					place = int(input_str)
+					if place < 0 or place > 8:
+						print("Invalid move. Try again.")
+						continue
+					if not self._playMove(self.OPPONENT, place):
+						print("Cell already occupied. Try again.")
+						continue
+					break
+				except ValueError:
+					print("Invalid input. Try again.")
+		else:
+			self._playMove(self.OPPONENT, None)
 		winner = self._checkWinner()
 		if winner is not None:
 			return (
