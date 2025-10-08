@@ -14,7 +14,6 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.common.vec_env import VecMonitor
 
 
 # on my computer results are like 1/3 better, it is not much but can be useful
