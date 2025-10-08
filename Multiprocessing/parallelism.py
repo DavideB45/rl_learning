@@ -16,6 +16,7 @@ from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.monitor import Monitor
 
 
+
 # on my computer results are like 1/3 better, it is not much but can be useful
 if __name__ == "__main__":
 	# We do some benchmarking 
