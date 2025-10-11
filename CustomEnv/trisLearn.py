@@ -8,7 +8,7 @@ from tris import TrisEnv
 if __name__ == "__main__":
 	env = Monitor(TrisEnv())
 	model = PPO("MlpPolicy", env, verbose=0)
-	model.learn(total_timesteps=100000, progress_bar=True)
+	model.learn(total_timesteps=500000, progress_bar=True)
 
 	# Evaluate the trained agent
 	model.save("ppo_tris")
