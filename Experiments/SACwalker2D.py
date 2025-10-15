@@ -4,6 +4,7 @@ from stable_baselines3 import SAC
 from stable_baselines3.sac.policies import MlpPolicy
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.env_util import make_vec_env
 from evaluator import PeriodicEvalCallback
 import sys
 
@@ -17,7 +18,12 @@ mode = sys.argv[1]
 eval_env = Monitor(gym.make('Walker2d-v5'))
 if mode == "train":
 	train_env = Monitor(gym.make('Walker2d-v5'))
-	model = SAC(MlpPolicy, train_env)
+	model = SAC(MlpPolicy, train_env, 
+			 train_freq=5
+			)
+	# train freq default to 1 (very slow), but 
+	# after the same number of epochs the reward obtained is 
+	# higher with the slow version
 
 	eval_freq = 20_000
 	n_eval_episodes = 5

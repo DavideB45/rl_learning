@@ -18,14 +18,15 @@ eval_env = Monitor(gym.make('Walker2d-v5'))
 if mode == "train":
 	train_env = Monitor(gym.make('Walker2d-v5'))
 	model = PPO(MlpPolicy, train_env,
-			 clip_range=0.1, # più stabile ma lento a capire se è basso
-			 gae_lambda=0.99, # se basso fa tipo un grande salto
-			 batch_size=128)
+			 #clip_range=0.2, # più stabile ma lento a capire se è basso
+			 gae_lambda=0.98, # se basso fa tipo un grande salto
+			 batch_size=128,
+			 use_sde=True)
 
 	eval_freq = 20_000
 	n_eval_episodes = 5
 	callback = PeriodicEvalCallback(eval_env, eval_freq=eval_freq, n_eval_episodes=n_eval_episodes, verbose=1)
-	total_steps = 1_000_000
+	total_steps = 2_000_000
 	model.learn(total_timesteps=total_steps, callback=callback, progress_bar=True)
 	model.save("./walkerPPO")
 
