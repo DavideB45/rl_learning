@@ -24,7 +24,7 @@ N_STEPS = [2048]
 results = []
 
 mode = sys.argv[1]
-eval_env = Monitor(RescaleAction(gym.make('Pusher-v5'), -1.0, 1.0))
+eval_env = Monitor(RescaleAction(gym.make('Pusher-v5', max_episode_steps=180), -1.0, 1.0))
 if mode == "train":
 	train_env = RescaleAction(gym.make('Pusher-v5'), -1.0, 1.0)
 	total_iterations = len(LEARNING_RATE) * len(CLIP_RANGE) * len(GAE_LAMBDA) * len(N_STEPS)
@@ -57,9 +57,21 @@ if mode == "train":
 			json.dump(results, f, indent=4)
 else:
 	model = PPO.load("./pusherPPO")
-	record_env = RecordVideo(RescaleAction(gym.make('Pusher-v5', render_mode='rgb_array'), -1.0, 1.0),
-								video_folder="./videos",
-								name_prefix="pusher")
+	DEFAULT_CAMERA_CONFIG = {
+		"trackbodyid": -1,   # no specific body tracking
+		"distance": 3.0,     # distance from the agent
+		"azimuth": -90.0,    # rotate camera to front of the agent
+		"elevation": -20.0,  # lower angle for a front view
+	}
+	record_env = RecordVideo(
+		RescaleAction(
+			gym.make('Pusher-v5', render_mode='rgb_array', max_episode_steps=180,
+				default_camera_config=DEFAULT_CAMERA_CONFIG,
+			), -1.0, 1.0
+		),
+		video_folder="./videos",
+		name_prefix="pusher"
+	)
 	obs, info = record_env.reset()
 	terminated = False
 	truncated = False
