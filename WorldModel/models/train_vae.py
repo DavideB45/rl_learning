@@ -11,16 +11,16 @@ from dataset_func import make_dataloaders
 
 # This function contains the code to train the VAE model
 def train_vae():
-	train_loader, _ = make_dataloaders(CURRENT_ENV['img_dir'], batch_size=128)
+	train_loader, _ = make_dataloaders(CURRENT_ENV['img_dir'], batch_size=100)
 	vae = VAE()
 	print(f"Training {CURRENT_ENV['env_name']} VAE model")
 	print(f"Model summary:\n{vae}")
 	print(f"Number of parameters: {sum(p.numel() for p in vae.parameters() if p.requires_grad)}")
 	vae.train_(dataloader=train_loader, 
-		optimizer=torch.optim.Adam(vae.parameters(), lr=1e-3),
-		epochs=50,
+		optimizer=torch.optim.Adam(vae.parameters(), lr=1e-4),
+		epochs=10,
 		device='cuda' if torch.cuda.is_available() else 'mps',
-		kld_weight=0.5
+		kld_tolerance=0.5
 		)
 	return vae
 	
