@@ -89,7 +89,7 @@ class VAE(nn.Module):
 		kld_loss = -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp())
 		return recon_loss + kld_weight * kld_loss
 	
-	def train(self, dataloader, optimizer, epochs=10, kld_weight=1.0, device='cpu'):
+	def train_(self, dataloader, optimizer, epochs=10, kld_weight=1.0, device='cpu'):
 		'''
 		Train the VAE model
 		dataloader: PyTorch dataloader for training data
