@@ -21,6 +21,8 @@ def make_img_data(env_name='Pendulum-v1',n_samples=1000, size=(64, 64), default_
 	policy: function that takes an observation and returns an action
 	returns: list of images
 	'''
+	if CURRENT_ENV['special_call'] is not None:
+		CURRENT_ENV['special_call']()
 	if default_camera_config is not None:
 		env = gym.make(env_name, render_mode='rgb_array', default_camera_config=default_camera_config)
 	else:
@@ -42,7 +44,7 @@ def make_img_data(env_name='Pendulum-v1',n_samples=1000, size=(64, 64), default_
 if __name__ == "__main__":
 	# Example of creating a dataset of images
 	images = make_img_data(env_name=CURRENT_ENV['env_name'], 
-						n_samples=10000, 
+						n_samples=1000, 
 						size=(64, 64), 
 						default_camera_config=CURRENT_ENV['default_camera_config']
 						)
