@@ -3,7 +3,8 @@ from PIL import Image
 import os
 import sys
 sys.path.insert(1, os.path.join(sys.path[0], '../'))
-from global_var import PENDULUM
+from global_var import CURRENT_ENV
+from tqdm import tqdm
 
 
 # This file contains the functions to use the real environment
@@ -12,18 +13,21 @@ from global_var import PENDULUM
 # TODO: add functions to create datasets of states and actions
 # It uses the gymnasium Pendulum-v1 environment
 
-def make_img_data(env_name='Pendulum-v1',n_samples=1000, size=(64, 64)):
+def make_img_data(env_name='Pendulum-v1',n_samples=1000, size=(64, 64), default_camera_config=None):
 	'''
-	Create a dataset of images from the Pendulum-v1 environment
+	Create a dataset of images from the env_name environment
 	n_samples: number of samples to generate
 	size: size of the images to generate
 	policy: function that takes an observation and returns an action
 	returns: list of images
 	'''
-	env = gym.make('Pendulum-v1', render_mode='rgb_array')
+	if default_camera_config is not None:
+		env = gym.make(env_name, render_mode='rgb_array', default_camera_config=default_camera_config)
+	else:
+		env = gym.make(env_name, render_mode='rgb_array')
 	images = []
 	_, _ = env.reset()
-	for _ in range(n_samples):
+	for _ in tqdm(range(n_samples), desc="Generating images", unit="img"):
 		action = env.action_space.sample()
 		_, _, terminated, truncated, _ = env.step(action)
 		img = env.render()
@@ -37,9 +41,13 @@ def make_img_data(env_name='Pendulum-v1',n_samples=1000, size=(64, 64)):
 
 if __name__ == "__main__":
 	# Example of creating a dataset of images
-	images = make_img_data(env_name=PENDULUM['env_name'], n_samples=5000, size=(64, 64))
-	print(f"Generated {len(images)} images from {PENDULUM['env_name']} environment")
+	images = make_img_data(env_name=CURRENT_ENV['env_name'], 
+						n_samples=10000, 
+						size=(64, 64), 
+						default_camera_config=CURRENT_ENV['default_camera_config']
+						)
+	print(f"Generated {len(images)} images from {CURRENT_ENV['env_name']} environment")
 	# Save images to disk
 	for i, img in enumerate(images):
-		img.save(f"{PENDULUM['img_dir']}{i:05d}.png")
+		img.save(f"{CURRENT_ENV['img_dir']}{i:05d}.png")
 
