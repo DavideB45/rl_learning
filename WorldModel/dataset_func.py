@@ -48,6 +48,7 @@ def make_dataloaders(data_dir, test_split=0.2, batch_size=64):
 	batch_size: batch size for dataloaders
 	returns: train_loader, test_loader
 	'''
+	print(f"Creating dataloaders from images in {data_dir}")
 	dataset = PNGDataset(path=data_dir, transform=torchvision.transforms.Compose([
 		torchvision.transforms.Resize((64, 64)),
 		torchvision.transforms.ToTensor(),

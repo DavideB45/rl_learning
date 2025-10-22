@@ -7,13 +7,13 @@ class VAE(nn.Module):
 	'''
 	Convolutional Variational Autoencoder (VAE) Model
 	'''
-	def __init__(self, input_dim=64, latent_dim=1024, conv_depth=4):
+	def __init__(self, input_dim=64, latent_dim=32, conv_depth=4):
 		'''
 		input_dim: input image width/height (assumed square)
 		latent_dim: dimension of latent space
 		conv_depth: number of convolutional layers
 		'''
-		if input_dim != 64 or latent_dim != 1024 or conv_depth != 4:
+		if input_dim != 64 or conv_depth != 4:
 			raise NotImplementedError("Only the default architecture is implemented")
 		super(VAE, self).__init__()
 		# encoder
