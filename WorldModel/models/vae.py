@@ -85,7 +85,8 @@ class VAE(nn.Module):
 		Compute VAE loss = reconstruction loss + KL divergence
 		kld_weight: weight of the KL divergence term
 		'''
-		recon_loss = nn.functional.mse_loss(x_recon, x, reduction='mean')
+		#recon_loss = nn.functional.mse_loss(x_recon, x, reduction='mean')
+		recon_loss = nn.functional.binary_cross_entropy(x_recon, x, reduction='mean')
 		kld_loss = -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp())
 		return recon_loss + kld_weight * kld_loss
 	
