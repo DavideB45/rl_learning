@@ -80,23 +80,24 @@ class VAE(nn.Module):
 		x_recon = self.decode(z)
 		return x_recon, mu, logvar
 	
-	def loss(self, x, x_recon, mu, logvar, kld_weight=1.0):
+	def loss(self, x, x_recon, mu, logvar, kld_tolerance=1.0):
 		'''
 		Compute VAE loss = reconstruction loss + KL divergence
-		kld_weight: weight of the KL divergence term
+		kld_tolerance: tolerance for the KL divergence term
 		'''
 		#recon_loss = nn.functional.mse_loss(x_recon, x, reduction='mean')
 		recon_loss = nn.functional.binary_cross_entropy(x_recon, x, reduction='mean')
-		kld_loss = -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp())
-		return recon_loss + kld_weight * kld_loss
-	
-	def train_(self, dataloader, optimizer, epochs=10, kld_weight=1.0, device='cpu'):
+		kld_raw = -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp())
+		kld_loss = torch.max(kld_raw - 0.5, torch.tensor(0.0, device=kld_raw.device))
+		return recon_loss + kld_loss
+
+	def train_(self, dataloader, optimizer, epochs=10, kld_tolerance=1.0, device='cpu'):
 		'''
 		Train the VAE model
 		dataloader: PyTorch dataloader for training data
 		optimizer: optimizer for training
 		epochs: number of training epochs
-		kld_weight: weight of the KL divergence term
+		kld_tolerance: tolerance for the KL divergence term
 		device: device to run the training on
 		'''
 		self.to(device)
@@ -107,7 +108,7 @@ class VAE(nn.Module):
 				batch = batch.to(device)
 				optimizer.zero_grad()
 				x_recon, mu, logvar = self.forward(batch)
-				loss = self.loss(batch, x_recon, mu, logvar, kld_weight)
+				loss = self.loss(batch, x_recon, mu, logvar, kld_tolerance)
 				loss.backward()
 				optimizer.step()
 				total_loss += loss.item()
