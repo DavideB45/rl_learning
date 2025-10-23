@@ -33,7 +33,8 @@ def make_img_data(env_name='Pendulum-v1',n_samples=1000, size=(64, 64), default_
 		action = env.action_space.sample()
 		# if in car racing press the gas
 		if env_name == 'CarRacing-v3':
-			action[1] = 1.0  # accelerate
+			action[1] = max(action[1], 0.5)  # accelerate
+			action[2] = min(action[2], 0.3)  # low brake
 		_, _, terminated, truncated, _ = env.step(action)
 		img = env.render()
 		img = Image.fromarray(img)
@@ -47,7 +48,7 @@ def make_img_data(env_name='Pendulum-v1',n_samples=1000, size=(64, 64), default_
 if __name__ == "__main__":
 	# Example of creating a dataset of images
 	images = make_img_data(env_name=CURRENT_ENV['env_name'], 
-						n_samples=2000, 
+						n_samples=10000, 
 						size=(64, 64), 
 						default_camera_config=CURRENT_ENV['default_camera_config']
 						)
