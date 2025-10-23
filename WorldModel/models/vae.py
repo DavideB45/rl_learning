@@ -16,6 +16,7 @@ class VAE(nn.Module):
 		if input_dim != 64 or conv_depth != 4:
 			raise NotImplementedError("Only the default architecture is implemented")
 		super(VAE, self).__init__()
+		self.latent_dim = latent_dim
 		# encoder
 		self.encoder = nn.Sequential(
 			nn.Conv2d(3, 32, kernel_size=4, stride=2, padding=0),  # 31x31x32
@@ -85,10 +86,13 @@ class VAE(nn.Module):
 		Compute VAE loss = reconstruction loss + KL divergence
 		kld_tolerance: tolerance for the KL divergence term
 		'''
-		#recon_loss = nn.functional.mse_loss(x_recon, x, reduction='mean')
-		recon_loss = nn.functional.binary_cross_entropy(x_recon, x, reduction='mean')
-		kld_raw = -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp())
-		kld_loss = torch.max(kld_raw - 0.5, torch.tensor(0.0, device=kld_raw.device))
+		recon_loss = torch.sum(torch.square(x - x_recon), dim=[1, 2, 3])
+		recon_loss = torch.mean(recon_loss)
+		#recon_loss = nn.functional.binary_cross_entropy(x_recon, x, reduction='mean')
+		kld_raw = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1)
+		kld_loss = torch.maximum(kld_raw, torch.tensor(kld_tolerance*self.latent_dim, device=kld_raw.device))
+		kld_loss = torch.mean(kld_loss)
+
 		return recon_loss + kld_loss
 
 	def train_(self, dataloader, optimizer, epochs=10, kld_tolerance=1.0, device='cpu'):
