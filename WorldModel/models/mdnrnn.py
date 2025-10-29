@@ -1,10 +1,12 @@
+import math
+import numpy as np
 from torch import nn
 import torch
 
-LOGSQRT2PI = torch.log(torch.tensor(2 * torch.pi))
+LOGSQRT2PI = 0.5 * math.log(2.0 * math.pi)
 
 class MDNRNN(nn.Module):
-	def __init__(self, z_size, a_size, n_gaussians, rnn_size, done_pos_weight=1.0):
+	def __init__(self, z_size=32, a_size=3, n_gaussians=5, rnn_size=256, done_pos_weight=1.0):
 		'''
 		MDN-RNN Model
 		z_size: dimension of latent space input
@@ -22,7 +24,7 @@ class MDNRNN(nn.Module):
 
 		self.rnn = nn.LSTM(input_size=z_size + a_size, hidden_size=rnn_size, num_layers=1, batch_first=True)
 		self.fc_mu = nn.Linear(rnn_size, n_gaussians * z_size)
-		self.fc_logvar = nn.Linear(rnn_size, n_gaussians * z_size)
+		self.fc_logstd = nn.Linear(rnn_size, n_gaussians * z_size)
 		self.fc_pi = nn.Linear(rnn_size, n_gaussians)
 
 		self.reward_pred = nn.Linear(rnn_size, 1)
@@ -52,18 +54,18 @@ class MDNRNN(nn.Module):
 		rnn_out, h = self.rnn(rnn_input, h)  # rnn_out: (batch_size, seq_len, rnn_size)
 
 		mu = self.fc_mu(rnn_out)  # (batch_size, seq_len, n_gaussians * z_size)
-		logvar = self.fc_logvar(rnn_out)  # (batch_size, seq_len, n_gaussians * z_size)
+		logstd = self.fc_logstd(rnn_out)  # (batch_size, seq_len, n_gaussians * z_size)
 		pi = self.fc_pi(rnn_out)  # (batch_size, seq_len, n_gaussians)
 
 		mu = mu.view(batch_size, seq_len, self.n_gaussians, self.z_size)
-		logvar = logvar.view(batch_size, seq_len, self.n_gaussians, self.z_size)
+		logstd = logstd.view(batch_size, seq_len, self.n_gaussians, self.z_size)
 		pi = nn.functional.softmax(pi, dim=-1)  # Apply softmax to get mixture weights
 
 		reward = self.reward_pred(rnn_out)  # (batch_size, seq_len, 1)
 		done_logits = self.done_pred(rnn_out)  # (batch_size, seq_len, 1)
-		return mu, logvar, pi, h, reward, done_logits
-	
-	def neg_log_likelihood(self, x, mu, logvar, pi, mask=None):
+		return mu, logstd, pi, h, reward, done_logits
+
+	def neg_log_likelihood(self, x, mu, logstd, pi, mask=None):
 		'''
 		Compute the negative log-likelihood of x given the MDN parameters
 		x: target latent vectors (batch_size, seq_len, z_size)
@@ -79,16 +81,18 @@ class MDNRNN(nn.Module):
 
 		x = x.unsqueeze(2).expand(-1, -1, n_gaussians, -1)  # (batch_size, seq_len, n_gaussians, z_size)
 
-		var = torch.exp(logvar)
-		log_prob = -0.5 * (((x - mu) ** 2) / var) - logvar - LOGSQRT2PI  # (batch_size, seq_len, n_gaussians)
+		#logstd = torch.clamp(logstd, min=-2.0, max=2.0)  # Prevent numerical issues
+		var = torch.exp(2*logstd)
+		log_prob = -0.5 * ((x - mu)**2 / (var + 1e-8)) - logstd - LOGSQRT2PI  # (batch_size, seq_len, n_gaussians)
 		log_prob = torch.sum(log_prob, dim=-1)  # Sum over z_size dimension -> (batch_size, seq_len, n_gaussians)
 
-		log_prob += torch.log(pi + 1e-8)  # Add log mixture weights (don't multiply because we're using log)
+		log_pi = torch.log(pi + 1e-8)  # Normalize log mixture weights
+		log_prob = log_prob + log_pi  # (batch_size, seq_len, n_gaussians)
 
 		log_sum_exp = torch.logsumexp(log_prob, dim=-1)  # (batch_size, seq_len)
 
 		nll = -log_sum_exp.mean()  # Mean negative log-likelihood over batch and sequence
-
+		#print(f"NLL computed: {nll.item()}")
 		return nll
 	
 	def done_loss(self, done_logits, done_targets, mask=None):
@@ -100,12 +104,15 @@ class MDNRNN(nn.Module):
 		Returns:
 			Done prediction loss
 		'''
-		loss_fn = nn.BCEWithLogitsLoss(pos_weight=self.done_pos_weight, reduction='none')
-		loss = loss_fn(done_logits, done_targets)
-		loss = loss if mask is None else (loss * mask).sum() / mask.sum()
+		if mask is not None:
+			print(f"Warning: mask for done_loss is not implemented correctly")
+		print("WARNING: this function is not written correctly, pos_weight needs to be handled differently")
+		pos_weight = torch.tensor(self.done_pos_weight, dtype=done_logits.dtype, device=done_logits.device)
+		loss_fn = nn.BCEWithLogitsLoss(pos_weight=pos_weight, reduction='none')
+		loss = loss_fn(done_logits, done_targets).mean()
 		return loss
 	
-	def reward_loss(self, reward_pred, reward_target, mask=None):
+	def reward_loss(self, reward_pred, reward_target, mask=None) -> torch.Tensor:
 		'''
 		Compute mean squared error loss for reward prediction
 		reward_pred: predicted rewards (batch_size, seq_len, 1)
@@ -115,6 +122,9 @@ class MDNRNN(nn.Module):
 			Reward prediction loss
 		'''
 		loss_fn = nn.MSELoss(reduction='none')
+		## reward_pred [100,10,1], reward_target [100,10]
+		#print(f"size reward_pred: {reward_pred.size()}, size reward_target: {reward_target.size()}")
+		reward_target = reward_target.unsqueeze(-1)  # Match dimensions
 		loss = loss_fn(reward_pred, reward_target)
-		loss = loss if mask is None else (loss * mask).sum() / mask.sum()
+		loss = loss.mean()
 		return loss
