@@ -63,13 +63,14 @@ class MDNRNN(nn.Module):
 		done_logits = self.done_pred(rnn_out)  # (batch_size, seq_len, 1)
 		return mu, logvar, pi, h, reward, done_logits
 	
-	def neg_log_likelihood(self, x, mu, logvar, pi):
+	def neg_log_likelihood(self, x, mu, logvar, pi, mask=None):
 		'''
 		Compute the negative log-likelihood of x given the MDN parameters
 		x: target latent vectors (batch_size, seq_len, z_size)
 		mu: means of Gaussian mixtures (batch_size, seq_len, n_gaussians, z_size)
 		logvar: log variances of Gaussian mixtures (batch_size, seq_len, n_gaussians, z_size)
 		pi: mixture weights (batch_size, seq_len, n_gaussians)
+		mask: optional mask to apply (batch_size, seq_len)
 		Returns:
 			Negative log-likelihood loss
 		'''
