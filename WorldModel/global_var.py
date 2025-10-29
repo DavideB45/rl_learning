@@ -1,10 +1,12 @@
 IMG_DIR = "img/"
+TRANSITIONS = "transition_data.json"
 
 PENDULUM_DATA_DIR = "data/pendulum/"
 PENDULUM = {
 	"env_name": "Pendulum-v1",
 	"data_dir": PENDULUM_DATA_DIR,
 	"img_dir": PENDULUM_DATA_DIR + IMG_DIR,
+	"transitions": PENDULUM_DATA_DIR + TRANSITIONS,
 	"default_camera_config": None,
 	"special_call": None
 }
@@ -14,6 +16,7 @@ PUSHER = {
 	"env_name": "Pusher-v5",
 	"data_dir": PUSHER_DATA_DIR,
 	"img_dir": PUSHER_DATA_DIR + IMG_DIR,
+	"transitions": PUSHER_DATA_DIR + TRANSITIONS,
 	"default_camera_config": {
 		"trackbodyid": -1,   # no specific body tracking
 		"distance": 1.8,     # distance from the agent
@@ -33,6 +36,7 @@ CAR_RACING = {
 	"env_name": "CarRacing-v3",
 	"data_dir": CAR_RACING_DATA_DIR,
 	"img_dir": CAR_RACING_DATA_DIR + IMG_DIR,
+	"transitions": CAR_RACING_DATA_DIR + TRANSITIONS,
 	"default_camera_config": None,
 	"special_call": no_render_indicators
 }
