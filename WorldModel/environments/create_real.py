@@ -10,8 +10,6 @@ from tqdm import tqdm
 # This file contains the functions to use the real environment
 # and the functions used to create the datasets for training world models
 # Can create a dataset of images
-# TODO: add functions to create datasets of states and actions
-# It uses the gymnasium Pendulum-v1 environment
 
 def make_img_data(env_name='Pendulum-v1',n_samples=1000, size=(64, 64), default_camera_config=None):
 	'''

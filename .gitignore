@@ -1,6 +1,7 @@
 # Manually added
 *.zip
 WorldModel/data/*/img/*
+WorldModel/data/*/transition_data.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
