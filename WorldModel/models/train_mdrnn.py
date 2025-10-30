@@ -8,7 +8,7 @@ from models.mdnrnn import MDNRNN
 from dataset_func import make_sequence_dataloaders
 
 
-NUM_EPOCHS = 20
+NUM_EPOCHS = 100
 
 def sample_x(mu, log_var):
 	std = torch.exp(0.5 * log_var)
@@ -50,9 +50,9 @@ def train_mdrnn():
 			#done_target = batch['done'].to(device)
 			optimizer.zero_grad()
 			mu, logvar, pi, h, reward, done_logits = mdrnn(x, action)
-			nll = mdrnn.neg_log_likelihood(x, mu, logvar, pi)
+			nll = mdrnn.neg_log_likelihood(x[:, 1:, :], mu[:, :-1, :], logvar[:, :-1, :], pi[:, :-1, :])
 			#done_loss = mdrnn.done_loss(done_logits, done_target)
-			reward_loss = mdrnn.reward_loss(reward, reward_target)
+			reward_loss = mdrnn.reward_loss(reward[:, :-1, :], reward_target[:, 1:])
 			loss = nll + reward_loss # + done_loss
 			loss.backward()
 			torch.nn.utils.clip_grad_norm_(mdrnn.parameters(), max_norm=1.0)
