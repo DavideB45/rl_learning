@@ -1,10 +1,10 @@
 import json
 import gymnasium as gym
 from PIL import Image	
+import torch
+
 import os
 import sys
-
-import torch
 sys.path.insert(1, os.path.join(sys.path[0], '../'))
 from global_var import CURRENT_ENV
 from tqdm import tqdm

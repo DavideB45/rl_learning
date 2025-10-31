@@ -18,18 +18,16 @@ def show_dream_sample(mdrnn, vae, device, seq_len=100, temp=1.0):
 		first_frame, action_space = make_first_frame(CURRENT_ENV)
 		first_frame = transforms.ToTensor()(first_frame).unsqueeze(0).to(device)  # [1, C, H, W]
 		mu, log_var = vae.encode(first_frame)
-		z = vae.reparameterize(mu, log_var)  # [1, z_size]
-		print(f"Initial latent vector z size: {z.size()}")
+		#z = vae.reparameterize(mu, log_var)  # [1, z_size]
+		z = mu  # Use mean as latent vector
 		
 		h = None  # Initial hidden state
 		z_seq = []
 		for t in range(seq_len):
 			action = torch.zeros((1, action_space.shape[0])).to(device)  # Zero action
 			if CURRENT_ENV['env_name'] == 'CarRacing-v3':
-				action[0, 1] = 1.  # constant gas
+				action[0, 1] = 0.5  # constant gas
 			mu, logvar, pi, h, _, _ = mdrnn(z.unsqueeze(1), action.unsqueeze(1), h)
-			print(f"Size mu: {mu.size()}, logvar: {logvar.size()}, pi: {pi.size()}")
-			print(f"mu[0,:, :].size: {mu[0, :, :].size()}")
 			z = sample_mdn(mu[0, 0, :, :], logvar[0, 0, :, :], pi[0, 0, :], temperature=temp)
 			z = z.unsqueeze(0)  # Add batch dimension
 			z_seq.append(z.cpu())
@@ -42,14 +40,14 @@ def show_dream_sample(mdrnn, vae, device, seq_len=100, temp=1.0):
 		num_images = min(10, seq_len)
 		# keep only num_images for display at regular intervals
 		#step = seq_len // num_images
-		#recon_images = recon_images[:, ::step, :, :, :]
+		#recon_images = recon_images[:, ::3, :, :, :]
 		plt.figure(figsize=(15, 3))
 		for i in range(num_images):
 			plt.subplot(1, num_images, i + 1)
 			plt.imshow(recon_images[0, i].permute(1, 2, 0).cpu().numpy())
 			plt.axis('off')
 			if i == 0:
-				plt.title('Dreamed Images')
+				plt.title('Dreamed Sequence')
 		plt.show()
 
 if __name__ == "__main__":
@@ -63,4 +61,4 @@ if __name__ == "__main__":
 	mdrnn.load_state_dict(torch.load(mdrnn_path, map_location=device))
 	vae.load_state_dict(torch.load(vae_path, map_location=device))
 	
-	show_dream_sample(mdrnn, vae, device, seq_len=50, temp=1.8)
+	show_dream_sample(mdrnn, vae, device, seq_len=50, temp=0.8)

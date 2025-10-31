@@ -5,7 +5,7 @@ import torch
 LOGSQRT2PI = 0.5 * math.log(2.0 * math.pi)
 
 class MDNRNN(nn.Module):
-	def __init__(self, z_size=32, a_size=3, n_gaussians=5, rnn_size=256, done_pos_weight=1.0):
+	def __init__(self, z_size=32, a_size=3, n_gaussians=7, rnn_size=512, done_pos_weight=1.0):
 		'''
 		MDN-RNN Model
 		z_size: dimension of latent space input
