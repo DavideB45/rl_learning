@@ -2,13 +2,14 @@ import os
 import sys
 
 import torch
+from tqdm import tqdm
 sys.path.insert(1, os.path.join(sys.path[0], '../'))
 from global_var import CURRENT_ENV
 from models.mdnrnn import MDNRNN
 from dataset_func import make_sequence_dataloaders
 
 
-NUM_EPOCHS = 100
+NUM_EPOCHS = 30
 
 def sample_x(mu, log_var):
 	std = torch.exp(0.5 * log_var)
@@ -40,11 +41,11 @@ def train_mdrnn():
 	device = 'cuda' if torch.cuda.is_available() else 'cpu'
 	mdrnn.to(device)
 	mdrnn.train()
-	for epoch in range(NUM_EPOCHS):
+	for epoch in tqdm(range(NUM_EPOCHS), desc="Training MDRNN"):
 		for batch in train_loader:
 			x = batch['mu'].to(device)
 			log_var = batch['log_var'].to(device)
-			x = sample_x(x, log_var)
+			#x = sample_x(x, log_var)
 			action = batch['action'].to(device)
 			reward_target = batch['reward'].to(device)
 			#done_target = batch['done'].to(device)
