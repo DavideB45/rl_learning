@@ -1,5 +1,4 @@
 import math
-import numpy as np
 from torch import nn
 import torch
 
@@ -76,12 +75,11 @@ class MDNRNN(nn.Module):
 		Returns:
 			Negative log-likelihood loss
 		'''
-		batch_size, seq_len, z_size = x.size()
 		n_gaussians = mu.size(2)
 
 		x = x.unsqueeze(2).expand(-1, -1, n_gaussians, -1)  # (batch_size, seq_len, n_gaussians, z_size)
 
-		#logstd = torch.clamp(logstd, min=-2.0, max=2.0)  # Prevent numerical issues
+		#logstd = torch.clamp(logstd, min=-2.0, max=2.0)  # Prevent numerical issues?¿
 		var = torch.exp(2*logstd)
 		log_prob = -0.5 * ((x - mu)**2 / (var + 1e-8)) - logstd - LOGSQRT2PI  # (batch_size, seq_len, n_gaussians)
 		log_prob = torch.sum(log_prob, dim=-1)  # Sum over z_size dimension -> (batch_size, seq_len, n_gaussians)
@@ -92,7 +90,6 @@ class MDNRNN(nn.Module):
 		log_sum_exp = torch.logsumexp(log_prob, dim=-1)  # (batch_size, seq_len)
 
 		nll = -log_sum_exp.mean()  # Mean negative log-likelihood over batch and sequence
-		#print(f"NLL computed: {nll.item()}")
 		return nll
 	
 	def done_loss(self, done_logits, done_targets, mask=None):
@@ -122,9 +119,31 @@ class MDNRNN(nn.Module):
 			Reward prediction loss
 		'''
 		loss_fn = nn.MSELoss(reduction='none')
-		## reward_pred [100,10,1], reward_target [100,10]
-		#print(f"size reward_pred: {reward_pred.size()}, size reward_target: {reward_target.size()}")
 		reward_target = reward_target.unsqueeze(-1)  # Match dimensions
 		loss = loss_fn(reward_pred, reward_target)
 		loss = loss.mean()
 		return loss
+
+def sample_mdn(z_mu, z_logstd, pi, temperature=1.0):
+    """
+    Sample a single latent state z from an MDN output with temperature scaling.
+    Arguments:
+        z_mu:        (n_gaussians, z_size) tensor of means
+        z_logstd:    (n_gaussians, z_size) tensor of log standard deviations
+        pi:          (n_gaussians,) tensor of mixture weights
+        temperature: float. Higher=T more random, lower=T more deterministic
+    Returns:
+        z_sample:    (z_size,) tensor, sampled latent vector
+    """
+    # Scale mixture logits and recompute probabilities
+    logits = torch.log(pi + 1e-8) / temperature
+    pi_temp = torch.softmax(logits, dim=-1)
+    # Sample which Gaussian
+    cat = torch.distributions.Categorical(pi_temp)
+    idx = cat.sample()
+    # Temperature scales std; softmax for mixture, exp for std
+    mu = z_mu[idx]
+    std = torch.exp(z_logstd[idx]) * temperature
+    normal = torch.distributions.Normal(mu, std)
+    z = normal.sample()
+    return z
