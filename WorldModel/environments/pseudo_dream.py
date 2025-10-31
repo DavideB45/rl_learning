@@ -53,7 +53,6 @@ class PseudoDreamEnv(gym.Env):
 		img = self.env.render()
 		img = Image.fromarray(img).resize((64, 64))
 		img = T.ToTensor()(img).unsqueeze(0)
-		print(img.shape)
 		with torch.no_grad():
 			mu, _ = self.vae.encode(img)
 			self.hidden_state = (torch.zeros(1, 1, self.mdrnn.rnn_size),

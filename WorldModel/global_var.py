@@ -2,6 +2,7 @@ IMG_DIR = "img/"
 TRANSITIONS = "transition_data.json"
 VAE_MODEL = "vae_model.pth"
 MDRNN_MODEL = "mdrnn_model.pth"
+PPO_MODEL = "ppo_model"
 
 PENDULUM_DATA_DIR = "data/pendulum/"
 PENDULUM = {
