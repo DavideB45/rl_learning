@@ -1,3 +1,4 @@
+import cv2
 import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
@@ -103,11 +104,15 @@ class DreamEnv(gym.Env):
 		if self.render_mode == "rgb_array":
 			with torch.no_grad():
 				img = self.vae.decode(self.current_mu.unsqueeze(0)).squeeze(0).permute(1, 2, 0).numpy()
-				import matplotlib.pyplot as plt
-				plt.imshow(img)
-				plt.axis('off')
-				plt.show()
 				return img
+		elif self.render_mode == "human":
+			with torch.no_grad():
+				img = self.vae.decode(self.current_mu.unsqueeze(0)).squeeze(0).permute(1, 2, 0).numpy()
+				img = (img * 255).astype(np.uint8)
+				image = Image.fromarray(img)
+				image_resized = image.resize((256, 256))
+				cv2.imshow('DreamEnv', np.array(image_resized))
+				cv2.waitKey(1)
 		elif self.render_mode == "dream":
 			# decode the current latent state to an image
 			raise NotImplementedError("Dream rendering mode not yet implemented")
@@ -117,18 +122,22 @@ class DreamEnv(gym.Env):
 		pass
 
 if __name__ == "__main__":
-	env = DreamEnv(CURRENT_ENV, temperature=2, render_mode="rgb_array")
+	env = DreamEnv(CURRENT_ENV, temperature=1.8, render_mode="human")
 	observation, info = env.reset()
 	env.render()
 	done = False
+	total_reward = 0
 	while not done:
 		action = env.action_space.sample()  # random action
+		action[1] = max(action[1], 0.5)  # accelerate
+		action[2] = min(action[2], 0.3)  # low brake
 		observation, reward, terminated, truncated, info = env.step(action)
 		print(observation.shape)
 		print(f"Reward: {reward}")
 		print(f"Info: {info}")
 		env.render()
 		done = terminated or truncated
+		total_reward += reward
 		if done:
-			print(f"Game over! Reward: {reward}")
+			print(f"Game over! Total Reward: {total_reward}")
 	env.close()

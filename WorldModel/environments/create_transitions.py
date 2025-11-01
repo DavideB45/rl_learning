@@ -28,7 +28,8 @@ def append_information(image:Image, action, reward, last_state, vae:VAE, history
 	'''
 	if len(history) == 0:
 		history.append({'mu':[], 'log_var':[], 'action':[], 'reward':[], 'last_state':[]})
-	mu, log_var = vae.encode(ToTensor()(image).unsqueeze(0))
+	with torch.no_grad():
+		mu, log_var = vae.encode(ToTensor()(image).unsqueeze(0))
 	history[-1]['mu'].append(mu.squeeze(0).detach().cpu().tolist())
 	history[-1]['log_var'].append(log_var.squeeze(0).detach().cpu().tolist())
 	history[-1]['action'].append(action.tolist())
@@ -49,6 +50,7 @@ def make_transition_data(env_name='Pendulum-v1', n_samples=1000, size=(64, 64), 
 	history = []
 	vae = VAE()
 	vae.load_state_dict(torch.load(vae_model_path, map_location=torch.device('cpu')))
+	vae.eval()
 	for _ in tqdm(range(n_samples), desc="Generating experience", unit="moments"):
 		action = env.action_space.sample()
 		if env_name == 'CarRacing-v3':
@@ -58,9 +60,9 @@ def make_transition_data(env_name='Pendulum-v1', n_samples=1000, size=(64, 64), 
 		img = Image.fromarray(img)
 		img = img.resize(size)
 		_, reward, terminated, truncated, _ = env.step(action)
-		history = append_information(img, action, reward, terminated or truncated, vae, history)
 		if terminated or truncated:
 			_, _ = env.reset()
+		history = append_information(img, action, reward, terminated or truncated, vae, history)
 	env.close()
 	return history
 
@@ -68,7 +70,7 @@ if __name__ == "__main__":
 	# Example of creating a dataset of transitions
 	vae_model_path = os.path.join(CURRENT_ENV['data_dir'], 'vae_model.pth')
 	history = make_transition_data(env_name=CURRENT_ENV['env_name'], 
-						n_samples=20000, 
+						n_samples=200000, 
 						size=(64, 64), 
 						vae_model_path=vae_model_path,
 						default_camera_config=CURRENT_ENV['default_camera_config']
