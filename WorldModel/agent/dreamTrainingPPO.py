@@ -19,9 +19,9 @@ from models.mdnrnn import MDNRNN
 from models.train_vae import train_vae
 from models.train_mdrnn import train_mdrnn
 
-EXPERIENCE_STEPS = 40000
-TUNING_EPOCHS_VAE = 5
-TUNING_EPOCHS_MDRNN = 10
+EXPERIENCE_STEPS = 10000
+TUNING_EPOCHS_VAE = 2
+TUNING_EPOCHS_MDRNN = 2
 TUNING_PPO_TIMESTEPS = 250000
 ITERATIONS = 3
 
@@ -66,12 +66,13 @@ if __name__ == "__main__":
 
 		# Finally, we can retrain the PPO model in the dream environment with the finetuned world models
 		start_time = time.time()
-		dream_env = DreamEnv(CURRENT_ENV, render_mode="rgb_array")
-		eval_callback = EvalCallback(experience_env, 
-							   eval_freq=15000,
-							   best_model_save_path=CURRENT_ENV['data_dir'],
-							   n_eval_episodes=5
-							   )
+		dream_env = Monitor(PseudoDreamEnv(CURRENT_ENV, render_mode="rgb_array"))
+		policy.set_env(dream_env)
+		eval_callback = EvalCallback(experience_env,
+					   eval_freq=50000,
+					   best_model_save_path=CURRENT_ENV['data_dir'],
+					   n_eval_episodes=3
+					   )
 		policy.learn(total_timesteps=TUNING_PPO_TIMESTEPS, callback=eval_callback, progress_bar=True)
 		policy.save(CURRENT_ENV['data_dir'] + PPO_MODEL)
 		ppo_time = time.time() - start_time
