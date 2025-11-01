@@ -1,6 +1,7 @@
 import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
+from stable_baselines3 import PPO
 import torch
 import torchvision.transforms as T
 from PIL import Image
@@ -12,6 +13,7 @@ sys.path.insert(1, os.path.join(sys.path[0], '../'))
 from models.vae import VAE
 from models.mdnrnn import MDNRNN, sample_mdn
 from global_var import VAE_MODEL, MDRNN_MODEL, CURRENT_ENV
+from environments.create_transitions import append_information
 
 class PseudoDreamEnv(gym.Env):
 	"""
@@ -90,13 +92,15 @@ class PseudoDreamEnv(gym.Env):
 		)
 	
 	def render(self):
-		if self.render_mode == "rgb_array":
+		if self.render_mode == "human":
 			img = self.env.render()
 			import matplotlib.pyplot as plt
 			plt.imshow(img)
 			plt.axis('off')
 			plt.show()
 			return img
+		elif self.render_mode == "rgb_array":
+			return self.env.render()
 		elif self.render_mode == "dream":
 			# decode the current latent state to an image
 			raise NotImplementedError("Dream rendering mode not yet implemented")
@@ -104,6 +108,27 @@ class PseudoDreamEnv(gym.Env):
 	def close(self):
 		self.env.close()
 		pass
+
+def make_experience(env:PseudoDreamEnv, policy:PPO, n_steps:int=1000) -> tuple[list[Image.Image], dict]:
+	'''
+	Generate experience using the pseudo-dream environment
+	Save images
+	env: pseudo-dream environment
+	n_steps: number of steps to take
+	'''
+	obs, _ = env.reset()
+	images = []
+	history = []
+	for _ in range(n_steps):
+		action, _ = policy.predict(obs)
+		obs, reward, terminated, truncated, info = env.step(action)
+		img = env.render()
+		img = Image.fromarray(img).resize((64, 64))
+		images.append(img)
+		history = append_information(img, action, reward, terminated or truncated, env.vae, history)
+		if terminated or truncated:
+			obs, _ = env.reset()
+	return images, history
 
 if __name__ == "__main__":
 	env = PseudoDreamEnv(CURRENT_ENV, render_mode="rgb_array")
