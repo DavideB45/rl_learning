@@ -48,7 +48,7 @@ def train_mdrnn(mdrnn_:MDNRNN=None, data_:dict=None, seq_len:int=10, epochs:int=
 		for batch in train_loader:
 			x = batch['mu'].to(device)
 			log_var = batch['log_var'].to(device)
-			#x = sample_x(x, log_var)
+			x = sample_x(x, log_var)
 			action = batch['action'].to(device)
 			reward_target = batch['reward'].to(device)
 			#done_target = batch['done'].to(device)

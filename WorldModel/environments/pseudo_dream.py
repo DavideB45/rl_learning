@@ -120,11 +120,12 @@ def make_experience(env:PseudoDreamEnv, policy:PPO, n_steps:int=1000) -> tuple[l
 	images = []
 	history = []
 	for _ in range(n_steps):
+		#raise NotImplementedError("This need heavy optimization to run properly")
 		action, _ = policy.predict(obs)
-		obs, reward, terminated, truncated, info = env.step(action)
 		img = env.render()
 		img = Image.fromarray(img).resize((64, 64))
 		images.append(img)
+		obs, reward, terminated, truncated, info = env.step(action)
 		history = append_information(img, action, reward, terminated or truncated, env.vae, history)
 		if terminated or truncated:
 			obs, _ = env.reset()

@@ -57,7 +57,7 @@ if __name__ == "__main__":
 		start_time = time.time()
 		mdrnn = MDNRNN()
 		mdrnn.load_state_dict(torch.load(CURRENT_ENV['data_dir'] + MDRNN_MODEL, map_location=torch.device('cpu')))
-		train_mdrnn(mdrnn_=mdrnn, data_=history, epochs=TUNING_EPOCHS_MDRNN)
+		train_mdrnn(mdrnn_=mdrnn, data_=history, epochs=TUNING_EPOCHS_MDRNN, seq_len=15)
 		mdrnn_time = time.time() - start_time
 		print(f"MDRNN training time: {mdrnn_time:.2f} seconds ({mdrnn_time/60:.2f} minutes)")
 		

@@ -54,10 +54,10 @@ def make_transition_data(env_name='Pendulum-v1', n_samples=1000, size=(64, 64), 
 		if env_name == 'CarRacing-v3':
 			action[1] = max(action[1], 0.5)  # accelerate
 			action[2] = min(action[2], 0.3)  # low brake
-		_, reward, terminated, truncated, _ = env.step(action)
 		img = env.render()
 		img = Image.fromarray(img)
 		img = img.resize(size)
+		_, reward, terminated, truncated, _ = env.step(action)
 		history = append_information(img, action, reward, terminated or truncated, vae, history)
 		if terminated or truncated:
 			_, _ = env.reset()
