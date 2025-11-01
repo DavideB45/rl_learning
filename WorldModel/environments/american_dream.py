@@ -13,13 +13,23 @@ from models.vae import VAE
 from models.mdnrnn import MDNRNN, sample_mdn
 from global_var import VAE_MODEL, MDRNN_MODEL, CURRENT_ENV
 
-class PseudoDreamEnv(gym.Env):
+# The only thing that changes between PseudoDreamEnv and DreamEnv is that
+# PseudoDreamEnv uses the real environment to get the reward and done signal
+# while DreamEnv uses only the world model to simulate everything
+# so only the step and render functions changes
+# (this could be refactored to avoid code duplication, but for clarity we keep them separate)
+# TODO: a nice idea can be a boolean flag in the init function to switch between the two modes
+
+class DreamEnv(gym.Env):
 	"""
+	Completely simulated environment using the VAE and MDRNN models
+	The starting state is obtained from the real environment
+	Then the environment is simulated using only the world model
 	"""
 
 
-	def __init__(self, env_dict, render_mode="none"):
-		super(PseudoDreamEnv, self).__init__()
+	def __init__(self, env_dict, temperature=1.0, render_mode="none"):
+		super(DreamEnv, self).__init__()
 		# Load the VAE and MDRNN models
 		self.vae = VAE()
 		self.vae.load_state_dict(torch.load(env_dict['data_dir'] + VAE_MODEL, map_location=torch.device('cpu')))
@@ -27,6 +37,9 @@ class PseudoDreamEnv(gym.Env):
 		self.mdrnn = MDNRNN()
 		self.mdrnn.load_state_dict(torch.load(env_dict['data_dir'] + MDRNN_MODEL, map_location=torch.device('cpu')))
 		self.mdrnn.eval()
+		self.temperature = temperature
+		self.hidden_state = None
+		self.current_mu = None
 		# Initialize the environment
 		self.render_mode = render_mode
 		self.env_dict = env_dict
@@ -41,7 +54,7 @@ class PseudoDreamEnv(gym.Env):
 		self.observation_space = spaces.Box(
 			low=-np.inf, high=np.inf, shape=(self.mdrnn.z_size + self.mdrnn.rnn_size,), dtype=np.float32
 		)
-		self.hidden_state = None
+		self.step_count = 0
 
 	def reset(self, seed=None, options=None):
 		'''
@@ -60,43 +73,41 @@ class PseudoDreamEnv(gym.Env):
 			self.hidden_state = (torch.zeros(1, 1, self.mdrnn.rnn_size),
 			                     torch.zeros(1, 1, self.mdrnn.rnn_size))
 			representation = torch.cat([mu.squeeze(0), self.hidden_state[0].squeeze(0).squeeze(0)], dim=-1).numpy()
-
+		self.step_count = 0
+		self.current_mu = mu.squeeze(0)
 		return representation, {}  # empty info dict
 
 	def step(self, action,) -> tuple:
 		'''
-		Step the environment using the MDRNN to get the hidden state
-		And VAE to encode the image
-		Apart from that, uses the real environment to get the reward and done signal
+		Step in the environment using only MDRNN
 		action: action to take
 		returns: observation (np.array), reward (float), terminated (bool), truncated (bool), info (dict)
 		'''
-		obs, reward, terminated, truncated, info = self.env.step(action)
-		img = self.env.render()
-		img = Image.fromarray(img).resize((64, 64))
-		img = T.ToTensor()(img).unsqueeze(0)
 		with torch.no_grad():
-			mu, _ = self.vae.encode(img)
 			action_tensor = torch.tensor(action, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
-			mu = mu.unsqueeze(0)
-			_, _, _, self.hidden_state, _, _ = self.mdrnn(mu, action_tensor, self.hidden_state)
-			representation = torch.cat([mu.squeeze(0).squeeze(0), self.hidden_state[0].squeeze(0).squeeze(0)], dim=-1).numpy()
+			mu, log_std, pi, self.hidden_state, reward, _ = self.mdrnn(self.current_mu.unsqueeze(0).unsqueeze(0), action_tensor, self.hidden_state)
+			self.current_mu = sample_mdn(mu[0, 0, :, :], log_std[0, 0, :, :], pi[0, 0, :], self.temperature)
+			self.step_count += 1
+			mu = self.current_mu.clone()
+			representation = torch.cat([mu, self.hidden_state[0].squeeze(0).squeeze(0)], dim=-1).numpy()
+			terminated = self.step_count >= 1000
 		return (
 			representation, # based on world model
-			reward, # from real env (can be modified later)
-			terminated, # from real env
-			truncated, # from real env
-			info # from real env (probably empty)
+			reward, # from world model
+			terminated, # For now only based on step count
+			False, # Truncated
+			{} # empty dict
 		)
 	
 	def render(self):
 		if self.render_mode == "rgb_array":
-			img = self.env.render()
-			import matplotlib.pyplot as plt
-			plt.imshow(img)
-			plt.axis('off')
-			plt.show()
-			return img
+			with torch.no_grad():
+				img = self.vae.decode(self.current_mu.unsqueeze(0)).squeeze(0).permute(1, 2, 0).numpy()
+				import matplotlib.pyplot as plt
+				plt.imshow(img)
+				plt.axis('off')
+				plt.show()
+				return img
 		elif self.render_mode == "dream":
 			# decode the current latent state to an image
 			raise NotImplementedError("Dream rendering mode not yet implemented")
@@ -106,7 +117,7 @@ class PseudoDreamEnv(gym.Env):
 		pass
 
 if __name__ == "__main__":
-	env = PseudoDreamEnv(CURRENT_ENV, render_mode="rgb_array")
+	env = DreamEnv(CURRENT_ENV, temperature=2, render_mode="rgb_array")
 	observation, info = env.reset()
 	env.render()
 	done = False
