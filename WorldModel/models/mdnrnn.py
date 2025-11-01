@@ -37,7 +37,7 @@ class MDNRNN(nn.Module):
 		h: initial hidden state (optional)
 		Returns:
 			mu: means of Gaussian mixtures (batch_size, seq_len, n_gaussians, z_size)
-			logvar: log variances of Gaussian mixtures (batch_size, seq_len, n_gaussians, z_size)
+			logstd: log std of Gaussian mixtures (batch_size, seq_len, n_gaussians, z_size)
 			pi: mixture weights (batch_size, seq_len, n_gaussians)
 			h: final hidden state
 			reward: predicted rewards (batch_size, seq_len, 1)
