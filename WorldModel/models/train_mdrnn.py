@@ -9,7 +9,7 @@ from models.mdnrnn import MDNRNN
 from dataset_func import make_sequence_dataloaders
 
 
-NUM_EPOCHS = 30
+NUM_EPOCHS = 20
 
 def sample_x(mu, log_var):
 	std = torch.exp(0.5 * log_var)
@@ -34,14 +34,14 @@ def validate(mdrnn, val_loader, device):
 def train_mdrnn(mdrnn_:MDNRNN=None, data_:dict=None, seq_len:int=10, epochs:int=30) -> MDNRNN:
 	train_loader, val_loader = make_sequence_dataloaders(
 		CURRENT_ENV['transitions'],
-		batch_size=100,
+		batch_size=200,
 		seq_len=seq_len,
 		data_=data_
 	)
 	mdrnn = MDNRNN() if mdrnn_ is None else mdrnn_
 	print(f"Training {CURRENT_ENV['env_name']} MDRNN model")
 	optimizer = torch.optim.Adam(mdrnn.parameters(), lr=1e-3)
-	device = 'cuda' if torch.cuda.is_available() else 'cpu'
+	device = 'cuda' if torch.cuda.is_available() else 'mps'
 	mdrnn.to(device)
 	mdrnn.train()
 	for epoch in tqdm(range(epochs), desc="Training MDRNN"):
@@ -61,13 +61,15 @@ def train_mdrnn(mdrnn_:MDNRNN=None, data_:dict=None, seq_len:int=10, epochs:int=
 			loss.backward()
 			torch.nn.utils.clip_grad_norm_(mdrnn.parameters(), max_norm=1.0)
 			optimizer.step()
-		print(f"Epoch {epoch + 1}/{NUM_EPOCHS}, Loss: {loss.item()}, NLL: {nll.item()}, Reward Loss: {reward_loss.item()}")
-		val_nll = validate(mdrnn, val_loader, device)
-		print(f"Validation NLL: {val_nll}")
+		#print(f"Epoch {epoch + 1}/{NUM_EPOCHS}, Loss: {loss.item()}, NLL: {nll.item()}, Reward Loss: {reward_loss.item()}")
+		#val_nll = validate(mdrnn, val_loader, device)
+		#print(f"Validation NLL: {val_nll}")
+	val_nll = validate(mdrnn, val_loader, device)
+	print(f"Final Validation NLL: {val_nll}")
 	return mdrnn
 
 if __name__ == "__main__":
-	mdrnn = train_mdrnn()
+	mdrnn = train_mdrnn(seq_len=15, epochs=NUM_EPOCHS)
 	# save the model
 	mdrnn_save_path = os.path.join(CURRENT_ENV['data_dir'], 'mdrnn_model.pth')
 	torch.save(mdrnn.state_dict(), mdrnn_save_path)
