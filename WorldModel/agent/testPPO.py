@@ -1,6 +1,10 @@
 from stable_baselines3 import PPO
 from stable_baselines3.common.monitor import Monitor
 
+import os
+import sys
+sys.path.insert(1, os.path.join(sys.path[0], '../'))
+
 from global_var import CURRENT_ENV, PPO_MODEL
 from environments.pseudo_dream import PseudoDreamEnv
 
