@@ -3,6 +3,10 @@ from stable_baselines3.ppo.policies import MlpPolicy
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.callbacks import EvalCallback
 
+import os
+import sys
+sys.path.insert(1, os.path.join(sys.path[0], '../'))
+
 from global_var import CURRENT_ENV, PPO_MODEL
 from environments.pseudo_dream import PseudoDreamEnv
 from stable_baselines3.common.monitor import Monitor
