@@ -18,6 +18,12 @@ from models.mdnrnn import MDNRNN
 from models.train_vae import train_vae
 from models.train_mdrnn import train_mdrnn
 
+EXPERIENCE_STEPS = 40000
+TUNING_EPOCHS_VAE = 5
+TUNING_EPOCHS_MDRNN = 10
+TUNING_PPO_TIMESTEPS = 250000
+ITERATIONS = 3
+
 if __name__ == "__main__":
 	# We suppose we altrady have:
 	# - a trained PPO model saved in CURRENT_ENV['data_dir'] + PPO_MODEL + ".zip"
@@ -30,17 +36,28 @@ if __name__ == "__main__":
 	# Make some new experience in the pseudo-dream environment
 	experience_env = PseudoDreamEnv(CURRENT_ENV, render_mode="rgb_array")
 	policy = PPO.load(CURRENT_ENV['data_dir'] + PPO_MODEL + ".zip", env=experience_env)
-	images, history = make_experience(experience_env, policy, n_steps=1000)
+	images, history = make_experience(experience_env, policy, n_steps=EXPERIENCE_STEPS)
 
 	# Now use the experience to finetune the VAE and MDNRNN models
 	vae = VAE()
 	vae.load_state_dict(torch.load(CURRENT_ENV['data_dir'] + VAE_MODEL, map_location=torch.device('cpu')))
-	train_vae(vae_=vae, images=images, epochs=5)
-
+	train_vae(vae_=vae, images=images, epochs=TUNING_EPOCHS_VAE)
 	mdrnn = MDNRNN()
 	mdrnn.load_state_dict(torch.load(CURRENT_ENV['data_dir'] + MDRNN_MODEL, map_location=torch.device('cpu')))
-	train_mdrnn(mdrnn_=mdrnn, data_=history, epochs=10)
+	train_mdrnn(mdrnn_=mdrnn, data_=history, epochs=TUNING_EPOCHS_MDRNN)
+	torch.save(vae.state_dict(), CURRENT_ENV['data_dir'] + VAE_MODEL)
+	torch.save(mdrnn.state_dict(), CURRENT_ENV['data_dir'] + MDRNN_MODEL)
 
-	# Save the finetuned models
-	torch.save(vae.state_dict(), VAE_MODEL)
-	torch.save(mdrnn.state_dict(), MDRNN_MODEL)
+	# Finally, we can retrain the PPO model in the dream environment with the finetuned world models
+	dream_env = DreamEnv(CURRENT_ENV, render_mode="rgb_array")
+	eval_callback = EvalCallback(experience_env, eval_freq=15000, n_eval_episodes=5)
+	policy.learn(total_timesteps=TUNING_PPO_TIMESTEPS, callback=eval_callback)
+	policy.save(CURRENT_ENV['data_dir'] + PPO_MODEL)
+	print("Finished dream tuning PPO training.")
+
+	#clean up
+	experience_env.close()
+	dream_env.close()
+	del experience_env, dream_env
+	del policy, vae, mdrnn
+	del images, history
