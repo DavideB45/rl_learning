@@ -31,17 +31,20 @@ def validate(mdrnn, val_loader, device):
 	avg_nll = total_nll / len(val_loader)
 	return avg_nll
 
-def train_mdrnn():
-	train_loader, val_loader = make_sequence_dataloaders(CURRENT_ENV['transitions'], batch_size=100, seq_len=10)
-	mdrnn = MDNRNN()
+def train_mdrnn(mdrnn_:MDNRNN=None, data_:dict=None, seq_len:int=10, epochs:int=30) -> MDNRNN:
+	train_loader, val_loader = make_sequence_dataloaders(
+		CURRENT_ENV['transitions'],
+		batch_size=100,
+		seq_len=seq_len,
+		data_=data_
+	)
+	mdrnn = MDNRNN() if mdrnn_ is None else mdrnn_
 	print(f"Training {CURRENT_ENV['env_name']} MDRNN model")
-	print(f"Model summary:\n{mdrnn}")
-	print(f"Number of parameters: {sum(p.numel() for p in mdrnn.parameters() if p.requires_grad)}")
 	optimizer = torch.optim.Adam(mdrnn.parameters(), lr=1e-3)
 	device = 'cuda' if torch.cuda.is_available() else 'cpu'
 	mdrnn.to(device)
 	mdrnn.train()
-	for epoch in tqdm(range(NUM_EPOCHS), desc="Training MDRNN"):
+	for epoch in tqdm(range(epochs), desc="Training MDRNN"):
 		for batch in train_loader:
 			x = batch['mu'].to(device)
 			log_var = batch['log_var'].to(device)

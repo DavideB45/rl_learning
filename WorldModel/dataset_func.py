@@ -9,22 +9,31 @@ class PNGDataset(Dataset):
 	'''
 	Custom Dataset for loading PNG images from a directory
 	'''
-	def __init__(self, path, transform=None, preload=True):
-		self.files = glob.glob(path + '/*.png')
+	def __init__(self, path, transform=None, preload=True, images=None):
+		self.files = glob.glob(path + '/*.png') if images is None else []
 		self.transform = transform
 		self.preload = preload
 		self.data = []
 
-		if self.preload:
-			# load and preprocess all images once
+		if images is not None:
 			_to_tensor = torchvision.transforms.ToTensor()
-			for fp in self.files:
-				img = Image.open(fp).convert('RGB')
+			self.preload = True
+			for img in images:
 				if self.transform:
 					img = self.transform(img)
 				else:
 					img = _to_tensor(img)
 				self.data.append(img)
+		else:
+			if self.preload:
+				_to_tensor = torchvision.transforms.ToTensor()
+				for fp in self.files:
+					img = Image.open(fp).convert('RGB')
+					if self.transform:
+						img = self.transform(img)
+					else:
+						img = _to_tensor(img)
+					self.data.append(img)
 
 	def __len__(self):
 		return len(self.data) if self.preload else len(self.files)
@@ -41,19 +50,17 @@ class PNGDataset(Dataset):
 		return img
 	
 
-def make_dataloaders(data_dir, test_split=0.2, batch_size=64):
+def make_dataloaders(data_dir, test_split=0.2, batch_size=64, images=None):
 	'''
 	Create PyTorch dataloaders for training and testing datasets
 	data_dir: directory containing the dataset images
 	test_split: fraction of data to use for testing
 	batch_size: batch size for dataloaders
+	images: optional list of PIL Images to use instead of loading from disk
 	returns: train_loader, test_loader
 	'''
 	print(f"Creating dataloaders from images in {data_dir}")
-	dataset = PNGDataset(path=data_dir, transform=torchvision.transforms.Compose([
-		#torchvision.transforms.Resize((64, 64)),
-		torchvision.transforms.ToTensor(),
-	]))
+	dataset = PNGDataset(path=data_dir, images=images)
 	test_size = int(len(dataset) * test_split)
 	train_size = len(dataset) - test_size
 	generator = torch.Generator().manual_seed(42)
@@ -67,7 +74,7 @@ class SequenceDataset(Dataset):
 	'''
 	Custom Dataset for loading sequences from .json
 	'''
-	def __init__(self, path, seq_len=10, transform=None):
+	def __init__(self, path, seq_len=10, transform=None, data_=None):
 		self.file = path
 		self.seq_len = seq_len
 		self.transform = transform
@@ -77,7 +84,7 @@ class SequenceDataset(Dataset):
 		self.action = []
 		self.reward = []
 		self.done = []
-		data = json.load(open(self.file, 'r'))
+		data = json.load(open(self.file, 'r')) if data_ is None else data_
 		print(f"Loading sequence dataset from {path} with {len(data)} episodes")
 		for experience in data:
 			for i in range(len(experience['mu']) - seq_len + 1):
@@ -107,7 +114,7 @@ class SequenceDataset(Dataset):
 			'done': self.done[idx]
 		}
 	
-def make_sequence_dataloaders(data_file, seq_len=10, test_split=0.2, batch_size=64):
+def make_sequence_dataloaders(data_file, seq_len=10, test_split=0.2, batch_size=64, data_=None):
 	'''
 	Create PyTorch dataloaders for sequence datasets
 	data_file: path to the .json file containing the dataset
@@ -117,7 +124,7 @@ def make_sequence_dataloaders(data_file, seq_len=10, test_split=0.2, batch_size=
 	returns: train_loader, test_loader
 	'''
 	print(f"Creating sequence dataloaders from {data_file}")
-	dataset = SequenceDataset(path=data_file, seq_len=seq_len)
+	dataset = SequenceDataset(path=data_file, seq_len=seq_len, data_=data_)
 	test_size = int(len(dataset) * test_split)
 	train_size = len(dataset) - test_size
 	generator = torch.Generator().manual_seed(42)
