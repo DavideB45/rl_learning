@@ -14,19 +14,22 @@ if __name__ == "__main__":
 	model = PPO.load(CURRENT_ENV['data_dir'] + PPO_MODEL + ".zip")
 	
 	# Create environment with rendering
-	env = Monitor(PseudoDreamEnv(CURRENT_ENV, render_mode="rgb_array"))
+	env = Monitor(PseudoDreamEnv(CURRENT_ENV, render_mode="human"))
 	
 	# Run rollout
 	obs, _ = env.reset()
 	done = False
 	total_reward = 0
 	
+	time = 0
 	while not done:
 		action, _ = model.predict(obs, deterministic=True)
 		obs, reward, terminated, truncated, info = env.step(action)
+		print(f"Observation {time}: {obs.sum():.2f}, Reward: {reward:.2f}")
 		env.render()
 		total_reward += reward
 		done = terminated or truncated
-	
+		time += 1
+
 	print(f"Episode reward: {total_reward:.2f}")
 	env.close()

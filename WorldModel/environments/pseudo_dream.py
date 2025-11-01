@@ -14,6 +14,8 @@ from models.vae import VAE
 from models.mdnrnn import MDNRNN, sample_mdn
 from global_var import VAE_MODEL, MDRNN_MODEL, CURRENT_ENV
 from environments.create_transitions import append_information
+from tqdm import tqdm
+import cv2
 
 class PseudoDreamEnv(gym.Env):
 	"""
@@ -22,12 +24,14 @@ class PseudoDreamEnv(gym.Env):
 
 	def __init__(self, env_dict, render_mode="none"):
 		super(PseudoDreamEnv, self).__init__()
+		self.device = 'cuda' if torch.cuda.is_available() else 'mps'
 		# Load the VAE and MDRNN models
 		self.vae = VAE()
-		self.vae.load_state_dict(torch.load(env_dict['data_dir'] + VAE_MODEL, map_location=torch.device('cpu')))
+		self.vae.load_state_dict(torch.load(env_dict['data_dir'] + VAE_MODEL, map_location=self.device))
 		self.vae.eval()
+
 		self.mdrnn = MDNRNN()
-		self.mdrnn.load_state_dict(torch.load(env_dict['data_dir'] + MDRNN_MODEL, map_location=torch.device('cpu')))
+		self.mdrnn.load_state_dict(torch.load(env_dict['data_dir'] + MDRNN_MODEL, map_location=self.device))
 		self.mdrnn.eval()
 		# Initialize the environment
 		self.render_mode = render_mode
@@ -94,10 +98,8 @@ class PseudoDreamEnv(gym.Env):
 	def render(self):
 		if self.render_mode == "human":
 			img = self.env.render()
-			import matplotlib.pyplot as plt
-			plt.imshow(img)
-			plt.axis('off')
-			plt.show()
+			cv2.imshow('PseudoDreamEnv', img)
+			cv2.waitKey(1)
 			return img
 		elif self.render_mode == "rgb_array":
 			return self.env.render()
@@ -119,7 +121,7 @@ def make_experience(env:PseudoDreamEnv, policy:PPO, n_steps:int=1000) -> tuple[l
 	obs, _ = env.reset()
 	images = []
 	history = []
-	for _ in range(n_steps):
+	for _ in tqdm(range(n_steps)):
 		#raise NotImplementedError("This need heavy optimization to run properly")
 		action, _ = policy.predict(obs)
 		img = env.render()
