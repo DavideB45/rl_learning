@@ -11,30 +11,34 @@ from dataset_func import make_sequence_dataloaders
 
 NUM_EPOCHS = 20
 
-def sample_x(mu, log_var):
+def sample_x(mu, log_var, noise_scale=1.0):
 	std = torch.exp(0.5 * log_var)
 	eps = torch.randn_like(std)
-	return mu + eps * std
+	return mu + eps * std * noise_scale
 
 def validate(mdrnn, val_loader, device):
 	mdrnn.eval()
 	total_nll = 0.0
+	total_reward_loss = 0.0
 	with torch.no_grad():
 		for batch in val_loader:
 			x = batch['mu'].to(device)
 			log_var = batch['log_var'].to(device)
+			reward_target = batch['reward'].to(device)
 			x = sample_x(x, log_var)
 			action = batch['action'].to(device)
 			mu, logvar, pi, h, reward, done_logits = mdrnn(x, action)
 			nll = mdrnn.neg_log_likelihood(x, mu, logvar, pi)
 			total_nll += nll.item()
+			total_reward_loss += mdrnn.reward_loss(reward, reward_target).item()
 	avg_nll = total_nll / len(val_loader)
-	return avg_nll
+	avg_reward_loss = total_reward_loss / len(val_loader)
+	return avg_nll, avg_reward_loss
 
-def train_mdrnn(mdrnn_:MDNRNN=None, data_:dict=None, seq_len:int=10, epochs:int=30) -> MDNRNN:
+def train_mdrnn(mdrnn_:MDNRNN=None, data_:dict=None, seq_len:int=10, epochs:int=30, noise_scale:float=1.0) -> MDNRNN:
 	train_loader, val_loader = make_sequence_dataloaders(
 		CURRENT_ENV['transitions'],
-		batch_size=200,
+		batch_size=32,
 		seq_len=seq_len,
 		data_=data_
 	)
@@ -44,11 +48,12 @@ def train_mdrnn(mdrnn_:MDNRNN=None, data_:dict=None, seq_len:int=10, epochs:int=
 	device = 'cuda' if torch.cuda.is_available() else 'mps'
 	mdrnn.to(device)
 	mdrnn.train()
+	val_nll, val_reward_loss = validate(mdrnn, val_loader, device)
 	for epoch in tqdm(range(epochs), desc="Training MDRNN"):
-		for batch in train_loader:
+		for batch in tqdm(train_loader, desc=f"Epoch {epoch + 1}/{epochs}, Validation NLL: {val_nll:.4f}, Validation Reward Loss: {val_reward_loss:.4f}", leave=False):
 			x = batch['mu'].to(device)
 			log_var = batch['log_var'].to(device)
-			x = sample_x(x, log_var)
+			x = sample_x(x, log_var, noise_scale=noise_scale)
 			action = batch['action'].to(device)
 			reward_target = batch['reward'].to(device)
 			#done_target = batch['done'].to(device)
@@ -61,11 +66,10 @@ def train_mdrnn(mdrnn_:MDNRNN=None, data_:dict=None, seq_len:int=10, epochs:int=
 			loss.backward()
 			torch.nn.utils.clip_grad_norm_(mdrnn.parameters(), max_norm=1.0)
 			optimizer.step()
-		#print(f"Epoch {epoch + 1}/{NUM_EPOCHS}, Loss: {loss.item()}, NLL: {nll.item()}, Reward Loss: {reward_loss.item()}")
-		#val_nll = validate(mdrnn, val_loader, device)
-		#print(f"Validation NLL: {val_nll}")
-	val_nll = validate(mdrnn, val_loader, device)
-	print(f"Final Validation NLL: {val_nll}")
+			del x, log_var, action, reward_target, mu, logvar, pi, h, reward, done_logits
+
+		with torch.no_grad():
+			val_nll, val_reward_loss = validate(mdrnn, val_loader, device)
 	return mdrnn
 
 if __name__ == "__main__":
