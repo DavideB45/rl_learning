@@ -94,12 +94,12 @@ class SequenceDataset(Dataset):
 				self.reward.append(experience['reward'][i:i+seq_len])
 				self.done.append(experience['last_state'][i:i+seq_len])
 		print(f"Converting to tensors")
-		for i in range(len(self.mu)):
-			self.mu[i] = torch.tensor(self.mu[i], dtype=torch.float32)
-			self.log_var[i] = torch.tensor(self.log_var[i], dtype=torch.float32)
-			self.action[i] = torch.tensor(self.action[i], dtype=torch.float32)
-			self.reward[i] = torch.tensor(self.reward[i], dtype=torch.float32)
-			self.done[i] = torch.tensor(self.done[i], dtype=torch.float32)
+		#for i in range(len(self.mu)):
+		#	self.mu[i] = torch.tensor(self.mu[i], dtype=torch.float32)
+		#	self.log_var[i] = torch.tensor(self.log_var[i], dtype=torch.float32)
+		#	self.action[i] = torch.tensor(self.action[i], dtype=torch.float32)
+		#	self.reward[i] = torch.tensor(self.reward[i], dtype=torch.float32)
+		#	self.done[i] = torch.tensor(self.done[i], dtype=torch.float32)
 
 
 	def __len__(self):
@@ -107,11 +107,11 @@ class SequenceDataset(Dataset):
 
 	def __getitem__(self, idx):
 		return {
-			'mu': self.mu[idx],
-			'log_var': self.log_var[idx],
-			'action': self.action[idx],
-			'reward': self.reward[idx],
-			'done': self.done[idx]
+			'mu': torch.tensor(self.mu[idx], dtype=torch.float32),
+			'log_var': torch.tensor(self.log_var[idx], dtype=torch.float32),
+			'action': torch.tensor(self.action[idx], dtype=torch.float32),
+			'reward': torch.tensor(self.reward[idx], dtype=torch.float32),
+			'done': torch.tensor(self.done[idx], dtype=torch.float32)
 		}
 	
 def make_sequence_dataloaders(data_file, seq_len=10, test_split=0.2, batch_size=64, data_=None):
@@ -129,6 +129,6 @@ def make_sequence_dataloaders(data_file, seq_len=10, test_split=0.2, batch_size=
 	train_size = len(dataset) - test_size
 	generator = torch.Generator().manual_seed(42)
 	train_dataset, test_dataset = random_split(dataset, [train_size, test_size], generator=generator)
-	train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
-	test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=4)
+	train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=2)
+	test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=2)
 	return train_loader, test_loader
