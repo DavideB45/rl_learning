@@ -13,7 +13,7 @@ import imageio
 
 if __name__ == "__main__":
 	# Load the trained model
-	model = PPO.load(CURRENT_ENV['data_dir'] + PPO_MODEL + ".zip")
+	model = PPO.load(CURRENT_ENV['data_dir'] + "best_model" + ".zip")
 	
 	# Create environment with rendering
 	env = Monitor(PseudoDreamEnv(CURRENT_ENV, render_mode="human"))
@@ -28,8 +28,8 @@ if __name__ == "__main__":
 	while not done:
 		action, _ = model.predict(obs, deterministic=True)
 		obs, reward, terminated, truncated, info = env.step(action)
-		if reward >= -0.09:
-			print(f"Observation {time}: {obs.sum():.2f}, Reward: {reward:.2f}")
+		#if reward >= -0.09:
+			#print(f"Observation {time}: {obs.sum():.2f}, Reward: {reward:.2f}")
 		env.render()
 		total_reward += reward
 		done = terminated or truncated
