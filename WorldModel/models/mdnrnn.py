@@ -5,7 +5,7 @@ import torch
 LOGSQRT2PI = 0.5 * math.log(2.0 * math.pi)
 
 class MDNRNN(nn.Module):
-	def __init__(self, z_size=32, a_size=3, n_gaussians=7, rnn_size=512, done_pos_weight=1.0):
+	def __init__(self, z_size=32, a_size=3, n_gaussians=7, rnn_size=512, done_pos_weight=1.0, reward_weight=1.0):
 		'''
 		MDN-RNN Model
 		z_size: dimension of latent space input
@@ -20,6 +20,7 @@ class MDNRNN(nn.Module):
 		self.n_gaussians = n_gaussians
 		self.rnn_size = rnn_size
 		self.done_pos_weight = done_pos_weight
+		self.reward_weight = reward_weight
 
 		self.rnn = nn.LSTM(input_size=z_size + a_size, hidden_size=rnn_size, num_layers=1, batch_first=True)
 		self.fc_mu = nn.Linear(rnn_size, n_gaussians * z_size)
@@ -122,7 +123,7 @@ class MDNRNN(nn.Module):
 		reward_target = reward_target.unsqueeze(-1)  # Match dimensions
 		loss = loss_fn(reward_pred, reward_target)
 		loss = loss.mean()
-		return loss
+		return loss*self.reward_weight
 
 def sample_mdn(z_mu, z_logstd, pi, temperature=1.0):
     """

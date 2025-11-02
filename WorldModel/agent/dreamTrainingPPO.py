@@ -1,3 +1,4 @@
+import json
 from stable_baselines3 import PPO
 from stable_baselines3.ppo.policies import MlpPolicy
 from stable_baselines3.common.evaluation import evaluate_policy
@@ -17,10 +18,14 @@ from global_var import CURRENT_ENV, PPO_MODEL, VAE_MODEL, MDRNN_MODEL
 from models.mdnrnn import MDNRNN
 from models.train_mdrnn import train_mdrnn
 
-EXPERIENCE_STEPS = 40000
-TUNING_EPOCHS_MDRNN = 5
-TUNING_PPO_TIMESTEPS = 250000
+EXPERIENCE_STEPS = 320_000 # gather data requires ~2h
+TUNING_EPOCHS_MDRNN = 20 # ~?h
+TUNING_PPO_TIMESTEPS = 2_000_000 # ~30 minutes
 ITERATIONS = 1
+
+CREATE_EXPERIENCE = False
+TRAIN_MDRNN = True
+TRAIN_PPO = True
 
 if __name__ == "__main__":
 	# We suppose we altrady have:
@@ -38,45 +43,47 @@ if __name__ == "__main__":
 		# Make some new experience in the pseudo-dream environment
 		start_time = time.time()
 		experience_env = PseudoDreamEnv(CURRENT_ENV, render_mode="rgb_array")
-		policy = PPO.load(CURRENT_ENV['data_dir'] + PPO_MODEL + ".zip", env=experience_env)
-		images, history = make_experience(experience_env, policy, n_steps=EXPERIENCE_STEPS)
-		# show random image from experience
-		# from matplotlib import pyplot as plt
-		# fig, axes = plt.subplots(2, 5, figsize=(15, 6))
-		# axes = axes.flatten()
-		# indices = [len(images) * i // 10 for i in range(10)]
-		# for i, idx in enumerate(indices):
-		# 	axes[i].imshow(images[idx])
-		# 	axes[i].axis('off')
-		# plt.tight_layout()
-		# plt.show()
+		if CREATE_EXPERIENCE:
+			policy = PPO.load(CURRENT_ENV['data_dir'] + PPO_MODEL + ".zip", env=experience_env)
+			_, history = make_experience(experience_env, policy, n_steps=EXPERIENCE_STEPS)
+			with open(CURRENT_ENV['data_dir'] + "experience.json", "w") as f:
+				json.dump(history, f, indent=4)
+		else:
+			history = None
+			with open(CURRENT_ENV['data_dir'] + "experience.json", "r") as f:
+				history = json.load(f)
 		experience_time = time.time() - start_time
 		print(f"Experience generation time: {experience_time:.2f} seconds ({experience_time/60:.2f} minutes)")
-
-		# Now use the experience to finetune the VAE and MDNRNN models
-		# we do not retrain the vae to simplify the training of the mdrnn
-		start_time = time.time()
-		mdrnn = MDNRNN()
-		mdrnn.load_state_dict(torch.load(CURRENT_ENV['data_dir'] + MDRNN_MODEL, map_location=torch.device('cpu')))
-		train_mdrnn(mdrnn_=mdrnn, data_=history, epochs=TUNING_EPOCHS_MDRNN, seq_len=15)
-		mdrnn_time = time.time() - start_time
-		print(f"MDRNN training time: {mdrnn_time:.2f} seconds ({mdrnn_time/60:.2f} minutes)")
-		torch.save(mdrnn.state_dict(), CURRENT_ENV['data_dir'] + MDRNN_MODEL)
+		
+		if TRAIN_MDRNN:
+			start_time = time.time()
+			mdrnn = MDNRNN(n_gaussians=32, reward_weight=5.0, rnn_size=256)
+			train_mdrnn(mdrnn_=mdrnn, data_=history, epochs=TUNING_EPOCHS_MDRNN, seq_len=100, noise_scale=0.5)
+			mdrnn_time = time.time() - start_time
+			print(f"MDRNN training time: {mdrnn_time:.2f} seconds ({mdrnn_time/60:.2f} minutes)")
+			torch.save(mdrnn.state_dict(), CURRENT_ENV['data_dir'] + MDRNN_MODEL)
+			mdrnn.eval()
+		else:
+			mdrnn = MDNRNN()
+			mdrnn.load_state_dict(torch.load(CURRENT_ENV['data_dir'] + MDRNN_MODEL, map_location=torch.device('cpu')))
+			mdrnn.eval()
 
 		# Finally, we can retrain the PPO model in the dream environment with the finetuned world models
 		start_time = time.time()
-		dream_env = Monitor(DreamEnv(CURRENT_ENV, render_mode="rgb_array"))
-		policy.set_env(dream_env)
-		eval_callback = EvalCallback(experience_env,
-					   eval_freq=100000, # High number because it is 25x slower than the dream env
-					   best_model_save_path=CURRENT_ENV['data_dir'],
-					   n_eval_episodes=3
-					   )
-		policy.learn(total_timesteps=TUNING_PPO_TIMESTEPS, callback=eval_callback, progress_bar=True)
-		#policy.save(CURRENT_ENV['data_dir'] + PPO_MODEL)
-		ppo_time = time.time() - start_time
-		print(f"PPO training time: {ppo_time:.2f} seconds ({ppo_time/60:.2f} minutes)")
-		print("Finished dream tuning PPO training.")
+		if TRAIN_PPO:
+			dream_env = Monitor(DreamEnv(CURRENT_ENV, render_mode="rgb_array"))
+			policy = PPO(MlpPolicy, dream_env, learning_rate=3e-4, n_steps=2048, clip_range=0.2,
+							gae_lambda=0.95, batch_size=128, use_sde=True)
+			eval_callback = EvalCallback(experience_env,
+						eval_freq=100000, # High number because it is 25x slower than the dream env
+						best_model_save_path=CURRENT_ENV['data_dir'],
+						n_eval_episodes=3
+						)
+			policy.learn(total_timesteps=TUNING_PPO_TIMESTEPS, callback=eval_callback, progress_bar=True)
+			policy.save(CURRENT_ENV['data_dir'] + PPO_MODEL)
+			ppo_time = time.time() - start_time
+			print(f"PPO training time: {ppo_time:.2f} seconds ({ppo_time/60:.2f} minutes)")
+			print("Finished dream tuning PPO training.")
 
 		iteration_time = time.time() - iteration_start
 		print(f"\n--- Iteration {iteration + 1} Total Time: {iteration_time:.2f} seconds ({iteration_time/60:.2f} minutes) ---")
@@ -86,4 +93,4 @@ if __name__ == "__main__":
 		dream_env.close()
 		del experience_env, dream_env
 		del policy, mdrnn
-		del images, history
+		del history
