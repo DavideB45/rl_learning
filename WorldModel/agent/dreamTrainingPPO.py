@@ -24,7 +24,7 @@ TUNING_PPO_TIMESTEPS = 2_000_000 # ~30 minutes
 ITERATIONS = 1
 
 CREATE_EXPERIENCE = False
-TRAIN_MDRNN = True
+TRAIN_MDRNN = False
 TRAIN_PPO = True
 
 if __name__ == "__main__":
@@ -48,7 +48,7 @@ if __name__ == "__main__":
 			_, history = make_experience(experience_env, policy, n_steps=EXPERIENCE_STEPS)
 			with open(CURRENT_ENV['data_dir'] + "experience.json", "w") as f:
 				json.dump(history, f, indent=4)
-		else:
+		elif TRAIN_MDRNN:
 			history = None
 			with open(CURRENT_ENV['data_dir'] + "experience.json", "r") as f:
 				history = json.load(f)
@@ -64,7 +64,7 @@ if __name__ == "__main__":
 			torch.save(mdrnn.state_dict(), CURRENT_ENV['data_dir'] + MDRNN_MODEL)
 			mdrnn.eval()
 		else:
-			mdrnn = MDNRNN()
+			mdrnn = MDNRNN(n_gaussians=32, reward_weight=5.0, rnn_size=256)
 			mdrnn.load_state_dict(torch.load(CURRENT_ENV['data_dir'] + MDRNN_MODEL, map_location=torch.device('cpu')))
 			mdrnn.eval()
 
@@ -73,7 +73,7 @@ if __name__ == "__main__":
 		if TRAIN_PPO:
 			dream_env = Monitor(DreamEnv(CURRENT_ENV, render_mode="rgb_array"))
 			policy = PPO(MlpPolicy, dream_env, learning_rate=3e-4, n_steps=2048, clip_range=0.2,
-							gae_lambda=0.95, batch_size=128, use_sde=True)
+							gae_lambda=0.95, batch_size=128)
 			eval_callback = EvalCallback(experience_env,
 						eval_freq=100000, # High number because it is 25x slower than the dream env
 						best_model_save_path=CURRENT_ENV['data_dir'],

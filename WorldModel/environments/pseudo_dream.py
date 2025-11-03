@@ -31,7 +31,7 @@ class PseudoDreamEnv(gym.Env):
 		self.vae.eval()
 
 		self.mdrnn = MDNRNN()
-		self.mdrnn.load_state_dict(torch.load(env_dict['data_dir'] + MDRNN_MODEL, map_location=self.device))
+		self.mdrnn.load_state_dict(torch.load(env_dict['data_dir'] + "final_models/real_env/" + MDRNN_MODEL, map_location=self.device))
 		self.mdrnn.eval()
 		# Initialize the environment
 		self.render_mode = render_mode
@@ -134,7 +134,7 @@ def make_experience(env:PseudoDreamEnv, policy:PPO, n_steps:int=1000) -> tuple[l
 	return images, history
 
 if __name__ == "__main__":
-	env = PseudoDreamEnv(CURRENT_ENV, render_mode="rgb_array")
+	env = PseudoDreamEnv(CURRENT_ENV, render_mode="human")
 	observation, info = env.reset()
 	env.render()
 	done = False
