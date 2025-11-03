@@ -94,7 +94,7 @@ class DreamEnv(gym.Env):
 			terminated = self.step_count >= 1000
 		return (
 			representation, # based on world model
-			reward, # from world model
+			reward.item(), # from world model
 			terminated, # For now only based on step count
 			False, # Truncated
 			{} # empty dict
@@ -113,6 +113,7 @@ class DreamEnv(gym.Env):
 				image_resized = image.resize((256, 256))
 				cv2.imshow('DreamEnv', np.array(image_resized))
 				cv2.waitKey(1)
+				return img
 		elif self.render_mode == "dream":
 			# decode the current latent state to an image
 			raise NotImplementedError("Dream rendering mode not yet implemented")
@@ -122,7 +123,7 @@ class DreamEnv(gym.Env):
 		pass
 
 if __name__ == "__main__":
-	env = DreamEnv(CURRENT_ENV, temperature=1.8, render_mode="human")
+	env = DreamEnv(CURRENT_ENV, temperature=1, render_mode="human")
 	observation, info = env.reset()
 	env.render()
 	done = False
