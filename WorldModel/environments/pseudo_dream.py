@@ -11,8 +11,8 @@ import sys
 sys.path.insert(1, os.path.join(sys.path[0], '../'))
 
 from models.vae import VAE
-from models.mdnrnn import MDNRNN, sample_mdn
-from global_var import VAE_MODEL, MDRNN_MODEL, CURRENT_ENV
+from models.mdnrnn import MDNRNN
+from global_var import CURRENT_ENV
 from environments.create_transitions import append_information
 from tqdm import tqdm
 import cv2
@@ -26,12 +26,19 @@ class PseudoDreamEnv(gym.Env):
 		super(PseudoDreamEnv, self).__init__()
 		self.device = 'cuda' if torch.cuda.is_available() else 'mps'
 		# Load the VAE and MDRNN models
-		self.vae = VAE()
-		self.vae.load_state_dict(torch.load(env_dict['data_dir'] + VAE_MODEL, map_location=self.device))
+		self.vae = VAE(
+			latent_dim=env_dict['z_size'],
+		)
+		self.vae.load_state_dict(torch.load(env_dict['vae_model'], map_location=self.device))
 		self.vae.eval()
 
-		self.mdrnn = MDNRNN()
-		self.mdrnn.load_state_dict(torch.load(env_dict['data_dir'] + "final_models/real_env/" + MDRNN_MODEL, map_location=self.device))
+		self.mdrnn = MDNRNN(
+			z_size=env_dict['z_size'],
+			a_size=env_dict['a_size'],
+			rnn_size=env_dict['rnn_size'],
+			n_gaussians=env_dict['num_gaussians'],
+		)
+		self.mdrnn.load_state_dict(torch.load(env_dict['mdrnn_model'], map_location=self.device))
 		self.mdrnn.eval()
 		# Initialize the environment
 		self.render_mode = render_mode

@@ -52,13 +52,18 @@ def show_dream_sample(mdrnn, vae, device, seq_len=100, temp=1.0):
 
 if __name__ == "__main__":
 	device = 'cuda' if torch.cuda.is_available() else 'cpu'
-	mdrnn = MDNRNN().to(device)
-	vae = VAE().to(device)
+	mdrnn = MDNRNN(
+		z_size=CURRENT_ENV['z_size'],
+		a_size=CURRENT_ENV['a_size'],
+		rnn_size=CURRENT_ENV['rnn_size'],
+		n_gaussians=CURRENT_ENV['num_gaussians'],
+	).to(device)
+	vae = VAE(
+		latent_dim=CURRENT_ENV['z_size'],
+	).to(device)
 	
 	# Load pretrained models
-	mdrnn_path = os.path.join(CURRENT_ENV['data_dir'], 'mdrnn_model.pth')
-	vae_path = os.path.join(CURRENT_ENV['data_dir'], 'vae_model.pth')
-	mdrnn.load_state_dict(torch.load(mdrnn_path, map_location=device))
-	vae.load_state_dict(torch.load(vae_path, map_location=device))
-	
+	mdrnn.load_state_dict(torch.load(CURRENT_ENV['mdrnn_model'], map_location=device))
+	vae.load_state_dict(torch.load(CURRENT_ENV['vae_model'], map_location=device))
+
 	show_dream_sample(mdrnn, vae, device, seq_len=50, temp=0.8)
