@@ -57,6 +57,7 @@ def make_first_frame(env_dict=CURRENT_ENV, size=(64, 64)) -> tuple[Image.Image, 
 
 if __name__ == "__main__":
 	# Example of creating a dataset of images
+	print(f"Creating image dataset for {CURRENT_ENV['env_name']} environment")
 	images = make_img_data(env_name=CURRENT_ENV['env_name'], 
 						n_samples=100000, 
 						size=(64, 64), 
