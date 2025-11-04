@@ -1,4 +1,4 @@
-FINAL_VERSION = False
+FINAL_VERSION = True
 DREAM_VERSION = False
 
 IMG_DIR = "img/"
@@ -11,10 +11,10 @@ if FINAL_VERSION:
 	VAE_MODEL = "final_models/vae_model.pth"
 	if DREAM_VERSION:
 		MDRNN_MODEL = "final_models/dream_env/mdrnn_model.pth"
-		PPO_MODEL = "final_models/dream_env/ppo_model.pth"
+		PPO_MODEL = "final_models/dream_env/ppo_model"
 	else:
 		MDRNN_MODEL = "final_models/real_env/mdrnn_model.pth"
-		PPO_MODEL = "final_models/real_env/ppo_model.pth"
+		PPO_MODEL = "final_models/real_env/best_model"
 
 PUSHER_DATA_DIR = "data/pusher/"
 PUSHER = {
@@ -53,7 +53,7 @@ CAR_RACING = {
 	"mdrnn_model": CAR_RACING_DATA_DIR + MDRNN_MODEL,
 	"ppo_model": CAR_RACING_DATA_DIR + PPO_MODEL,
 	"z_size": 32,
-	"rnn_size": 256,
+	"rnn_size": 512,
 	"num_gaussians": 7,
 	"a_size": 3,
 	"default_camera_config": None,
