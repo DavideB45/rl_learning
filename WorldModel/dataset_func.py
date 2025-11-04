@@ -11,7 +11,7 @@ class PNGDataset(Dataset):
 	'''
 	def __init__(self, path, transform=None, preload=True, images=None):
 		self.files = glob.glob(path + '/*.png') if images is None else []
-		self.transform = transform
+		self.transform = transform if transform is not None else torchvision.transforms.ToTensor()
 		self.preload = preload
 		self.data = []
 
@@ -43,10 +43,7 @@ class PNGDataset(Dataset):
 			return self.data[idx]
 		# fallback: load on demand
 		img = Image.open(self.files[idx]).convert('RGB')
-		if self.transform:
-			img = self.transform(img)
-		else:
-			img = torchvision.transforms.ToTensor()(img)
+		img = self.transform(img)
 		return img
 	
 
@@ -60,7 +57,7 @@ def make_dataloaders(data_dir, test_split=0.2, batch_size=64, images=None):
 	returns: train_loader, test_loader
 	'''
 	print(f"Creating dataloaders from images in {data_dir}")
-	dataset = PNGDataset(path=data_dir, images=images)
+	dataset = PNGDataset(path=data_dir, images=images, preload=(images is not None))
 	test_size = int(len(dataset) * test_split)
 	train_size = len(dataset) - test_size
 	generator = torch.Generator().manual_seed(42)

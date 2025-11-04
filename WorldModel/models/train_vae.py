@@ -31,5 +31,4 @@ if __name__ == "__main__":
 	)
 	vae = train_vae(vae=vae, path=CURRENT_ENV['img_dir'], images=None)
 	# save the model
-	vae_save_path = os.path.join(CURRENT_ENV['data_dir'], 'vae_model.pth')
-	torch.save(vae.state_dict(), vae_save_path)
+	torch.save(vae.state_dict(), CURRENT_ENV['vae_model'])

@@ -23,11 +23,14 @@ if __name__ == "__main__":
 
 	# get a batch of test images
 	dataiter = iter(test_loader)
-	images = next(dataiter)
+	images = next(dataiter).to(device)
 	
 	# reconstruct images using VAE
 	with torch.no_grad():
 		recon_images, _, _ = vae.forward(images)
+	
+	recon_images = recon_images.cpu()
+	images = images.cpu()
 
 	# pick a random image and show the sum of all pixel values
 	random_idx = torch.randint(0, images.size(0), (1,)).item()

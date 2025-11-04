@@ -116,4 +116,5 @@ class VAE(nn.Module):
 				loss.backward()
 				optimizer.step()
 				total_loss += loss.item()
+				del batch, x_recon, mu, logvar, loss
 			print(f"Epoch {epoch+1}/{epochs}, Loss: {total_loss/len(dataloader)}")

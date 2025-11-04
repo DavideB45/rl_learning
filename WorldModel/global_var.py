@@ -1,4 +1,4 @@
-FINAL_VERSION = True
+FINAL_VERSION = False
 DREAM_VERSION = False
 
 IMG_DIR = "img/"
@@ -60,4 +60,4 @@ CAR_RACING = {
 	"special_call": no_render_indicators
 }
 
-CURRENT_ENV = CAR_RACING
+CURRENT_ENV = PUSHER
