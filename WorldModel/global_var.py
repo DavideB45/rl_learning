@@ -1,18 +1,20 @@
+FINAL_VERSION = False
+DREAM_VERSION = False
+
 IMG_DIR = "img/"
 TRANSITIONS = "transition_data.json"
 VAE_MODEL = "vae_model.pth"
 MDRNN_MODEL = "mdrnn_model.pth"
 PPO_MODEL = "ppo_model"
 
-PENDULUM_DATA_DIR = "data/pendulum/"
-PENDULUM = {
-	"env_name": "Pendulum-v1",
-	"data_dir": PENDULUM_DATA_DIR,
-	"img_dir": PENDULUM_DATA_DIR + IMG_DIR,
-	"transitions": PENDULUM_DATA_DIR + TRANSITIONS,
-	"default_camera_config": None,
-	"special_call": None
-}
+if FINAL_VERSION:
+	VAE_MODEL = "final_models/vae_model.pth"
+	if DREAM_VERSION:
+		MDRNN_MODEL = "final_models/dream_env/mdrnn_model.pth"
+		PPO_MODEL = "final_models/dream_env/ppo_model.pth"
+	else:
+		MDRNN_MODEL = "final_models/real_env/mdrnn_model.pth"
+		PPO_MODEL = "final_models/real_env/ppo_model.pth"
 
 PUSHER_DATA_DIR = "data/pusher/"
 PUSHER = {
@@ -20,6 +22,13 @@ PUSHER = {
 	"data_dir": PUSHER_DATA_DIR,
 	"img_dir": PUSHER_DATA_DIR + IMG_DIR,
 	"transitions": PUSHER_DATA_DIR + TRANSITIONS,
+	"vae_model": PUSHER_DATA_DIR + VAE_MODEL,
+	"mdrnn_model": PUSHER_DATA_DIR + MDRNN_MODEL,
+	"ppo_model": PUSHER_DATA_DIR + PPO_MODEL,
+	"z_size": 32,
+	"rnn_size": 256,
+	"num_gaussians": 5,
+	"a_size": 7,
 	"default_camera_config": {
 		"trackbodyid": -1,   # no specific body tracking
 		"distance": 1.8,     # distance from the agent
@@ -40,6 +49,13 @@ CAR_RACING = {
 	"data_dir": CAR_RACING_DATA_DIR,
 	"img_dir": CAR_RACING_DATA_DIR + IMG_DIR,
 	"transitions": CAR_RACING_DATA_DIR + TRANSITIONS,
+	"vae_model": CAR_RACING_DATA_DIR + VAE_MODEL,
+	"mdrnn_model": CAR_RACING_DATA_DIR + MDRNN_MODEL,
+	"ppo_model": CAR_RACING_DATA_DIR + PPO_MODEL,
+	"z_size": 32,
+	"rnn_size": 256,
+	"num_gaussians": 7,
+	"a_size": 3,
 	"default_camera_config": None,
 	"special_call": no_render_indicators
 }

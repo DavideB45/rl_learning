@@ -10,6 +10,8 @@ from dataset_func import make_sequence_dataloaders
 
 
 NUM_EPOCHS = 20
+SEQUENCE_LENGTH = 15
+REWARD_WEIGHT = 5.0
 
 def sample_x(mu, log_var, noise_scale=1.0):
 	std = torch.exp(0.5 * log_var)
@@ -31,18 +33,18 @@ def validate(mdrnn, val_loader, device):
 			nll = mdrnn.neg_log_likelihood(x, mu, logvar, pi)
 			total_nll += nll.item()
 			total_reward_loss += mdrnn.reward_loss(reward, reward_target).item()
+			del x, log_var, action, reward_target, mu, logvar, pi, h, reward, done_logits
 	avg_nll = total_nll / len(val_loader)
 	avg_reward_loss = total_reward_loss / len(val_loader)
 	return avg_nll, avg_reward_loss
 
-def train_mdrnn(mdrnn_:MDNRNN=None, data_:dict=None, seq_len:int=10, epochs:int=30, noise_scale:float=1.0) -> MDNRNN:
+def train_mdrnn(mdrnn:MDNRNN, data_:dict=None, seq_len:int=10, epochs:int=30, noise_scale:float=1.0) -> MDNRNN:
 	train_loader, val_loader = make_sequence_dataloaders(
 		CURRENT_ENV['transitions'],
 		batch_size=32,
 		seq_len=seq_len,
 		data_=data_
 	)
-	mdrnn = MDNRNN() if mdrnn_ is None else mdrnn_
 	print(f"Training {CURRENT_ENV['env_name']} MDRNN model")
 	optimizer = torch.optim.Adam(mdrnn.parameters(), lr=1e-3)
 	device = 'cuda' if torch.cuda.is_available() else 'mps'
@@ -73,7 +75,14 @@ def train_mdrnn(mdrnn_:MDNRNN=None, data_:dict=None, seq_len:int=10, epochs:int=
 	return mdrnn
 
 if __name__ == "__main__":
-	mdrnn = train_mdrnn(seq_len=15, epochs=NUM_EPOCHS)
+	mdrnn = MDNRNN(
+		z_size=CURRENT_ENV['z_size'],
+		a_size=CURRENT_ENV['a_size'],
+		rnn_size=CURRENT_ENV['rnn_size'],
+		n_gaussians=CURRENT_ENV['num_gaussians'],
+		reward_weight=REWARD_WEIGHT
+	)
+	mdrnn = train_mdrnn(mdrnn=mdrnn, seq_len=SEQUENCE_LENGTH, epochs=NUM_EPOCHS)
 	# save the model
 	mdrnn_save_path = os.path.join(CURRENT_ENV['data_dir'], 'mdrnn_model.pth')
 	torch.save(mdrnn.state_dict(), mdrnn_save_path)

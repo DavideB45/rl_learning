@@ -11,10 +11,12 @@ import matplotlib.pyplot as plt
 # file to test VAE training
 # shows a couple of reconstructed images after training
 if __name__ == "__main__":
-	vae = VAE()
+	device = 'cuda' if torch.cuda.is_available() else 'mps'
+	vae = VAE(
+		latent_dim=CURRENT_ENV['z_size'],
+	).to(device)
 	print(f"Testing {CURRENT_ENV['env_name']} VAE model")
-	vae_load_path = os.path.join(CURRENT_ENV['data_dir'], 'vae_model.pth')
-	vae.load_state_dict(torch.load(vae_load_path, map_location='cpu'))
+	vae.load_state_dict(torch.load(CURRENT_ENV['vae_model'], map_location='mps'))
 	vae.eval()
 
 	_, test_loader = make_dataloaders(CURRENT_ENV['img_dir'])

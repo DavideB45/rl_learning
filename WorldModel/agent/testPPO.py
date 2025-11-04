@@ -14,7 +14,7 @@ import imageio
 
 if __name__ == "__main__":
 	# Load the trained model
-	model = PPO.load(CURRENT_ENV['data_dir'] + "final_models/real_env/" + "best_model" + ".zip")
+	model = PPO.load(CURRENT_ENV['ppo_model'])
 	
 	# Create environment with rendering
 	env = Monitor(PseudoDreamEnv(CURRENT_ENV, render_mode="human"))

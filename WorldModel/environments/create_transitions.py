@@ -48,7 +48,9 @@ def make_transition_data(env_name='Pendulum-v1', n_samples=1000, size=(64, 64), 
 		env = gym.make(env_name, render_mode='rgb_array')
 	_, _ = env.reset()
 	history = []
-	vae = VAE()
+	vae = VAE(
+		latent_dim=CURRENT_ENV['z_size'],
+	)
 	vae.load_state_dict(torch.load(vae_model_path, map_location=torch.device('cpu')))
 	vae.eval()
 	for _ in tqdm(range(n_samples), desc="Generating experience", unit="moments"):
@@ -68,7 +70,7 @@ def make_transition_data(env_name='Pendulum-v1', n_samples=1000, size=(64, 64), 
 
 if __name__ == "__main__":
 	# Example of creating a dataset of transitions
-	vae_model_path = os.path.join(CURRENT_ENV['data_dir'], 'vae_model.pth')
+	vae_model_path = CURRENT_ENV['vae_model']
 	history = make_transition_data(env_name=CURRENT_ENV['env_name'], 
 						n_samples=200000, 
 						size=(64, 64), 
