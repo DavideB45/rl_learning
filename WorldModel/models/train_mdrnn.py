@@ -10,7 +10,7 @@ from dataset_func import make_sequence_dataloaders
 
 
 NUM_EPOCHS = 20
-SEQUENCE_LENGTH = 15
+SEQUENCE_LENGTH = 50
 REWARD_WEIGHT = 5.0
 
 def sample_x(mu, log_var, noise_scale=1.0):
@@ -50,9 +50,14 @@ def train_mdrnn(mdrnn:MDNRNN, data_:dict=None, seq_len:int=10, epochs:int=30, no
 	device = 'cuda' if torch.cuda.is_available() else 'mps'
 	mdrnn.to(device)
 	mdrnn.train()
+	history = {'train_nll': [], 'val_nll': [], 'train_reward_loss': [], 'val_reward_loss': []}
 	val_nll, val_reward_loss = validate(mdrnn, val_loader, device)
-	for epoch in tqdm(range(epochs), desc="Training MDRNN"):
-		for batch in tqdm(train_loader, desc=f"Epoch {epoch + 1}/{epochs}, Validation NLL: {val_nll:.4f}, Validation Reward Loss: {val_reward_loss:.4f}", leave=False):
+	best_val_loss = 1000
+	for epoch in range(epochs):
+		epoch_nll = 0.0
+		epoch_reward_loss = 0.0
+		num_batches = 0
+		for batch in tqdm(train_loader, desc=f'Epoch {epoch+1}/{epochs}'):
 			x = batch['mu'].to(device)
 			log_var = batch['log_var'].to(device)
 			x = sample_x(x, log_var, noise_scale=noise_scale)
@@ -68,10 +73,23 @@ def train_mdrnn(mdrnn:MDNRNN, data_:dict=None, seq_len:int=10, epochs:int=30, no
 			loss.backward()
 			torch.nn.utils.clip_grad_norm_(mdrnn.parameters(), max_norm=1.0)
 			optimizer.step()
+			epoch_nll += nll.item()
+			epoch_reward_loss += reward_loss.item()
+			num_batches += 1
 			del x, log_var, action, reward_target, mu, logvar, pi, h, reward, done_logits
-
+		history['train_nll'].append(epoch_nll / num_batches)
+		history['train_reward_loss'].append(epoch_reward_loss / num_batches)
+		print(f"Train NLL: {epoch_nll/num_batches}, Train Reward Loss: {epoch_reward_loss/num_batches}")
+		mdrnn.eval()
 		with torch.no_grad():
 			val_nll, val_reward_loss = validate(mdrnn, val_loader, device)
+			history['val_nll'].append(val_nll)
+			history['val_reward_loss'].append(val_reward_loss)
+			print(f"Val NLL: {val_nll}, Val Reward Loss: {val_reward_loss}")
+			if val_nll + val_reward_loss < best_val_loss:
+				torch.save(mdrnn.state_dict(), 'best_mdrnn_model.pth')
+				best_val_loss = val_nll + val_reward_loss
+		mdrnn.train()
 	return mdrnn
 
 if __name__ == "__main__":
