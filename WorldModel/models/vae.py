@@ -1,5 +1,6 @@
 from torch import nn
 import torch
+from tqdm import tqdm
 
 # The default values are copied from the World Model paper
 # but can be changed for more complex environments or to lower computation
@@ -95,10 +96,11 @@ class VAE(nn.Module):
 
 		return recon_loss + kld_loss
 
-	def train_(self, dataloader, optimizer, epochs=10, kld_tolerance=1.0, device='cpu'):
+	def train_(self, trloader, optimizer, vlloader=None, epochs=10, kld_tolerance=1.0, device='cpu'):
 		'''
 		Train the VAE model
-		dataloader: PyTorch dataloader for training data
+		trloader: PyTorch dataloader for training data
+		vlloader: PyTorch dataloader for validation data
 		optimizer: optimizer for training
 		epochs: number of training epochs
 		kld_tolerance: tolerance for the KL divergence term
@@ -106,9 +108,10 @@ class VAE(nn.Module):
 		'''
 		self.to(device)
 		self.train()
+		best_val_loss = float('inf')
 		for epoch in range(epochs):
 			total_loss = 0
-			for batch in dataloader:
+			for batch in tqdm(trloader, desc=f"Epoch {epoch+1}/{epochs}"):
 				batch = batch.to(device)
 				optimizer.zero_grad()
 				x_recon, mu, logvar = self.forward(batch)
@@ -117,4 +120,19 @@ class VAE(nn.Module):
 				optimizer.step()
 				total_loss += loss.item()
 				del batch, x_recon, mu, logvar, loss
-			print(f"Epoch {epoch+1}/{epochs}, Loss: {total_loss/len(dataloader)}")
+			print(f"Epoch {epoch+1}/{epochs}, Loss: {total_loss/len(trloader)}")
+			# validate
+			self.eval()
+			val_loss = 0
+			with torch.no_grad():
+				for batch in vlloader:
+					batch = batch.to(device)
+					x_recon, mu, logvar = self.forward(batch)
+					loss = self.loss(batch, x_recon, mu, logvar, kld_tolerance)
+					val_loss += loss.item()
+					del batch, x_recon, mu, logvar, loss
+			print(f"Validation Loss: {val_loss/len(vlloader)}")
+			if val_loss < best_val_loss:
+				best_val_loss = val_loss
+				torch.save(self.state_dict(), 'best_vae_model.pth')
+			self.train()

@@ -119,7 +119,7 @@ class DreamEnv(gym.Env):
 				image = Image.fromarray(img)
 				image_resized = image.resize((256, 256))
 				cv2.imshow('DreamEnv', np.array(image_resized))
-				cv2.waitKey(1)
+				cv2.waitKey(100)
 				return img
 		elif self.render_mode == "dream":
 			# decode the current latent state to an image
