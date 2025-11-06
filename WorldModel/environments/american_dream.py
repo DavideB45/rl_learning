@@ -29,8 +29,11 @@ class DreamEnv(gym.Env):
 	"""
 
 
-	def __init__(self, env_dict, temperature=1.0, render_mode="none"):
+	def __init__(self, env_dict, temperature=1.0, render_mode="none", max_len=None):
 		super(DreamEnv, self).__init__()
+		if max_len is None:
+			raise ValueError("max_len is now a mandatory argument for DreamEnv to handle different environments")
+		self.max_len = max_len
 		# Load the VAE and MDRNN models
 		self.vae = VAE(
 			latent_dim=env_dict['z_size'],
@@ -98,7 +101,7 @@ class DreamEnv(gym.Env):
 			self.step_count += 1
 			mu = self.current_mu.clone()
 			representation = torch.cat([mu, self.hidden_state[0].squeeze(0).squeeze(0)], dim=-1).numpy()
-			terminated = self.step_count >= 1000
+			terminated = self.step_count >= self.max_len
 		return (
 			representation, # based on world model
 			reward.item(), # from world model
@@ -130,22 +133,30 @@ class DreamEnv(gym.Env):
 		pass
 
 if __name__ == "__main__":
-	env = DreamEnv(CURRENT_ENV, temperature=1, render_mode="human")
+	env = DreamEnv(CURRENT_ENV, temperature=0.1, render_mode="human")
+	if CURRENT_ENV['default_camera_config'] is not None:
+		real_env = gym.make(CURRENT_ENV['env_name'], render_mode='human', default_camera_config=CURRENT_ENV['default_camera_config'])
+	else:
+		real_env = gym.make(CURRENT_ENV['env_name'], render_mode='human')
 	observation, info = env.reset()
 	env.render()
+	real_env.reset()
 	done = False
 	total_reward = 0
+	step_count = 0
 	while not done:
 		action = env.action_space.sample()  # random action
-		action[1] = max(action[1], 0.5)  # accelerate
-		action[2] = min(action[2], 0.3)  # low brake
+		#action[1] = max(action[1], 0.5)  # accelerate
+		#action[2] = min(action[2], 0.3)  # low brake
 		observation, reward, terminated, truncated, info = env.step(action)
-		print(observation.shape)
-		print(f"Reward: {reward}")
-		print(f"Info: {info}")
+		real_observation, real_reward, real_terminated, real_truncated, real_info = real_env.step(action)
+		print(f"Step {step_count} Reward: {reward}, Real Reward: {real_reward}")
 		env.render()
+		real_env.render()
 		done = terminated or truncated
 		total_reward += reward
+		step_count += 1
 		if done:
 			print(f"Game over! Total Reward: {total_reward}")
 	env.close()
+	real_env.close()
