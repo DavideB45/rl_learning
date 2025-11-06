@@ -22,9 +22,10 @@ EXPERIENCE_STEPS = 320_000 # gather data requires ~2h
 TUNING_EPOCHS_MDRNN = 20 # ~?h
 TUNING_PPO_TIMESTEPS = 2_000_000 # ~30 minutes
 ITERATIONS = 1
+MAX_LEN_EPISODE = 100
 
-CREATE_EXPERIENCE = True
-TRAIN_MDRNN = True
+CREATE_EXPERIENCE = False
+TRAIN_MDRNN = False
 TRAIN_PPO = True
 
 if __name__ == "__main__":
@@ -68,7 +69,7 @@ if __name__ == "__main__":
 				n_gaussians=CURRENT_ENV['num_gaussians'],
 				reward_weight=10.0
 			)
-			train_mdrnn(mdrnn_=mdrnn, data_=history, epochs=TUNING_EPOCHS_MDRNN, seq_len=100, noise_scale=0.5)
+			train_mdrnn(mdrnn=mdrnn, data_=history, epochs=TUNING_EPOCHS_MDRNN, seq_len=100, noise_scale=0.8)
 			mdrnn_time = time.time() - start_time
 			print(f"MDRNN training time: {mdrnn_time:.2f} seconds ({mdrnn_time/60:.2f} minutes)")
 			torch.save(mdrnn.state_dict(), CURRENT_ENV['data_dir'] + MDRNN_MODEL)
@@ -86,7 +87,7 @@ if __name__ == "__main__":
 		# Finally, we can retrain the PPO model in the dream environment with the finetuned world models
 		start_time = time.time()
 		if TRAIN_PPO:
-			dream_env = Monitor(DreamEnv(CURRENT_ENV, render_mode="rgb_array"))
+			dream_env = Monitor(DreamEnv(CURRENT_ENV, render_mode="rgb_array", max_len=MAX_LEN_EPISODE))
 			policy = PPO(MlpPolicy, dream_env, learning_rate=3e-4, n_steps=2048, clip_range=0.2,
 							gae_lambda=0.95, batch_size=128)
 			eval_callback = EvalCallback(experience_env,
