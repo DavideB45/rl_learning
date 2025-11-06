@@ -10,8 +10,9 @@ from dataset_func import make_sequence_dataloaders
 
 
 NUM_EPOCHS = 20
-SEQUENCE_LENGTH = 50
-REWARD_WEIGHT = 5.0
+SEQUENCE_LENGTH = 100
+REWARD_WEIGHT = 10.0
+NOISE_SCALE = 0.8
 
 def sample_x(mu, log_var, noise_scale=1.0):
 	std = torch.exp(0.5 * log_var)
@@ -41,7 +42,7 @@ def validate(mdrnn, val_loader, device):
 def train_mdrnn(mdrnn:MDNRNN, data_:dict=None, seq_len:int=10, epochs:int=30, noise_scale:float=1.0) -> MDNRNN:
 	train_loader, val_loader = make_sequence_dataloaders(
 		CURRENT_ENV['transitions'],
-		batch_size=32,
+		batch_size=64,
 		seq_len=seq_len,
 		data_=data_
 	)
@@ -100,7 +101,7 @@ if __name__ == "__main__":
 		n_gaussians=CURRENT_ENV['num_gaussians'],
 		reward_weight=REWARD_WEIGHT
 	)
-	mdrnn = train_mdrnn(mdrnn=mdrnn, seq_len=SEQUENCE_LENGTH, epochs=NUM_EPOCHS)
+	mdrnn = train_mdrnn(mdrnn=mdrnn, seq_len=SEQUENCE_LENGTH, epochs=NUM_EPOCHS, noise_scale=NOISE_SCALE)
 	# save the model
 	mdrnn_save_path = os.path.join(CURRENT_ENV['data_dir'], 'mdrnn_model.pth')
 	torch.save(mdrnn.state_dict(), mdrnn_save_path)

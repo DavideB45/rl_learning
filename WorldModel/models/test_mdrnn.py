@@ -58,9 +58,11 @@ if __name__ == "__main__":
 		rnn_size=CURRENT_ENV['rnn_size'],
 		n_gaussians=CURRENT_ENV['num_gaussians'],
 	).to(device)
+	mdrnn.eval()
 	vae = VAE(
 		latent_dim=CURRENT_ENV['z_size'],
 	).to(device)
+	vae.eval()
 	
 	# Load pretrained models
 	mdrnn.load_state_dict(torch.load(CURRENT_ENV['mdrnn_model'], map_location=device))
