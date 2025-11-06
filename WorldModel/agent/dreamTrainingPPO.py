@@ -23,8 +23,8 @@ TUNING_EPOCHS_MDRNN = 20 # ~?h
 TUNING_PPO_TIMESTEPS = 2_000_000 # ~30 minutes
 ITERATIONS = 1
 
-CREATE_EXPERIENCE = False
-TRAIN_MDRNN = False
+CREATE_EXPERIENCE = True
+TRAIN_MDRNN = True
 TRAIN_PPO = True
 
 if __name__ == "__main__":
@@ -46,6 +46,10 @@ if __name__ == "__main__":
 		if CREATE_EXPERIENCE:
 			policy = PPO.load(CURRENT_ENV['ppo_model'], env=experience_env)
 			_, history = make_experience(experience_env, policy, n_steps=EXPERIENCE_STEPS)
+			with open(CURRENT_ENV['transitions'], 'r') as f:
+				prev_history = json.load(f)
+			for episode in prev_history:
+				history.append(episode)
 			with open(CURRENT_ENV['data_dir'] + "experience.json", "w") as f:
 				json.dump(history, f, indent=4)
 		elif TRAIN_MDRNN:
@@ -62,7 +66,7 @@ if __name__ == "__main__":
 				a_size=CURRENT_ENV['a_size'],
 				rnn_size=CURRENT_ENV['rnn_size'],
 				n_gaussians=CURRENT_ENV['num_gaussians'],
-				reward_weight=5.0
+				reward_weight=10.0
 			)
 			train_mdrnn(mdrnn_=mdrnn, data_=history, epochs=TUNING_EPOCHS_MDRNN, seq_len=100, noise_scale=0.5)
 			mdrnn_time = time.time() - start_time
