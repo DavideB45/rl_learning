@@ -22,12 +22,34 @@ class MDNRNN(nn.Module):
 		self.done_pos_weight = done_pos_weight
 		self.reward_weight = reward_weight
 
+		self.preprocess = nn.Sequential(
+			nn.Linear(z_size + a_size, z_size + a_size),
+			nn.ReLU(),
+		)
 		self.rnn = nn.LSTM(input_size=z_size + a_size, hidden_size=rnn_size, num_layers=1, batch_first=True)
-		self.fc_mu = nn.Linear(rnn_size, n_gaussians * z_size)
-		self.fc_logstd = nn.Linear(rnn_size, n_gaussians * z_size)
+		self.postprocess = nn.Sequential(
+			nn.Linear(rnn_size + z_size + a_size, rnn_size),
+			nn.ReLU(),
+		)
+		
+		self.fc_mu = nn.Sequential(
+			nn.Linear(rnn_size, rnn_size),
+			nn.ReLU(),
+			nn.Linear(rnn_size, n_gaussians * z_size),
+		)
+		self.fc_logstd = nn.Sequential(
+			nn.Linear(rnn_size, rnn_size),
+			nn.ReLU(),
+			nn.Linear(rnn_size, n_gaussians * z_size),
+		)
+
 		self.fc_pi = nn.Linear(rnn_size, n_gaussians)
 
-		self.reward_pred = nn.Linear(rnn_size, 1)
+		self.reward_pred = nn.Sequential(
+			nn.Linear(rnn_size, rnn_size),
+			nn.ReLU(),
+			nn.Linear(rnn_size, 1),
+		)
 		self.done_pred = nn.Linear(rnn_size, 1)
 
 	def forward(self, x, a, h=None):
@@ -45,24 +67,27 @@ class MDNRNN(nn.Module):
 			done_logits: predicted done_logits (batch_size, seq_len, 1)
 		'''
 		batch_size, seq_len, _ = x.size()
-		rnn_input = torch.cat([x, a], dim=-1)  # Concatenate along feature dimension
+		out = torch.cat([x, a], dim=-1)  # Concatenate along feature dimension (batch_size, seq_len, z_size + a_size)
 
 		if h is None:
 			h = (torch.zeros(1, batch_size, self.rnn_size).to(x.device),
 			     torch.zeros(1, batch_size, self.rnn_size).to(x.device))
 
-		rnn_out, h = self.rnn(rnn_input, h)  # rnn_out: (batch_size, seq_len, rnn_size)
+		out = self.preprocess(out)  # (batch_size, seq_len, z_size + a_size)
+		out, h = self.rnn(out, h)  # rnn_out: (batch_size, seq_len, rnn_size)
+		out = torch.cat([out, x, a], dim=-1)  # (batch_size, seq_len, rnn_size + z_size + a_size)
+		out = self.postprocess(out)  # (batch_size, seq_len, rnn_size)
 
-		mu = self.fc_mu(rnn_out)  # (batch_size, seq_len, n_gaussians * z_size)
-		logstd = self.fc_logstd(rnn_out)  # (batch_size, seq_len, n_gaussians * z_size)
-		pi = self.fc_pi(rnn_out)  # (batch_size, seq_len, n_gaussians)
+		mu = self.fc_mu(out)  # (batch_size, seq_len, n_gaussians, z_size)
+		logstd = self.fc_logstd(out)  # (batch_size, seq_len, n_gaussians * z_size)
+		pi = self.fc_pi(out)  # (batch_size, seq_len, n_gaussians)
 
 		mu = mu.view(batch_size, seq_len, self.n_gaussians, self.z_size)
 		logstd = logstd.view(batch_size, seq_len, self.n_gaussians, self.z_size)
 		pi = nn.functional.softmax(pi, dim=-1)  # Apply softmax to get mixture weights
 
-		reward = self.reward_pred(rnn_out)  # (batch_size, seq_len, 1)
-		done_logits = self.done_pred(rnn_out)  # (batch_size, seq_len, 1)
+		reward = self.reward_pred(out.view(-1, out.size(-1))).view(batch_size, seq_len, 1)  # (batch_size, seq_len, 1)
+		done_logits = self.done_pred(out)  # (batch_size, seq_len, 1)
 		return mu, logstd, pi, h, reward, done_logits
 
 	def neg_log_likelihood(self, x, mu, logstd, pi, mask=None):

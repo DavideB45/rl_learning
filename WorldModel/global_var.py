@@ -23,11 +23,12 @@ PUSHER = {
 	"img_dir": PUSHER_DATA_DIR + IMG_DIR,
 	"transitions": PUSHER_DATA_DIR + TRANSITIONS,
 	"vae_model": PUSHER_DATA_DIR + VAE_MODEL,
-	"mdrnn_model": PUSHER_DATA_DIR + MDRNN_MODEL,
+	#"mdrnn_model": PUSHER_DATA_DIR + MDRNN_MODEL,
+	"mdrnn_model": 'best_mdrnn_model.pth',
 	"ppo_model": PUSHER_DATA_DIR + PPO_MODEL,
 	"z_size": 32,
-	"rnn_size": 256,
-	"num_gaussians": 5,
+	"rnn_size": 512,
+	"num_gaussians": 2,
 	"a_size": 7,
 	"default_camera_config": {
 		"trackbodyid": -1,   # no specific body tracking
