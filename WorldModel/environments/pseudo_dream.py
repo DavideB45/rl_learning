@@ -24,7 +24,7 @@ class PseudoDreamEnv(gym.Env):
 
 	def __init__(self, env_dict, render_mode="none"):
 		super(PseudoDreamEnv, self).__init__()
-		self.device = 'cuda' if torch.cuda.is_available() else 'mps'
+		self.device = 'cuda' if torch.cuda.is_available() else ('mps' if torch.backends.mps.is_available() else 'cpu')
 		# Load the VAE and MDRNN models
 		self.vae = VAE(
 			latent_dim=env_dict['z_size'],
