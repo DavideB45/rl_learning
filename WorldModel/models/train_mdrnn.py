@@ -7,6 +7,7 @@ sys.path.insert(1, os.path.join(sys.path[0], '../'))
 from global_var import CURRENT_ENV
 from models.mdnrnn import MDNRNN
 from dataset_func import make_sequence_dataloaders
+from general_func import best_device
 
 
 NUM_EPOCHS = 20
@@ -48,7 +49,7 @@ def train_mdrnn(mdrnn:MDNRNN, data_:dict=None, seq_len:int=10, epochs:int=30, no
 	)
 	print(f"Training {CURRENT_ENV['env_name']} MDRNN model")
 	optimizer = torch.optim.Adam(mdrnn.parameters(), lr=1e-3)
-	device = 'cuda' if torch.cuda.is_available() else 'mps'
+	device = best_device()
 	mdrnn.to(device)
 	mdrnn.train()
 	history = {'train_nll': [], 'val_nll': [], 'train_reward_loss': [], 'val_reward_loss': []}

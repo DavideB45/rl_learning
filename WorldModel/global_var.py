@@ -1,4 +1,4 @@
-FINAL_VERSION = False
+FINAL_VERSION = True
 DREAM_VERSION = False
 
 IMG_DIR = "img/"
@@ -14,7 +14,7 @@ if FINAL_VERSION:
 		PPO_MODEL = "final_models/dream_env/ppo_model"
 	else:
 		MDRNN_MODEL = "final_models/real_env/mdrnn_model.pth"
-		PPO_MODEL = "final_models/real_env/best_model"
+		PPO_MODEL = "final_models/real_env/ppo_model"
 
 PUSHER_DATA_DIR = "data/pusher/"
 PUSHER = {
@@ -60,4 +60,4 @@ CAR_RACING = {
 	"special_call": no_render_indicators
 }
 
-CURRENT_ENV = PUSHER
+CURRENT_ENV = CAR_RACING

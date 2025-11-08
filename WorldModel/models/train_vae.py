@@ -4,6 +4,7 @@ import sys
 import torch
 sys.path.insert(1, os.path.join(sys.path[0], '../'))
 from global_var import CURRENT_ENV
+from general_func import best_device
 
 try:
 	from vae import VAE
@@ -20,7 +21,7 @@ def train_vae(vae:VAE, path:str=None, images=None, epochs:int=10) -> VAE:
 	vae.train_(trloader=train_loader, vlloader=val_loader,
 		optimizer=torch.optim.Adam(vae.parameters(), lr=1e-4),
 		epochs=epochs,
-		device='cuda' if torch.cuda.is_available() else 'mps',
+		device=best_device(),
 		kld_tolerance=0.5
 		)
 	return vae
