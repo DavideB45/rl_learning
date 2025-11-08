@@ -12,6 +12,7 @@ sys.path.insert(1, os.path.join(sys.path[0], '../'))
 
 from models.vae import VAE
 from models.mdnrnn import MDNRNN
+from general_func import best_device
 from global_var import CURRENT_ENV
 from environments.create_transitions import append_information
 from tqdm import tqdm
@@ -24,7 +25,7 @@ class PseudoDreamEnv(gym.Env):
 
 	def __init__(self, env_dict, render_mode="none"):
 		super(PseudoDreamEnv, self).__init__()
-		self.device = 'cuda' if torch.cuda.is_available() else 'mps'
+		self.device = best_device()
 		# Load the VAE and MDRNN models
 		self.vae = VAE(
 			latent_dim=env_dict['z_size'],

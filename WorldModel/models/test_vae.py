@@ -4,6 +4,7 @@ import sys
 import torch
 sys.path.insert(1, os.path.join(sys.path[0], '../'))
 from global_var import CURRENT_ENV
+from general_func import best_device
 from vae import VAE
 from dataset_func import make_dataloaders
 import matplotlib.pyplot as plt
@@ -11,12 +12,12 @@ import matplotlib.pyplot as plt
 # file to test VAE training
 # shows a couple of reconstructed images after training
 if __name__ == "__main__":
-	device = 'cuda' if torch.cuda.is_available() else 'mps'
+	device = best_device()
 	vae = VAE(
 		latent_dim=CURRENT_ENV['z_size'],
 	).to(device)
 	print(f"Testing {CURRENT_ENV['env_name']} VAE model")
-	vae.load_state_dict(torch.load(CURRENT_ENV['vae_model'], map_location='mps'))
+	vae.load_state_dict(torch.load(CURRENT_ENV['vae_model'], map_location=device))
 	vae.eval()
 
 	_, test_loader = make_dataloaders(CURRENT_ENV['img_dir'])

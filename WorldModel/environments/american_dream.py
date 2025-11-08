@@ -133,7 +133,7 @@ class DreamEnv(gym.Env):
 		pass
 
 if __name__ == "__main__":
-	env = DreamEnv(CURRENT_ENV, temperature=0.1, render_mode="human")
+	env = DreamEnv(CURRENT_ENV, temperature=0.1, render_mode="human", max_len=1000)
 	if CURRENT_ENV['default_camera_config'] is not None:
 		real_env = gym.make(CURRENT_ENV['env_name'], render_mode='human', default_camera_config=CURRENT_ENV['default_camera_config'])
 	else:
