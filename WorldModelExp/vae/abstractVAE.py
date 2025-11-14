@@ -1,9 +1,11 @@
 from abc import ABC, abstractmethod
 from typing import Tuple, Dict, Optional
 import torch
-
 import torch.nn as nn
 
+import torch.optim as optim
+from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 class AbstractVAE(nn.Module, ABC):
 	"""
@@ -69,7 +71,7 @@ class AbstractVAE(nn.Module, ABC):
 		return kl.mean()
 
 	@abstractmethod
-	def reconstruction_loss(self, recon_x: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+	def reconstruction_loss(self, x: torch.Tensor, recon_x: torch.Tensor) -> torch.Tensor:
 		"""
 		Reconstruction loss between recon_x and x (e.g. BCE or MSE).
 		Should return a scalar (mean over batch).
@@ -82,13 +84,76 @@ class AbstractVAE(nn.Module, ABC):
 		x: torch.Tensor,
 		mu: torch.Tensor,
 		logvar: torch.Tensor,
-		beta: float = 1.0,
+		regularization_strength: float = 1.0,
 	) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
 		"""
-		Combined loss: reconstruction + beta * KL.
+		Combined loss: reconstruction + regularization_strength * KL.
 		Returns: total_loss, diagnostics dict
 		"""
-		rec = self.reconstruction_loss(recon_x, x)
+		rec = self.reconstruction_loss(x, recon_x)
 		kl = self.kl_divergence(mu, logvar)
-		total = rec + beta * kl
+		total = rec + regularization_strength * kl
 		return total, {"reconstruction": rec.detach(), "kl": kl.detach()}
+	
+def trainVAE(vae: AbstractVAE,
+			 train_loader: DataLoader,
+			 val_loader: DataLoader,
+			 num_epochs: int,
+			 learning_rate: float,
+			 regularization_strength: float = 1.0) -> Tuple[AbstractVAE, dict]:
+	"""
+	Trains the VAE model.
+	Args:
+		vae (AbstractVAE): The VAE model to train.
+		train_loader (DataLoader): DataLoader for training data.
+		val_loader (DataLoader): DataLoader for validation data.
+		num_epochs (int): Number of training epochs.
+		learning_rate (float): Learning rate for the optimizer.
+		regularization_strength (float): Weight for the KL divergence term.
+	Returns:
+		AbstractVAE: The trained VAE model.
+		dict: Training and validation loss history.
+	"""
+	device = vae.device
+	optimizer = optim.Adam(vae.parameters(), lr=learning_rate)
+	loss_history = {
+		'train_loss': {
+			'kl': [],
+			'reconstruction': [],
+			'total': []
+		}, 'val_loss': {
+			'kl': [],
+			'reconstruction': [],
+			'total': []
+		}
+	}
+	val_loss = 0.0
+	for _ in tqdm(range(num_epochs), desc='Training VAE'):
+		vae.train()
+		train_loss = 0.0
+		for data in train_loader:
+			data = data.to(device)
+			optimizer.zero_grad()
+			recon_batch, mu, logvar = vae(data)
+			loss, v = vae.loss_function(recon_batch, data, mu, logvar, regularization_strength)
+			loss.backward()
+			train_loss += loss.item()
+			optimizer.step()
+		avg_train_loss = train_loss / len(train_loader)
+		loss_history['train_loss']['total'].append(avg_train_loss)
+		loss_history['train_loss']['kl'].append(v['kl'])
+		loss_history['train_loss']['reconstruction'].append(v['reconstruction'])
+
+		vae.eval()
+		val_loss = 0.0
+		with torch.no_grad():
+			for data in val_loader:
+				data = data.to(device)
+				recon_batch, mu, logvar = vae(data)
+				loss, v = vae.loss_function(recon_batch, data, mu, logvar, regularization_strength)
+				val_loss += loss.item()
+		avg_val_loss = val_loss / len(val_loader)
+		loss_history['val_loss']['total'].append(avg_val_loss)
+		loss_history['val_loss']['kl'].append(v['kl'])
+		loss_history['val_loss']['reconstruction'].append(v['reconstruction'])
+	return vae, loss_history

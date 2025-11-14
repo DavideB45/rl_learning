@@ -4,6 +4,7 @@
 WorldModel/data/*/img/*
 WorldModel/data/*/transition_data.json
 WorldModel/data/*/experience.json
+WorldModelExp/data/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
