@@ -4,7 +4,7 @@ import os
 import sys
 sys.path.insert(1, os.path.join(sys.path[0], '../'))
 
-basic = False
+basic = True
 if basic:
 	from vae.myVae import CVAE as VAE
 else:

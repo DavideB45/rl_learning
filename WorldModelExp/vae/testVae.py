@@ -6,7 +6,7 @@ sys.path.insert(1, os.path.join(sys.path[0], '../'))
 
 from helpers.general import best_device
 
-basic = False
+basic = True
 if basic:
 	from vae.myVae import CVAE as VAE
 else:
@@ -21,7 +21,7 @@ if __name__ == "__main__":
 	device = best_device()
 	if basic:
 		vae = VAE(
-			latent_dim=CURRENT_ENV['z_size'],
+			latent_dim=32,
 		).to(device)
 	else:
 		vae = VAE(
