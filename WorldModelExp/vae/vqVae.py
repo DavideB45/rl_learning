@@ -50,6 +50,8 @@ class VQVAE(AbstractVAE):
 			ResidualBlockUp(128, 64, upsample=True),   # 8x8 -> 16x16
 			ResidualBlockUp(64, 32, upsample=True),    # 16x16 -> 32x32
 			ResidualBlockUp(32, 3, upsample=True),     # 32x32 -> 64x64
+			nn.Conv2d(3, 3, 3, 1, 1),                  # final conv layer
+			nn.Sigmoid()
 		)
 
 	def encode(self, x: torch.Tensor) -> torch.Tensor:
@@ -92,22 +94,58 @@ class VQVAE(AbstractVAE):
 			x (torch.Tensor): Input tensor of shape (batch, 3, 64, 64)
 		Returns:
 			recon (torch.Tensor): Reconstructed tensor of shape (batch, 3, 64, 64)
-			commitment_loss (torch.Tensor): Commitment loss.
+			loss (torch.Tensor): Commitment loss + closeness loss.
 			codebook_indices (torch.Tensor): Indices of the codebook vectors used.
 		"""
 		z = self.encode(x)
-		commitment_loss, quantized, codebook_indices = self.embed(z)
+		loss, quantized, codebook_indices = self.embed(z)
 		recon = self.decode(quantized)
-		return recon, commitment_loss, codebook_indices
+		return recon, loss, codebook_indices
 
-	def eval_epoch(self, loader, reg):
-		return super().eval_epoch(loader, reg)
-	
-	def train_epoch(self, loader, optim, reg):
-		return super().train_epoch(loader, optim, reg)
-	
 	def reconstruction_loss(self, x, recon_x):
-		return super().reconstruction_loss(x, recon_x)
+		return F.mse_loss(recon_x, x, reduction='sum') / x.size(0)
+	
+	def train_epoch(self, loader:DataLoader, optim:torch.optim.Optimizer, reg:float) -> dict:
+		'''
+		Trains the VQVAE for one epoch.
+		Args:
+			loader (DataLoader): DataLoader for training data.
+			optim (torch.optim.Optimizer): Optimizer for training.
+			reg (float): Regularization strength (not used here).
+		Returns:
+			avg_loss (dict): Average loss over the epoch.
+		'''
+		avg_loss = 0.0
+		for data in loader:
+			data = data.to(self.device)
+			optim.zero_grad()
+			recon_batch, emb_loss, _ = self(data)
+			rec_loss = self.reconstruction_loss(data, recon_batch)
+			loss = rec_loss + emb_loss
+			loss.backward()
+			optim.step()
+			avg_loss += loss.item()
+		return {"avg_loss": avg_loss / len(loader)}
+	
+	def eval_epoch(self, loader, reg):
+		'''
+		Evaluates the VQVAE for one epoch.
+		Args:
+			loader (DataLoader): DataLoader for validation data.
+			reg (float): Regularization strength (not used here).
+		Returns:
+			avg_loss (dict): Average loss over the epoch.
+		'''
+		avg_loss = 0.0
+		with torch.no_grad():
+			for data in loader:
+				data = data.to(self.device)
+				recon_batch, emb_loss, _ = self(data)
+				rec_loss = self.reconstruction_loss(data, recon_batch)
+				loss = rec_loss + emb_loss
+				avg_loss += loss.item()
+		return {"avg_loss": avg_loss / len(loader)}
+	
 
 
 if __name__ == "__main__":

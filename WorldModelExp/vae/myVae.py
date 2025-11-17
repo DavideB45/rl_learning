@@ -107,7 +107,7 @@ class CVAE(AbstractVAE):
 	
 	def eval_epoch(self, loader:DataLoader, reg:float) -> dict:
 		avg_loss = 0.0
-		with torch.no_grad:
+		with torch.no_grad():
 			for data in loader:
 				data = data.to(self.device)
 				recon_batch, mu, logvar = self(data)

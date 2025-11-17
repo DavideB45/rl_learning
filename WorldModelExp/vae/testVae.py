@@ -5,7 +5,12 @@ import torch
 sys.path.insert(1, os.path.join(sys.path[0], '../'))
 
 from helpers.general import best_device
-from vae.myVae import CVAE as VAE
+
+basic = False
+if basic:
+	from vae.myVae import CVAE as VAE
+else:
+	from vae.vqVae import VQVAE as VAE
 from global_var import CURRENT_ENV
 from helpers.data import make_img_dataloader
 import matplotlib.pyplot as plt
@@ -14,11 +19,20 @@ import matplotlib.pyplot as plt
 # shows a couple of reconstructed images after training
 if __name__ == "__main__":
 	device = best_device()
-	vae = VAE(
-		latent_dim=CURRENT_ENV['z_size'],
-	).to(device)
+	if basic:
+		vae = VAE(
+			latent_dim=CURRENT_ENV['z_size'],
+		).to(device)
+	else:
+		vae = VAE(
+			codebook_size=512,
+			code_depth=64,
+			latent_dim=8,
+			commitment_cost=0.25,
+			device=device
+		).to(device)
 	print(f"Testing {CURRENT_ENV['env_name']} VAE model")
-	vae.load_state_dict(torch.load(CURRENT_ENV['vae_model'], map_location=device))
+	vae.load_state_dict(torch.load('vae_model.pth', map_location=device))
 	vae.eval()
 
 	_, test_loader = make_img_dataloader(CURRENT_ENV['img_dir'])

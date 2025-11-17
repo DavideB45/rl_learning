@@ -4,7 +4,11 @@ import os
 import sys
 sys.path.insert(1, os.path.join(sys.path[0], '../'))
 
-from vae.myVae import CVAE as VAE
+basic = False
+if basic:
+	from vae.myVae import CVAE as VAE
+else:
+	from vae.vqVae import VQVAE as VAE
 from vae.abstractVAE import trainVAE
 from helpers.general import best_device
 from helpers.data import make_img_dataloader
@@ -12,7 +16,7 @@ from global_var import CURRENT_ENV
 
 LATENT_DIM = 32
 REG_STRENGTH = 1.0
-NUM_EPOCHS = 50
+NUM_EPOCHS = 20
 LEARNING_RATE = 1e-3
 
 DATA_PATH = CURRENT_ENV['img_dir']
@@ -20,7 +24,14 @@ DEVICE = best_device()
 
 
 if __name__ == "__main__":
-	vae = VAE(latent_dim=LATENT_DIM, device=DEVICE)
+	if basic:
+		vae = VAE(latent_dim=LATENT_DIM, device=DEVICE)
+	else:
+		vae = VAE(codebook_size=512,
+				code_depth=64,
+				latent_dim=8,
+				commitment_cost=0.25,
+				device=DEVICE)
 	print(vae)
 	num_params = sum(p.numel() for p in vae.parameters() if p.requires_grad)
 	print(f"Number of trainable parameters: {num_params}")
@@ -38,36 +49,15 @@ if __name__ == "__main__":
 	
 	import matplotlib.pyplot as plt
 
-	plt.figure(figsize=(10, 6))
-	plt.plot(loss_history['train_loss']['total'], label='Train Loss')
-	plt.plot(loss_history['val_loss']['total'], label='Validation Loss')
-	plt.xlabel('Epoch')
-	plt.ylabel('Loss')
-	plt.title('VAE Training Loss')
-	plt.legend()
-	plt.grid(True)
-	plt.savefig('vae_loss_history.png')
-	plt.show()
-
-	plt.figure(figsize=(10, 6))
-	plt.plot(loss_history['train_loss']['kl'], label='Train KL Divergence')
-	plt.plot(loss_history['val_loss']['kl'], label='Validation KL Divergence')
-	plt.xlabel('Epoch')
-	plt.ylabel('KL Divergence')
-	plt.title('VAE KL Divergence History')
-	plt.legend()
-	plt.grid(True)
-	plt.savefig('vae_kl_history.png')
-	plt.show()
-
-	plt.figure(figsize=(10, 6))
-	plt.plot(loss_history['train_loss']['reconstruction'], label='Train Reconstruction Loss')
-	plt.plot(loss_history['val_loss']['reconstruction'], label='Validation Reconstruction Loss')
-	plt.xlabel('Epoch')
-	plt.ylabel('Reconstruction Loss')
-	plt.title('VAE Reconstruction Loss History')
-	plt.legend()
-	plt.grid(True)
-	plt.savefig('vae_reconstruction_loss_history.png')
-	plt.show()
+	for key in loss_history['train_loss']:
+		plt.figure(figsize=(10, 6))
+		plt.plot(loss_history['train_loss'][key], label='Train Loss')
+		plt.plot(loss_history['val_loss'][key], label='Validation Loss')
+		plt.xlabel('Epoch')
+		plt.ylabel('Loss')
+		plt.title(f'VAE Training Loss - {key}')
+		plt.legend()
+		plt.grid(True)
+		plt.savefig(f'vae_loss_history_{key}.png')
+		plt.show()
 	
