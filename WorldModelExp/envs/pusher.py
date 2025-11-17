@@ -58,14 +58,14 @@ def gather_data(n_samples=1000, size=(64, 64)):
 		env.mujoco_renderer.close()
 		env.mujoco_renderer = None
 
-	env.close()
+	#env.close()
 	return images, actions, rewards
 
 if __name__ == "__main__":
 	
 	# Example of creating a dataset of transitions
 	print("Creating transition dataset for Pusher-v5 environment")
-	images, actions, rewards = gather_data(n_samples=40000, size=(64, 64))
+	images, actions, rewards = gather_data(n_samples=10000, size=(64, 64))
 	print(f"Generated {len(images)} images, {len(actions)} actions, and {len(rewards)} rewards.")
 	
 	# Save the dataset
