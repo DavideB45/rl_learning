@@ -35,7 +35,7 @@ def gather_data(n_samples=1000, size=(64, 64)):
 	'''
 	env = gym.make('Pusher-v5', 
 				render_mode='rgb_array',
-				camera_config=PUSHER['default_camera_config'],
+				default_camera_config=PUSHER['default_camera_config'],
 				)
 	images = []
 	actions = []
@@ -65,7 +65,7 @@ if __name__ == "__main__":
 	
 	# Example of creating a dataset of transitions
 	print("Creating transition dataset for Pusher-v5 environment")
-	images, actions, rewards = gather_data(n_samples=200, size=(64, 64))
+	images, actions, rewards = gather_data(n_samples=40000, size=(64, 64))
 	print(f"Generated {len(images)} images, {len(actions)} actions, and {len(rewards)} rewards.")
 	
 	# Save the dataset
@@ -74,6 +74,8 @@ if __name__ == "__main__":
 	for i, img in enumerate(images):
 		img.save(f"data/pusher/imgs/img_{i:06d}.png")
 
+	exit()
+	# TODO: split according to the done flags so that different episodes are preserved
 	if not os.path.exists("data/pusher/"):
 		os.makedirs("data/pusher/")
 	with open("data/pusher/action_reward_data.json", "w") as f:

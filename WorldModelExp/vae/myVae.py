@@ -3,11 +3,12 @@ import sys
 sys.path.insert(1, os.path.join(sys.path[0], '../'))
 
 from vae.abstractVAE import AbstractVAE
-from vae.resBlock import ResidualBlock
+from vae.blocks import ResidualBlock
 
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
+from torch.utils.data import DataLoader
 from typing import Tuple
 
 
@@ -30,7 +31,7 @@ class CVAE(AbstractVAE):
 			ResidualBlock(3, 32, downsample=True),   # 64x64 -> 32x32
 			ResidualBlock(32, 64, downsample=True),  # 32x32 -> 16x16
 			ResidualBlock(64, 128, downsample=True), # 16x16 -> 8x8
-			ResidualBlock(128, 256, downsample=True) # 8x8 -> 4x4
+			ResidualBlock(128, 256, downsample=True) # 8x8 -> 256*4x4
 		)
 		self.enc_fc = nn.Linear(256 * 4 * 4, 512)
 		self.fc_mu = nn.Linear(512, latent_dim)
@@ -90,3 +91,26 @@ class CVAE(AbstractVAE):
 			loss (torch.Tensor): Scalar tensor representing the reconstruction loss
 		"""
 		return F.mse_loss(recon, x, reduction='sum') / x.size(0)
+	
+	def train_epoch(self, loader:DataLoader, optim:torch.optim.Optimizer, reg:float) -> dict:
+		avg_loss = 0.0
+		for data in loader:
+			data = data.to(self.device)
+			optim.zero_grad()
+			recon_batch, mu, logvar = self(data)
+			loss, v = self.loss_function(recon_batch, data, mu, logvar, reg)
+			loss.backward()
+			optim.step()
+			avg_loss += loss.item()
+		avg_loss = avg_loss / len(loader)
+		return {"avg_loss": avg_loss}
+	
+	def eval_epoch(self, loader:DataLoader, reg:float) -> dict:
+		avg_loss = 0.0
+		with torch.no_grad:
+			for data in loader:
+				data = data.to(self.device)
+				recon_batch, mu, logvar = self(data)
+				loss, v = self.loss_function(recon_batch, data, mu, logvar, reg)
+				avg_loss += loss.item()
+		return {"avg_loss": avg_loss / len(loader)}

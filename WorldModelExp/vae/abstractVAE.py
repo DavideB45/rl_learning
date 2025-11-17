@@ -95,6 +95,39 @@ class AbstractVAE(nn.Module, ABC):
 		total = rec + regularization_strength * kl
 		return total, {"reconstruction": rec.detach(), "kl": kl.detach()}
 	
+	@abstractmethod
+	def train_epoch(self, loader:DataLoader, optim:torch.optim.Optimizer, reg:float) -> dict:
+		avg_loss = 0.0
+		for data in loader:
+			data = data.to(self.device)
+			optim.zero_grad()
+			recon_batch, mu, logvar = self(data)
+			loss, v = self.loss_function(recon_batch, data, mu, logvar, reg)
+			loss.backward()
+			train_loss += loss.item()
+			optim.step()
+			avg_loss += loss.item()
+		avg_loss = avg_loss / len(loader)
+		return {avg_loss}
+	
+	@abstractmethod
+	def eval_epoch(self, loader:DataLoader, reg:float) -> dict:
+		avg_loss = 0.0
+		with torch.no_grad:
+			for data in loader:
+				data = data.to(self.device)
+				recon_batch, mu, logvar = self(data)
+				loss, v = self.loss_function(recon_batch, data, mu, logvar, reg)
+				avg_loss += loss.item()
+		return {avg_loss / len(loader)}
+	
+	def count_parameters(self) -> int:
+		"""
+		Returns the total number of trainable parameters in the model.
+		"""
+		return sum(p.numel() for p in self.parameters() if p.requires_grad)
+		
+	
 def trainVAE(vae: AbstractVAE,
 			 train_loader: DataLoader,
 			 val_loader: DataLoader,
@@ -127,33 +160,14 @@ def trainVAE(vae: AbstractVAE,
 			'total': []
 		}
 	}
-	val_loss = 0.0
+
 	for _ in tqdm(range(num_epochs), desc='Training VAE'):
 		vae.train()
-		train_loss = 0.0
-		for data in train_loader:
-			data = data.to(device)
-			optimizer.zero_grad()
-			recon_batch, mu, logvar = vae(data)
-			loss, v = vae.loss_function(recon_batch, data, mu, logvar, regularization_strength)
-			loss.backward()
-			train_loss += loss.item()
-			optimizer.step()
-		avg_train_loss = train_loss / len(train_loader)
-		loss_history['train_loss']['total'].append(avg_train_loss)
-		loss_history['train_loss']['kl'].append(v['kl'])
-		loss_history['train_loss']['reconstruction'].append(v['reconstruction'])
+		train_loss = vae.train_epoch(train_loader, optimizer, regularization_strength)
+		loss_history['train_loss']['total'].append(train_loss['avg_loss'])
 
 		vae.eval()
-		val_loss = 0.0
-		with torch.no_grad():
-			for data in val_loader:
-				data = data.to(device)
-				recon_batch, mu, logvar = vae(data)
-				loss, v = vae.loss_function(recon_batch, data, mu, logvar, regularization_strength)
-				val_loss += loss.item()
-		avg_val_loss = val_loss / len(val_loader)
-		loss_history['val_loss']['total'].append(avg_val_loss)
-		loss_history['val_loss']['kl'].append(v['kl'])
-		loss_history['val_loss']['reconstruction'].append(v['reconstruction'])
+		val_loss = vae.eval_epoch(val_loader, regularization_strength)
+		loss_history['val_loss']['total'].append(val_loss['avg_loss'])
+
 	return vae, loss_history
