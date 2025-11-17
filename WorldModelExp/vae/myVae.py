@@ -3,7 +3,7 @@ import sys
 sys.path.insert(1, os.path.join(sys.path[0], '../'))
 
 from vae.abstractVAE import AbstractVAE
-from vae.blocks import ResidualBlock
+from vae.blocks import ResidualBlock, ResidualBlockUp
 
 import torch
 import torch.nn.functional as F
@@ -41,17 +41,24 @@ class CVAE(AbstractVAE):
 		self.dec_fc = nn.Linear(latent_dim, 512)
 		self.dec_expand = nn.Linear(512, 256 * 4 * 4)
 
+		# self.decoder = nn.Sequential(
+		# 	nn.ConvTranspose2d(256, 128, 4, 2, 1),  # 4x4 -> 8x8
+		# 	nn.BatchNorm2d(128),
+		# 	nn.LeakyReLU(),
+		# 	nn.ConvTranspose2d(128, 64, 4, 2, 1),   # 8x8 -> 16x16
+		# 	nn.BatchNorm2d(64),
+		# 	nn.LeakyReLU(),
+		# 	nn.ConvTranspose2d(64, 32, 4, 2, 1),    # 16x16 -> 32x32
+		# 	nn.BatchNorm2d(32),
+		# 	nn.LeakyReLU(),
+		# 	nn.ConvTranspose2d(32, 3, 4, 2, 1),     # 32x32 -> 64x64
+		# )
 		self.decoder = nn.Sequential(
-			nn.ConvTranspose2d(256, 128, 4, 2, 1),  # 4x4 -> 8x8
-			nn.BatchNorm2d(128),
-			nn.LeakyReLU(),
-			nn.ConvTranspose2d(128, 64, 4, 2, 1),   # 8x8 -> 16x16
-			nn.BatchNorm2d(64),
-			nn.LeakyReLU(),
-			nn.ConvTranspose2d(64, 32, 4, 2, 1),    # 16x16 -> 32x32
-			nn.BatchNorm2d(32),
-			nn.LeakyReLU(),
-			nn.ConvTranspose2d(32, 3, 4, 2, 1),     # 32x32 -> 64x64
+			ResidualBlockUp(256, 128, upsample=True),
+			ResidualBlockUp(128, 64, upsample=True),
+			ResidualBlockUp(64, 32, upsample=True),
+			ResidualBlockUp(32, 3, upsample=True),
+			nn.Conv2d(3, 3, 3, 1, 1),
 		)
 		
 	def encode(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
