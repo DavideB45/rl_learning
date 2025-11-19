@@ -65,7 +65,7 @@ if __name__ == "__main__":
 	
 	# Example of creating a dataset of transitions
 	print("Creating transition dataset for Pusher-v5 environment")
-	images, actions, rewards = gather_data(n_samples=10000, size=(64, 64))
+	images, actions, rewards = gather_data(n_samples=20000, size=(64, 64))
 	print(f"Generated {len(images)} images, {len(actions)} actions, and {len(rewards)} rewards.")
 	
 	# Save the dataset
