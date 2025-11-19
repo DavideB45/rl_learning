@@ -60,6 +60,7 @@ class CVAE(AbstractVAE):
 			ResidualBlockUp(32, 3, upsample=True),
 			nn.Conv2d(3, 3, 3, 1, 1),
 		)
+		self.to(device)
 		
 	def encode(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
 		"""

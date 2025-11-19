@@ -53,6 +53,7 @@ class VQVAE(AbstractVAE):
 			nn.Conv2d(3, 3, 3, 1, 1),                  # final conv layer
 			nn.Sigmoid()
 		)
+		self.to(device)
 
 	def encode(self, x: torch.Tensor) -> torch.Tensor:
 		"""

@@ -4,7 +4,7 @@ import os
 import sys
 sys.path.insert(1, os.path.join(sys.path[0], '../'))
 
-basic = False
+basic = True
 if basic:
 	from vae.myVae import CVAE as VAE
 else:
@@ -14,8 +14,8 @@ from helpers.general import best_device
 from helpers.data import make_img_dataloader
 from global_var import CURRENT_ENV
 
-LATENT_DIM = 32
-REG_STRENGTH = 1.0
+LATENT_DIM = 80
+REG_STRENGTH = 1
 NUM_EPOCHS = 20
 LEARNING_RATE = 1e-3
 
@@ -50,6 +50,8 @@ if __name__ == "__main__":
 	import matplotlib.pyplot as plt
 
 	for key in loss_history['train_loss']:
+		if len(loss_history['train_loss'][key]) == 0:
+			continue
 		plt.figure(figsize=(10, 6))
 		plt.plot(loss_history['train_loss'][key], label='Train Loss')
 		plt.plot(loss_history['val_loss'][key], label='Validation Loss')
