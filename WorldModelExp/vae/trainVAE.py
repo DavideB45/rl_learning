@@ -4,7 +4,7 @@ import os
 import sys
 sys.path.insert(1, os.path.join(sys.path[0], '../'))
 
-basic = True
+basic = False
 if basic:
 	from vae.myVae import CVAE as VAE
 else:
@@ -28,8 +28,8 @@ if __name__ == "__main__":
 		vae = VAE(latent_dim=LATENT_DIM, device=DEVICE)
 	else:
 		vae = VAE(codebook_size=512,
-				code_depth=64,
-				latent_dim=8,
+				code_depth=32,
+				latent_dim=4,
 				commitment_cost=0.25,
 				device=DEVICE)
 	print(vae)

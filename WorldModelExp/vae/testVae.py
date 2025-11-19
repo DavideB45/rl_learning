@@ -2,11 +2,12 @@ import os
 import sys
 
 import torch
+from tqdm import tqdm
 sys.path.insert(1, os.path.join(sys.path[0], '../'))
 
 from helpers.general import best_device
 
-basic = True
+basic = False
 if basic:
 	from vae.myVae import CVAE as VAE
 else:
@@ -26,16 +27,18 @@ if __name__ == "__main__":
 	else:
 		vae = VAE(
 			codebook_size=512,
-			code_depth=64,
-			latent_dim=8,
+			code_depth=32,
+			latent_dim=4,
 			commitment_cost=0.25,
 			device=device
 		).to(device)
 	print(f"Testing {CURRENT_ENV['env_name']} VAE model")
+	#vae.load_state_dict(torch.load(CURRENT_ENV['vae_model'], map_location=device))
 	vae.load_state_dict(torch.load('vae_model.pth', map_location=device))
+	
 	vae.eval()
 
-	_, test_loader = make_img_dataloader(CURRENT_ENV['img_dir'])
+	test_loader, _ = make_img_dataloader(CURRENT_ENV['img_dir'])
 
 	# get a batch of test images
 	dataiter = iter(test_loader)
@@ -72,3 +75,26 @@ if __name__ == "__main__":
 			plt.title('Reconstructed Images')
 	
 	plt.show()
+
+	if not basic:
+		indexes_array = [0 for _ in range(512)]
+		for batch in tqdm(test_loader):
+			batch = batch.to(device)
+			with torch.no_grad():
+				_, _, indexes = vae.forward(batch)
+			for idx in indexes.cpu().numpy().flatten():
+				indexes_array[idx] += 1
+		print("Codebook usage frequencies:")
+		used = 0
+		for i, count in enumerate(indexes_array):
+			print(f"Index {i}: {count} times")
+			used += 1 if count > 0 else 0
+		print(f"percentage: {used / len(indexes_array) * 100:.4f}%")
+		# Plot codebook usage histogram
+		plt.figure(figsize=(12, 6))
+		plt.bar(range(len(indexes_array)), indexes_array)
+		plt.xlabel('Codebook Index')
+		plt.ylabel('Frequency')
+		plt.title('Codebook Usage Frequencies')
+		plt.show()
+			

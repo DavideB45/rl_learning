@@ -3,12 +3,12 @@ DREAM_VERSION = False
 
 IMG_DIR = "imgs/"
 TRANSITIONS = "transition_data.json"
-VAE_MODEL = "vae_model.pth"
+VAE_MODEL = "vqvae_model.pth"
 MDRNN_MODEL = "mdrnn_model.pth"
 PPO_MODEL = "ppo_model"
 
 if FINAL_VERSION:
-	VAE_MODEL = "final_models/vae_model.pth"
+	VAE_MODEL = "final_models/" + VAE_MODEL
 	if DREAM_VERSION:
 		MDRNN_MODEL = "final_models/dream_env/mdrnn_model.pth"
 		PPO_MODEL = "final_models/dream_env/ppo_model"
