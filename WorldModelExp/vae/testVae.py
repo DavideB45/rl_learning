@@ -13,6 +13,10 @@ from global_var import CURRENT_ENV
 from helpers.data import make_img_dataloader
 import matplotlib.pyplot as plt
 
+LATENT_DIM = 80
+CODE_DEPTH = 32
+LATENT_DIM_VQ = 8
+CODEBOOK_SIZE = 512
 # file to test VAE training
 # shows a couple of reconstructed images after training
 if __name__ == "__main__":
@@ -21,15 +25,15 @@ if __name__ == "__main__":
 		latent_dim=80,
 	).to(device)
 	vq_vae = VQVAE(
-		codebook_size=512,
-		code_depth=32,
-		latent_dim=4,
+		codebook_size=CODEBOOK_SIZE,
+		code_depth=CODE_DEPTH,
+		latent_dim=LATENT_DIM_VQ,
 		commitment_cost=0.25,
 		device=device
 	).to(device)
 	print(f"Testing {CURRENT_ENV['env_name']} VAE model")
-	vq_vae.load_state_dict(torch.load(CURRENT_ENV['vae_model'], map_location=device))
-	base_vae.load_state_dict(torch.load('vae_model.pth', map_location=device))
+	vq_vae.load_state_dict(torch.load(CURRENT_ENV['data_dir'] + "final_models/" + f"vqvae_model_{LATENT_DIM_VQ}_{CODE_DEPTH}.pth", map_location=device))
+	base_vae.load_state_dict(torch.load(CURRENT_ENV['vae_model'], map_location=device))
 	
 	vq_vae.eval()
 	base_vae.eval()

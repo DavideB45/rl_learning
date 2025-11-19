@@ -3,7 +3,7 @@ DREAM_VERSION = False
 
 IMG_DIR = "imgs/"
 TRANSITIONS = "transition_data.json"
-VAE_MODEL = "vqvae_model.pth"
+VAE_MODEL = "vae_model.pth"
 MDRNN_MODEL = "mdrnn_model.pth"
 PPO_MODEL = "ppo_model"
 
