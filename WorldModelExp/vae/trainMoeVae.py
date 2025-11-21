@@ -8,7 +8,7 @@ from vae.moevae import MOEVAE
 from helpers.general import best_device
 from helpers.data import make_multi_view_dataloader
 
-LATENT_DIM =64
+LATENT_DIM = 32
 REG_STRENGTH = 1
 NUM_EPOCHS = 20
 LEARNING_RATE = 1e-3
@@ -17,7 +17,7 @@ DATA_PATH = 'data/pusher/multi_img/'
 DEVICE = best_device()
 
 if __name__ == "__main__":
-	moe_vae = MOEVAE(latent_dim=LATENT_DIM, device=DEVICE, learn_gating=True)
+	moe_vae = MOEVAE(latent_dim=LATENT_DIM, device=DEVICE, learn_gating=False)
 	print(moe_vae)
 	num_params = sum(p.numel() for p in moe_vae.parameters() if p.requires_grad)
 	print(f"Number of trainable parameters: {num_params}")
