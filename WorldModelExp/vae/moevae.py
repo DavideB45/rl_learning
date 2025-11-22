@@ -1,3 +1,4 @@
+import warnings
 import os
 import sys
 sys.path.insert(1, os.path.join(sys.path[0], '../'))
@@ -49,8 +50,8 @@ class MOEVAE(nn.Module):
 		#x1_flat = x1.view(batch_size, -1)
 		#gating_weights = self.gating_network(x1_flat)  # (batch, 2)
 
-		recon1, mu1, logvar1 = self.expert1.forward(x1)
-		recon2, mu2, logvar2 = self.expert2.forward(x2)
+		mu1, logvar1 = self.encode_expert1(x1)
+		mu2, logvar2 = self.encode_expert2(x2)
 
 		#mu = (gating_weights[:, 0].unsqueeze(1) * mu1 +
 		#		gating_weights[:, 1].unsqueeze(1) * mu2)
@@ -58,6 +59,10 @@ class MOEVAE(nn.Module):
 		#			gating_weights[:, 1].unsqueeze(1) * logvar2)
 		mu = 0.5 * (mu1 + mu2)
 		logvar = 0.5 * (logvar1 + logvar2)
+		z = self.reparametrize(mu, logvar)
+		warnings.warn("In MOEVAE forward, reparametrize is not used for decoding, the latent mean is used instead.")
+		recon1 = self.decode_expert1(mu)
+		recon2 = self.decode_expert2(mu)
 		return recon1, recon2, mu, logvar
 	
 	def encode(self, x1:torch.Tensor, x2:torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -83,6 +88,19 @@ class MOEVAE(nn.Module):
 					gating_weights[:, 1].unsqueeze(1) * logvar2)
 
 		return mu, logvar
+	
+	def reparametrize(self, mu:torch.Tensor, logvar:torch.Tensor) -> torch.Tensor:
+		"""
+		Reparameterization trick to sample from N(mu, var) from N(0,1).
+		Args:
+			mu (torch.Tensor): Mean of the latent Gaussian (batch, latent_dim)
+			logvar (torch.Tensor): Log-variance of the latent Gaussian (batch, latent_dim)
+		Returns:
+			torch.Tensor: Sampled latent vector (batch, latent_dim)
+		"""
+		std = torch.exp(0.5 * logvar)
+		eps = torch.randn_like(std)
+		return mu + eps * std
 	
 	def encode_expert1(self, x:torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
 		return self.expert1.encode(x)
@@ -141,10 +159,14 @@ class MOEVAE(nn.Module):
 		Returns:
 			torch.Tensor: Total loss.
 		"""
-		recon1, mu1, logvar1 = self.expert1.forward(x1)
-		recon2, mu2, logvar2 = self.expert2.forward(x2)
+		mu1, logvar1 = self.encode_expert1(x1)
+		mu2, logvar2 = self.encode_expert2(x2)
 		mu = 0.5 * (mu1 + mu2)
 		logvar = 0.5 * (logvar1 + logvar2)
+		z = self.reparametrize(mu, logvar)
+
+		recon1 = self.decode_expert1(z)
+		recon2 = self.decode_expert2(z)
 		recon_loss1 = self.reconstruction_loss(x1, recon1)
 		recon_loss2 = self.reconstruction_loss(x2, recon2)
 		kl_loss = self.kl_divergence(mu, logvar)
@@ -167,7 +189,7 @@ class MOEVAE(nn.Module):
 			"concord_loss": 0.0
 		}	
 		for data in loader:
-			x1, x2 = data  # assuming data is a tuple of (x1, x2)
+			x1, x2 = data
 			x1 = x1.to(self.device)
 			x2 = x2.to(self.device)
 			optim.zero_grad()
@@ -190,7 +212,7 @@ class MOEVAE(nn.Module):
 		}	
 		with torch.no_grad():
 			for data in loader:
-				x1, x2 = data  # assuming data is a tuple of (x1, x2)
+				x1, x2 = data
 				x1 = x1.to(self.device)
 				x2 = x2.to(self.device)
 				_, loss_dict = self.compute_loss(x1, x2, reg, concord)

@@ -9,9 +9,9 @@ from vae.moevae import MOEVAE
 from helpers.general import best_device
 from helpers.data import make_multi_view_dataloader
 
-LATENT_DIM = 40
-REG_STRENGTH = 2.0
-CONCORD_STRENGTH = 2.0
+LATENT_DIM = 32
+REG_STRENGTH = 1.0
+CONCORD_STRENGTH = 0.0
 NUM_EPOCHS = 20
 LEARNING_RATE = 1e-3
 
@@ -38,11 +38,16 @@ if __name__ == "__main__":
 		"train_loss": [],
 		"val_loss": []
 	}
+	reg_str = 0.0
+	concord_str = 0.0
 	for epoch in range(NUM_EPOCHS):
+		reg_str = REG_STRENGTH * min(1.0, (epoch + 1) / 10.0)
+		concord_str = CONCORD_STRENGTH * min(1.0, (epoch + 1) / 10.0)
+		print("-" * 25 + f" {(epoch + 1):02}/{NUM_EPOCHS} " + "-" * 25)
 		moe_vae.train()
-		tr_loss = moe_vae.train_epoch(train_loader, optimizer, REG_STRENGTH, concord=CONCORD_STRENGTH)
+		tr_loss = moe_vae.train_epoch(train_loader, optimizer, reg_str, concord=concord_str)
 		moe_vae.eval()
-		val_loss = moe_vae.eval_epoch(val_loader, REG_STRENGTH, concord=CONCORD_STRENGTH)
+		val_loss = moe_vae.eval_epoch(val_loader, reg_str, concord=concord_str)
 		losses_history["train_loss"].append(tr_loss)
 		losses_history["val_loss"].append(val_loss)
 
@@ -51,7 +56,6 @@ if __name__ == "__main__":
 			color = colors[i % len(colors)]
 			reset = '\033[0m'
 			print(f"{color}  Train {key}: {tr_loss[key]:.4f}, Val {key}: {val_loss[key]:.4f}{reset}")
-		print("-" * 40)
 
 	model_path = "moe_vae_model.pth"
 	torch.save(moe_vae.state_dict(), model_path)
