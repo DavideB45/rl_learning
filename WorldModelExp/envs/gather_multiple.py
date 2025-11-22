@@ -1,8 +1,5 @@
-import time
 import argparse
 import gymnasium as gym
-import inspect
-import cv2
 from PIL import Image
 from typing import Tuple
 

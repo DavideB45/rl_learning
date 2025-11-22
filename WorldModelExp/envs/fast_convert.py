@@ -1,5 +1,4 @@
 import math
-from math import pi
 from math import cos
 from math import sin
 
