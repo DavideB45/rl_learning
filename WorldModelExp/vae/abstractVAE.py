@@ -93,7 +93,7 @@ class AbstractVAE(nn.Module, ABC):
 		rec = self.reconstruction_loss(x, recon_x)
 		kl = self.kl_divergence(mu, logvar)
 		total = rec + regularization_strength * kl
-		return total, {"reconstruction": rec.detach(), "kl": kl.detach()}
+		return total, {"recon_loss": rec.detach(), "kl_loss": kl.detach()}
 	
 	@abstractmethod
 	def train_epoch(self, loader:DataLoader, optim:torch.optim.Optimizer, reg:float) -> dict:
