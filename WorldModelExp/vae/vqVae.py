@@ -116,17 +116,27 @@ class VQVAE(AbstractVAE):
 		Returns:
 			avg_loss (dict): Average loss over the epoch.
 		'''
-		avg_loss = 0.0
+		losses = {
+			"total_loss": 0.0,
+			"recon_loss": 0.0,
+			"commitment_loss": 0.0,
+			"codes_usage": 0.0
+		}
+		used_codes = set()
 		for data in loader:
 			data = data.to(self.device)
 			optim.zero_grad()
-			recon_batch, emb_loss, _ = self(data)
+			recon_batch, emb_loss, indexes = self(data)
 			rec_loss = self.reconstruction_loss(data, recon_batch)
 			loss = rec_loss + emb_loss
 			loss.backward()
 			optim.step()
-			avg_loss += loss.item()
-		return {"avg_loss": avg_loss / len(loader)}
+			used_codes.update(indexes.view(-1).cpu().numpy().tolist())
+			losses["total_loss"] += loss.item()
+			losses["recon_loss"] += rec_loss.item()
+			losses["commit_loss"] += emb_loss.item()
+		losses["codes_usage"] = len(used_codes) / self.codebook_size
+		return losses
 	
 	def eval_epoch(self, loader, reg):
 		'''
@@ -137,15 +147,25 @@ class VQVAE(AbstractVAE):
 		Returns:
 			avg_loss (dict): Average loss over the epoch.
 		'''
-		avg_loss = 0.0
+		losses = {
+			"total_loss": 0.0,
+			"recon_loss": 0.0,
+			"commit_loss": 0.0,
+			"codes_usage": 0.0
+		}
+		used_codes = set()
 		with torch.no_grad():
 			for data in loader:
 				data = data.to(self.device)
-				recon_batch, emb_loss, _ = self(data)
+				recon_batch, emb_loss, indexes = self(data)
 				rec_loss = self.reconstruction_loss(data, recon_batch)
 				loss = rec_loss + emb_loss
-				avg_loss += loss.item()
-		return {"avg_loss": avg_loss / len(loader)}
+				losses["total_loss"] += loss.item()
+				losses["recon_loss"] += rec_loss.item()
+				losses["commit_loss"] += emb_loss.item()
+				used_codes.update(indexes.view(-1).cpu().numpy().tolist())
+		losses["codes_usage"] = len(used_codes) / self.codebook_size
+		return losses
 	
 
 

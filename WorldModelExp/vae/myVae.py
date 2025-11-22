@@ -101,7 +101,11 @@ class CVAE(AbstractVAE):
 		return F.mse_loss(recon, x, reduction='sum') / x.size(0)
 	
 	def train_epoch(self, loader:DataLoader, optim:torch.optim.Optimizer, reg:float) -> dict:
-		avg_loss = 0.0
+		losses = {
+			"total_loss": 0.0,
+			"recon_loss": 0.0,
+			"kl_loss": 0.0
+		}
 		for data in loader:
 			data = data.to(self.device)
 			optim.zero_grad()
@@ -109,16 +113,27 @@ class CVAE(AbstractVAE):
 			loss, v = self.loss_function(recon_batch, data, mu, logvar, reg)
 			loss.backward()
 			optim.step()
-			avg_loss += loss.item()
-		avg_loss = avg_loss / len(loader)
-		return {"avg_loss": avg_loss}
+			losses["total_loss"] += loss.item()
+			losses["recon_loss"] += v["recon_loss"]
+			losses["kl_loss"] += v["kl_loss"]
+		for key in losses:
+			losses[key] /= len(loader)
+		return losses
 	
 	def eval_epoch(self, loader:DataLoader, reg:float) -> dict:
-		avg_loss = 0.0
+		losses = {
+			"total_loss": 0.0,
+			"recon_loss": 0.0,
+			"kl_loss": 0.0
+		}
 		with torch.no_grad():
 			for data in loader:
 				data = data.to(self.device)
 				recon_batch, mu, logvar = self(data)
 				loss, v = self.loss_function(recon_batch, data, mu, logvar, reg)
-				avg_loss += loss.item()
-		return {"avg_loss": avg_loss / len(loader)}
+				losses["total_loss"] += loss.item()
+				losses["recon_loss"] += v["recon_loss"]
+				losses["kl_loss"] += v["kl_loss"]
+		for key in losses:
+			losses[key] /= len(loader)
+		return losses
