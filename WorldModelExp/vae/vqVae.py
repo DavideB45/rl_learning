@@ -119,7 +119,7 @@ class VQVAE(AbstractVAE):
 		losses = {
 			"total_loss": 0.0,
 			"recon_loss": 0.0,
-			"commitment_loss": 0.0,
+			"commit_loss": 0.0,
 			"codes_usage": 0.0
 		}
 		used_codes = set()
@@ -135,6 +135,8 @@ class VQVAE(AbstractVAE):
 			losses["total_loss"] += loss.item()
 			losses["recon_loss"] += rec_loss.item()
 			losses["commit_loss"] += emb_loss.item()
+		for key in losses:
+			losses[key] /= len(loader)
 		losses["codes_usage"] = len(used_codes) / self.codebook_size
 		return losses
 	
@@ -164,6 +166,8 @@ class VQVAE(AbstractVAE):
 				losses["recon_loss"] += rec_loss.item()
 				losses["commit_loss"] += emb_loss.item()
 				used_codes.update(indexes.view(-1).cpu().numpy().tolist())
+			for key in losses:
+				losses[key] /= len(loader)
 		losses["codes_usage"] = len(used_codes) / self.codebook_size
 		return losses
 	

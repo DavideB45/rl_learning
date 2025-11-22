@@ -14,15 +14,16 @@ from helpers.data import make_img_dataloader
 import matplotlib.pyplot as plt
 
 LATENT_DIM = 80
-CODE_DEPTH = 32
-LATENT_DIM_VQ = 8
-CODEBOOK_SIZE = 512
+
+CODE_DEPTH = 8
+LATENT_DIM_VQ = 4
+CODEBOOK_SIZE = 256
 # file to test VAE training
 # shows a couple of reconstructed images after training
 if __name__ == "__main__":
 	device = best_device()
 	base_vae = CVAE(
-		latent_dim=80,
+		latent_dim=LATENT_DIM,
 	).to(device)
 	vq_vae = VQVAE(
 		codebook_size=CODEBOOK_SIZE,
@@ -32,7 +33,8 @@ if __name__ == "__main__":
 		device=device
 	).to(device)
 	print(f"Testing {CURRENT_ENV['env_name']} VAE model")
-	vq_vae.load_state_dict(torch.load(CURRENT_ENV['data_dir'] + "final_models/" + f"vqvae_model_{LATENT_DIM_VQ}_{CODE_DEPTH}.pth", map_location=device))
+	#vq_vae.load_state_dict(torch.load(CURRENT_ENV['data_dir'] + "final_models/" + f"vqvae_model_{LATENT_DIM_VQ}_{CODE_DEPTH}.pth", map_location=device))
+	vq_vae.load_state_dict(torch.load('vae_model.pth', map_location=device))
 	base_vae.load_state_dict(torch.load(CURRENT_ENV['vae_model'], map_location=device))
 	
 	vq_vae.eval()
@@ -86,6 +88,7 @@ if __name__ == "__main__":
 	
 	plt.show()
 
+	exit()
 	indexes_array = [0 for _ in range(512)]
 	for batch in tqdm(test_loader):
 		batch = batch.to(device)
