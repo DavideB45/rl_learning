@@ -15,7 +15,7 @@ class PNGDataset(Dataset):
 		
 		self.from_disk = images is None
 
-		self.files = glob.glob(path + '/*.png') if self.from_disk else []
+		self.files = glob.glob(path + '/front_img_*.png') if self.from_disk else []
 		self.transform = torchvision.transforms.ToTensor()
 		self.data = []
 		self.images = images
@@ -58,7 +58,7 @@ class PNGMultiViewDataset(Dataset):
 	Custom Dataset for loading multi-view PNG images from a directory
 	'''
 	def __init__(self, path):
-		self.view1_files = sorted(glob.glob(path + '/above_img_*.png'))
+		self.view1_files = sorted(glob.glob(path + '/front_img_*.png'))
 		self.view2_files = sorted(glob.glob(path + '/side_img_*.png'))
 		if len(self.view1_files) != len(self.view2_files):
 			raise ValueError("Number of images in view1 and view2 do not match.")
