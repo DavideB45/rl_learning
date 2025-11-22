@@ -3,13 +3,9 @@ import argparse
 import gymnasium as gym
 import inspect
 
-#!/usr/bin/env python3
-"""
-Simple runner for the "Pusher-v5" environment using gymnasium.
-
-Save as: /Users/davideborghini/Documents/GitHub/rl_learning/WorldModelExp/envs/mutliview_test.py
-Run: python mutliview_test.py
-"""
+# <camera name="cam_above" mode="fixed" pos=".5 -.5 2" xyaxes="1 0 0 0 1 0" />
+# <camera name="cam_side" mode="fixed" pos="2 -.5 0" xyaxes="0 1 0 0 0 1" />
+# <camera name="cam_front" mode="fixed" pos=".5 1.2 .5" xyaxes="-1 0 0 0 -.26 .97" />
 
 
 def run(env_id="Pusher-v5", episodes=5, max_steps=500, seed=0, render=True):
@@ -24,9 +20,10 @@ def run(env_id="Pusher-v5", episodes=5, max_steps=500, seed=0, render=True):
 	print(inspect.getfullargspec(renderer._set_cam_config))
 	#print
 	#exit()
-	cameras = ["cam_above 0", "cam_side 1"]
+	cameras = ["cam_above 0", "cam_side 1", "cam_front 2"]
 	above_img = []
 	side_img = []
+	front_img = []
 	try:
 		for ep in range(episodes):
 			obs, info = env.reset(seed=seed + ep)
@@ -38,6 +35,8 @@ def run(env_id="Pusher-v5", episodes=5, max_steps=500, seed=0, render=True):
 				above_img.append(renderer.render(render_mode=render_mode))
 				renderer.camera_id = 1  # Switch to 'cam_side'
 				side_img.append(renderer.render(render_mode=render_mode))
+				renderer.camera_id = 2  # Switch to 'cam_front'
+				front_img.append(renderer.render(render_mode=render_mode))
 				#env.render()
 				if terminated or truncated:
 					print(f"Episode {ep+1} finished after {t+1} steps. reward={reward:.3f}")
@@ -46,32 +45,41 @@ def run(env_id="Pusher-v5", episodes=5, max_steps=500, seed=0, render=True):
 		#Save videos
 		import cv2
 		import matplotlib.pyplot as plt
-		fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+		fig, axes = plt.subplots(1, 3, figsize=(12, 5))
 		axes[0].imshow(above_img[30])
 		axes[0].set_title('Camera Above')
 		axes[0].axis('off')
 		axes[1].imshow(side_img[30])
 		axes[1].set_title('Camera Side')
 		axes[1].axis('off')
+		axes[2].imshow(front_img[30])
+		axes[2].set_title('Camera Front')
+		axes[2].axis('off')
 		plt.show()
 		for i in range(len(above_img)):
 			above_img[i] = cv2.resize(above_img[i], (64, 64))
 			side_img[i] = cv2.resize(side_img[i], (64, 64))
+			front_img[i] = cv2.resize(front_img[i], (64, 64))
 			above_img[i] = cv2.cvtColor(above_img[i], cv2.COLOR_RGB2BGR)
 			side_img[i] = cv2.cvtColor(side_img[i], cv2.COLOR_RGB2BGR)
+			front_img[i] = cv2.cvtColor(front_img[i], cv2.COLOR_RGB2BGR)
 			
 		print(f'shape of above_img: {above_img[0].shape}, shape of side_img: {side_img[0].shape}')
 		print(f"Color range check - above_img[0]: min {above_img[0].min()}, max {above_img[0].max()}")
 		height, width, _ = above_img[0].shape
 		above_video = cv2.VideoWriter('pusher_above.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 30, (width, height))
 		side_video = cv2.VideoWriter('pusher_side.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 30, (width, height))
+		front_video = cv2.VideoWriter('pusher_front.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 30, (width, height))
 		for img in above_img:
 			above_video.write(img)
 		for img in side_img:
 			side_video.write(img)
+		for img in front_img:
+			front_video.write(img)
 		above_video.release()
 		side_video.release()
-		print("Videos saved: 'pusher_above.mp4' and 'pusher_side.mp4'")
+		front_video.release()
+		print("Videos saved: 'pusher_above.mp4', 'pusher_side.mp4', and 'pusher_front.mp4'")
 	finally:
 		env.close()
 

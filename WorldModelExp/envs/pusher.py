@@ -12,7 +12,7 @@ from global_var import PUSHER
 # (state, action, next_state) for training world models.
 
 
-def get_img(env, size=(64, 64)) -> Image.Image:
+def get_img(renderer, size=(64, 64)) -> Image.Image:
 	'''
 	Renders the current frame of the environment and resizes it.
 	Args:
@@ -21,7 +21,8 @@ def get_img(env, size=(64, 64)) -> Image.Image:
 	Returns:
 		Image.Image: resized image
 	'''
-	img = env.render()
+	renderer.camera_id = 2
+	img = renderer.render(render_mode='rgb_array')
 	img = Image.fromarray(img)
 	img = img.resize(size)
 	return img
@@ -37,21 +38,22 @@ def gather_data(n_samples=1000, size=(64, 64)):
 				render_mode='rgb_array',
 				default_camera_config=PUSHER['default_camera_config'],
 				)
+	renderer = env.env.env.env.mujoco_renderer
 	images = []
 	actions = []
 	rewards = []
 	obs, info = env.reset()
-	images.append(get_img(env, size))
+	images.append(get_img(renderer, size))
 	for i in tqdm(range(n_samples), desc="Generating transitions", unit="transition"):
 		action = env.action_space.sample()
 		obs, reward, terminated, truncated, info = env.step(action)
-		images.append(get_img(env, size))
+		images.append(get_img(renderer, size))
 		actions.append(action)
 		rewards.append(reward)
 		if terminated or truncated:
 			obs, info = env.reset()
 			if i < n_samples - 1:
-				images.append(get_img(env, size))
+				images.append(get_img(renderer, size))
 
 	# Close renderer safely
 	if hasattr(env, "mujoco_renderer") and env.mujoco_renderer is not None:

@@ -1,7 +1,7 @@
 FINAL_VERSION = True
 DREAM_VERSION = False
 
-IMG_DIR = "imgs/"
+IMG_DIR = "multi_img/"
 TRANSITIONS = "transition_data.json"
 VAE_MODEL = "vae_model.pth"
 MDRNN_MODEL = "mdrnn_model.pth"
