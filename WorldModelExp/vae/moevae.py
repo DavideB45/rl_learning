@@ -15,15 +15,15 @@ class MOEVAE(nn.Module):
 	Also, only two experts are implemented.
 	"""
 
-	def __init__(self, latent_dim:int, device:torch.device, learn_gating:bool=True):
+	def __init__(self, latent_dim:int, device:torch.device, learn_gating:bool=False):
 		super(MOEVAE, self).__init__()
 		self.expert1 = CVAE(latent_dim=latent_dim, device=device)
 		self.expert2 = CVAE(latent_dim=latent_dim, device=device)
 		self.latent_dim = latent_dim
 		self.device = device
-		
 		self.gating_network = None
 		if learn_gating:
+			raise NotImplementedError("Learnable gating is not good enough to be used yet.")
 			self.gating_network = nn.Sequential(
 				nn.Linear(3 * 64 * 64, 128),
 				nn.ReLU(),
@@ -45,18 +45,19 @@ class MOEVAE(nn.Module):
 			mu (torch.Tensor): Mean of the latent Gaussian (batch, latent_dim)
 			logvar (torch.Tensor): Log-variance of the latent Gaussian (batch, latent_dim)
 		"""
-		batch_size = x1.size(0)
-		x1_flat = x1.view(batch_size, -1)
-		gating_weights = self.gating_network(x1_flat)  # (batch, 2)
+		#batch_size = x1.size(0)
+		#x1_flat = x1.view(batch_size, -1)
+		#gating_weights = self.gating_network(x1_flat)  # (batch, 2)
 
 		recon1, mu1, logvar1 = self.expert1.forward(x1)
 		recon2, mu2, logvar2 = self.expert2.forward(x2)
 
-		mu = (gating_weights[:, 0].unsqueeze(1) * mu1 +
-				gating_weights[:, 1].unsqueeze(1) * mu2)
-		logvar = (gating_weights[:, 0].unsqueeze(1) * logvar1 +
-					gating_weights[:, 1].unsqueeze(1) * logvar2)
-
+		#mu = (gating_weights[:, 0].unsqueeze(1) * mu1 +
+		#		gating_weights[:, 1].unsqueeze(1) * mu2)
+		#logvar = (gating_weights[:, 0].unsqueeze(1) * logvar1 +
+		#			gating_weights[:, 1].unsqueeze(1) * logvar2)
+		mu = 0.5 * (mu1 + mu2)
+		logvar = 0.5 * (logvar1 + logvar2)
 		return recon1, recon2, mu, logvar
 	
 	def encode(self, x1:torch.Tensor, x2:torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -119,7 +120,18 @@ class MOEVAE(nn.Module):
 		"""
 		return nn.functional.mse_loss(recon_x, x, reduction='sum') / x.size(0)
 	
-	def compute_loss(self, x1:torch.Tensor, x2:torch.Tensor, reg_strength:float=1.0) -> torch.Tensor:
+	def concordance_loss(self, mu1:torch.Tensor, mu2:torch.Tensor) -> torch.Tensor:
+		"""
+		Computes the concordance loss to align the latent representations of both experts.
+		Args:
+			mu1 (torch.Tensor): Mean of the latent Gaussian from expert 1 (batch, latent_dim)
+			mu2 (torch.Tensor): Mean of the latent Gaussian from expert 2 (batch, latent_dim)
+		Returns:
+			torch.Tensor: Concordance loss.
+		"""
+		return nn.functional.mse_loss(mu1, mu2, reduction='sum') / mu1.size(0)
+	
+	def compute_loss(self, x1:torch.Tensor, x2:torch.Tensor, reg_strength:float=1.0, concord_strength:float=1.0) -> Tuple[torch.Tensor, dict]:
 		"""
 		Computes the total loss (reconstruction + KL divergence).
 		Args:
@@ -129,35 +141,61 @@ class MOEVAE(nn.Module):
 		Returns:
 			torch.Tensor: Total loss.
 		"""
-		recon1, recon2, mu, logvar = self.forward(x1, x2)
+		recon1, mu1, logvar1 = self.expert1.forward(x1)
+		recon2, mu2, logvar2 = self.expert2.forward(x2)
+		mu = 0.5 * (mu1 + mu2)
+		logvar = 0.5 * (logvar1 + logvar2)
 		recon_loss1 = self.reconstruction_loss(x1, recon1)
 		recon_loss2 = self.reconstruction_loss(x2, recon2)
 		kl_loss = self.kl_divergence(mu, logvar)
-		total_loss = recon_loss1 + recon_loss2 + reg_strength * kl_loss
-		return total_loss
+		concord_loss = self.concordance_loss(mu1, mu2)
+		total_loss = recon_loss1 + recon_loss2 + reg_strength * kl_loss + concord_strength * concord_loss
+		return total_loss, {
+			"recon_loss1": recon_loss1.item(),
+			"recon_loss2": recon_loss2.item(),
+			"kl_loss": kl_loss.item(),
+			"total_loss": total_loss.item(),
+			"concord_loss": concord_loss.item()
+		}
 		
-	def train_epoch(self, loader:torch.utils.data.DataLoader, optim:torch.optim.Optimizer, reg:float) -> dict:
-		avg_loss = 0.0
+	def train_epoch(self, loader:torch.utils.data.DataLoader, optim:torch.optim.Optimizer, reg:float, concord:float) -> dict:
+		losses = {
+			"total_loss": 0.0,
+			"recon_loss1": 0.0,
+			"recon_loss2": 0.0,
+			"kl_loss": 0.0,
+			"concord_loss": 0.0
+		}	
 		for data in loader:
 			x1, x2 = data  # assuming data is a tuple of (x1, x2)
 			x1 = x1.to(self.device)
 			x2 = x2.to(self.device)
 			optim.zero_grad()
-			loss = self.compute_loss(x1, x2, reg)
+			loss, loss_dict = self.compute_loss(x1, x2, reg, concord)
 			loss.backward()
 			optim.step()
-			avg_loss += loss.item()
-		avg_loss = avg_loss / len(loader)
-		return {"avg_loss": avg_loss}
+			for key in loss_dict:
+				losses[key] += loss_dict[key]
+		for key in losses:
+			losses[key] /= len(loader)
+		return losses
 	
-	def eval_epoch(self, loader:torch.utils.data.DataLoader, reg:float) -> dict:
-		avg_loss = 0.0
+	def eval_epoch(self, loader:torch.utils.data.DataLoader, reg:float, concord:float) -> dict:
+		losses = {
+			"total_loss": 0.0,
+			"recon_loss1": 0.0,
+			"recon_loss2": 0.0,
+			"kl_loss": 0.0,
+			"concord_loss": 0.0
+		}	
 		with torch.no_grad():
 			for data in loader:
 				x1, x2 = data  # assuming data is a tuple of (x1, x2)
 				x1 = x1.to(self.device)
 				x2 = x2.to(self.device)
-				loss = self.compute_loss(x1, x2, reg)
-				avg_loss += loss.item()
-		avg_loss = avg_loss / len(loader)
-		return {"avg_loss": avg_loss}
+				_, loss_dict = self.compute_loss(x1, x2, reg, concord)
+				for key in loss_dict:
+					losses[key] += loss_dict[key]
+		for key in losses:
+			losses[key] /= len(loader)
+		return losses
