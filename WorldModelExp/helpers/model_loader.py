@@ -10,6 +10,8 @@ import torch
 
 def load_base_vae(env:dict, latent_dim:int, kl_b:float, device) -> CVAE:
 	model = CVAE(latent_dim, device)
+	if kl_b.is_integer():
+		kl_b = int(kl_b)
 	kl_str = str(kl_b).replace('.', '')
 	model_path = env['models'] + f"vae_{latent_dim}_{kl_str}.pth"
 	model.load_state_dict(torch.load(model_path, map_location=device))
@@ -31,7 +33,11 @@ def load_vq_vae(env:dict, codebook_size:int, code_depth:int, latent_dim:int, dev
 
 def load_moe_vae(env:dict, latent_dim:int, kl_b:float, concordance_reg:float, device) -> MOEVAE:
 	model = MOEVAE(latent_dim, device)
+	if kl_b.is_integer():
+		kl_b = int(kl_b)
 	kl_str = str(kl_b).replace('.', '')
+	if concordance_reg.is_integer():
+		concordance_reg = int(concordance_reg)
 	cr_str = str(concordance_reg).replace('.', '')
 	model_path = env['models'] + f"moe_{latent_dim}_{kl_str}_{cr_str}.pth"
 	model.load_state_dict(torch.load(model_path, map_location=device))
@@ -39,6 +45,8 @@ def load_moe_vae(env:dict, latent_dim:int, kl_b:float, concordance_reg:float, de
 	return model
 
 def save_base_vae(env:dict, model:CVAE, kl_b:float):
+	if kl_b.is_integer():
+		kl_b = int(kl_b)
 	kl_str = str(kl_b).replace('.', '')
 	model_path = env['models'] + f"vae_{model.latent_dim}_{kl_str}.pth"
 	torch.save(model.state_dict(), model_path)
