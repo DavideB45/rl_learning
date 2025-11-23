@@ -65,7 +65,7 @@ class VQVAE(AbstractVAE):
 		"""
 		return self.encoder(x)
 	
-	def embed(self, z: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+	def quantize(self, z: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
 		"""
 		Embeds the latent representation z using the vector quantizer.
 		Args:
@@ -99,7 +99,7 @@ class VQVAE(AbstractVAE):
 			codebook_indices (torch.Tensor): Indices of the codebook vectors used.
 		"""
 		z = self.encode(x)
-		loss, quantized, codebook_indices = self.embed(z)
+		loss, quantized, codebook_indices = self.quantize(z)
 		recon = self.decode(quantized)
 		return recon, loss, codebook_indices
 

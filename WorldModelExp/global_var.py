@@ -3,12 +3,9 @@ DREAM_VERSION = False
 
 IMG_DIR = "multi_img/"
 TRANSITIONS = "transition_data.json"
-VAE_MODEL = "vae_model.pth"
-MDRNN_MODEL = "mdrnn_model.pth"
-PPO_MODEL = "ppo_model"
+MODELS_DIR = "models/"
 
 if FINAL_VERSION:
-	VAE_MODEL = "final_models/" + VAE_MODEL
 	if DREAM_VERSION:
 		MDRNN_MODEL = "final_models/dream_env/mdrnn_model.pth"
 		PPO_MODEL = "final_models/dream_env/ppo_model"
@@ -22,12 +19,7 @@ PUSHER = {
 	"data_dir": PUSHER_DATA_DIR,
 	"img_dir": PUSHER_DATA_DIR + IMG_DIR,
 	"transitions": PUSHER_DATA_DIR + TRANSITIONS,
-	"vae_model": PUSHER_DATA_DIR + VAE_MODEL,
-	"mdrnn_model": PUSHER_DATA_DIR + MDRNN_MODEL,
-	"ppo_model": PUSHER_DATA_DIR + PPO_MODEL,
-	"z_size": 32,
-	"rnn_size": 256,
-	"num_gaussians": 5,
+	"models": PUSHER_DATA_DIR + MODELS_DIR,
 	"a_size": 7,
 	"default_camera_config": {
 		"trackbodyid": -1,   # no specific body tracking
@@ -49,11 +41,7 @@ CAR_RACING = {
 	"data_dir": CAR_RACING_DATA_DIR,
 	"img_dir": CAR_RACING_DATA_DIR + IMG_DIR,
 	"transitions": CAR_RACING_DATA_DIR + TRANSITIONS,
-	"vae_model": CAR_RACING_DATA_DIR + VAE_MODEL,
-	"mdrnn_model": CAR_RACING_DATA_DIR + MDRNN_MODEL,
-	"ppo_model": CAR_RACING_DATA_DIR + PPO_MODEL,
-	"z_size": 32,
-	"rnn_size": 512,
+	"models": CAR_RACING_DATA_DIR + MODELS_DIR,
 	"num_gaussians": 7,
 	"a_size": 3,
 	"default_camera_config": None,
