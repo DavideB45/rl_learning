@@ -107,16 +107,15 @@ if __name__ == "__main__":
 		ax1.set_xlabel('TSNE Dimension 1')
 		ax1.set_ylabel('TSNE Dimension 2')
 		
-		# MSE plot
-		mse_values = []
+		# Manhattan distance plot
+		distance_values = []
 		for i in range(1, len(latent_representations)):
-			mse = np.mean((latent_representations[i] - latent_representations[i-1])**2)
-			mse /= latent_representations.shape[1]
-			mse_values.append(mse)
-		ax2.plot(range(1, len(images)), mse_values, marker='o')
-		ax2.set_title(f'MSE Between Consecutive Latent Representations ({model_type.upper()} VAE)')
+			distance = np.mean(np.abs(latent_representations[i] - latent_representations[i-1]))
+			distance_values.append(distance)
+		ax2.plot(range(1, len(images)), distance_values, marker='o')
+		ax2.set_title(f'Manhattan Distance Between Consecutive Latent Representations ({model_type.upper()} VAE)')
 		ax2.set_xlabel('Time Step')
-		ax2.set_ylabel('MSE')
+		ax2.set_ylabel('Manhattan Distance')
 		ax2.grid()
 		
 		plt.tight_layout()
