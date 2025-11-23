@@ -31,7 +31,7 @@ def get_sequence() -> list[Image.Image]:
 				)
 	renderer = env.env.env.env.mujoco_renderer
 	images = []
-	_, _ = env.reset()
+	_, _ = env.reset(seed=42)
 	images.append(get_img(renderer, size=(64, 64)))
 	terminated, truncated = False, False
 	while not (terminated or truncated):
@@ -43,28 +43,28 @@ def get_sequence() -> list[Image.Image]:
 if __name__ == "__main__":
 	device = best_device()
 	
-	model_type = input("Enter VAE model type (base/vq/moe): ")
-	if model_type == 'base':
-		latent_dim = int(input("Enter latent dimension size: "))
-		kl_b = float(input("Enter KL beta value: "))
-		model = load_base_vae(CURRENT_ENV, latent_dim, kl_b, device)
-	elif model_type == 'vq':
-		codebook_size = int(input("Enter codebook size: "))
-		code_depth = int(input("Enter code depth: "))
-		latent_dim = int(input("Enter latent dimension size: "))
-		model = load_vq_vae(CURRENT_ENV, codebook_size, code_depth, latent_dim, device)
-	elif model_type == 'moe':
-		latent_dim = int(input("Enter latent dimension size: "))
-		kl_b = float(input("Enter KL beta value: "))
-		concordance_reg = float(input("Enter concordance regularization value: "))
-		model = load_moe_vae(CURRENT_ENV, latent_dim, kl_b, concordance_reg, device)
-	else:
-		print("Invalid model type")
-		exit(1)
-
+	images = get_sequence()
 	show = True
 	while show:
-		images = get_sequence()
+		model_type = input("Enter VAE model type (base/vq/moe): ")
+		if model_type == 'base':
+			latent_dim = int(input("Enter latent dimension size: "))
+			kl_b = float(input("Enter KL beta value: "))
+			model = load_base_vae(CURRENT_ENV, latent_dim, kl_b, device)
+		elif model_type == 'vq':
+			codebook_size = int(input("Enter codebook size: "))
+			code_depth = int(input("Enter code depth: "))
+			latent_dim = int(input("Enter latent dimension size: "))
+			model = load_vq_vae(CURRENT_ENV, codebook_size, code_depth, latent_dim, device)
+		elif model_type == 'moe':
+			latent_dim = int(input("Enter latent dimension size: "))
+			kl_b = float(input("Enter KL beta value: "))
+			concordance_reg = float(input("Enter concordance regularization value: "))
+			model = load_moe_vae(CURRENT_ENV, latent_dim, kl_b, concordance_reg, device)
+		else:
+			print("Invalid model type")
+			exit(1)
+
 		model.eval()
 		latent_representations = []
 		with torch.no_grad():
@@ -97,29 +97,27 @@ if __name__ == "__main__":
 
 		tsne = TSNE(n_components=2, random_state=42)
 		latent_2d = tsne.fit_transform(latent_representations)
-		plt.figure(figsize=(10, 8))
-		plt.scatter(latent_2d[:, 0], latent_2d[:, 1], c=range(len(images)), cmap='viridis')
-		# draw a line connecting the points in order
-		plt.plot(latent_2d[:, 0], latent_2d[:, 1], color='gray', linewidth=0.5, alpha=0.5)
-		cbar = plt.colorbar(label='Time Step')
-		plt.title(f'TSNE of Latent Representations ({model_type.upper()} VAE)')
-		plt.xlabel('TSNE Dimension 1')
-		plt.ylabel('TSNE Dimension 2')
-		plt.show()
-		# make a plot showing the mse between consecutive latent representations
+		fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+		
+		# TSNE plot
+		scatter = ax1.scatter(latent_2d[:, 0], latent_2d[:, 1], c=range(len(images)), cmap='viridis')
+		ax1.plot(latent_2d[:, 0], latent_2d[:, 1], color='gray', linewidth=0.5, alpha=0.5)
+		plt.colorbar(scatter, ax=ax1, label='Time Step')
+		ax1.set_title(f'TSNE of Latent Representations ({model_type.upper()} VAE)')
+		ax1.set_xlabel('TSNE Dimension 1')
+		ax1.set_ylabel('TSNE Dimension 2')
+		
+		# MSE plot
 		mse_values = []
 		for i in range(1, len(latent_representations)):
 			mse = np.mean((latent_representations[i] - latent_representations[i-1])**2)
-			# normalize mse by the latent dimension size
 			mse /= latent_representations.shape[1]
 			mse_values.append(mse)
-		plt.figure(figsize=(10, 4))
-		plt.plot(range(1, len(images)), mse_values, marker='o')
-		plt.title(f'MSE Between Consecutive Latent Representations ({model_type.upper()} VAE)')
-		plt.xlabel('Time Step')
-		plt.ylabel('MSE')
-		plt.grid()
+		ax2.plot(range(1, len(images)), mse_values, marker='o')
+		ax2.set_title(f'MSE Between Consecutive Latent Representations ({model_type.upper()} VAE)')
+		ax2.set_xlabel('Time Step')
+		ax2.set_ylabel('MSE')
+		ax2.grid()
+		
+		plt.tight_layout()
 		plt.show()
-		show_input = input("Show another sequence? (y/n): ")
-		if show_input.lower() != 'y':
-			show = False
