@@ -11,9 +11,11 @@ from vae.myVae import CVAE
 from vae.vqVae import VQVAE
 from global_var import CURRENT_ENV
 from helpers.data import make_img_dataloader
+from helpers.model_loader import load_base_vae
 import matplotlib.pyplot as plt
 
-LATENT_DIM = 80
+LATENT_DIM = 32
+KL_WEIGHT = 0.5
 
 CODE_DEPTH = 8
 LATENT_DIM_VQ = 4
@@ -30,17 +32,17 @@ if __name__ == "__main__":
 		code_depth=CODE_DEPTH,
 		latent_dim=LATENT_DIM_VQ,
 		commitment_cost=0.25,
-		device=device
+		device=device,
+		ema_mode=True,
 	).to(device)
 	print(f"Testing {CURRENT_ENV['env_name']} VAE model")
 	#vq_vae.load_state_dict(torch.load(CURRENT_ENV['data_dir'] + "final_models/" + f"vqvae_model_{LATENT_DIM_VQ}_{CODE_DEPTH}.pth", map_location=device))
 	vq_vae.load_state_dict(torch.load('vae_model.pth', map_location=device))
-	base_vae.load_state_dict(torch.load(CURRENT_ENV['vae_model'], map_location=device))
-	
+	base_vae = load_base_vae(CURRENT_ENV, LATENT_DIM, KL_WEIGHT, device)	
 	vq_vae.eval()
 	base_vae.eval()
 
-	_, test_loader = make_img_dataloader(CURRENT_ENV['img_dir'])
+	test_loader, _ = make_img_dataloader(CURRENT_ENV['img_dir'])
 
 	# get a batch of test images
 	dataiter = iter(test_loader)
@@ -86,20 +88,23 @@ if __name__ == "__main__":
 		if i == 0:
 			plt.title('VQ Reconstructed Images')
 	
+	plt.savefig('reconstructed_images.png', dpi=600)
 	plt.show()
 
-	exit()
-	indexes_array = [0 for _ in range(512)]
+	indexes_array = [0 for _ in range(vq_vae.codebook_size)]
+	avg_error = 0.0
 	for batch in tqdm(test_loader):
 		batch = batch.to(device)
 		with torch.no_grad():
-			_, _, indexes = vq_vae.forward(batch)
+			rec, _, indexes = vq_vae.forward(batch)
+			avg_error += vq_vae.reconstruction_loss(batch, rec).item()
 		for idx in indexes.cpu().numpy().flatten():
 			indexes_array[idx] += 1
+	avg_error /= len(test_loader)
+	print(f"Average reconstruction error (MSE) on test set: {avg_error:.4f}")
 	print("Codebook usage frequencies:")
 	used = 0
 	for i, count in enumerate(indexes_array):
-		print(f"Index {i}: {count} times")
 		used += 1 if count > 0 else 0
 	print(f"percentage: {used / len(indexes_array) * 100:.4f}%")
 	# Plot codebook usage histogram
@@ -108,5 +113,6 @@ if __name__ == "__main__":
 	plt.xlabel('Codebook Index')
 	plt.ylabel('Frequency')
 	plt.title('Codebook Usage Frequencies')
+	plt.savefig('codebook_usage.png', dpi=600)
 	plt.show()
 			

@@ -19,7 +19,7 @@ class VQVAE(AbstractVAE):
 	TODO: add tricks for using the full codebook
 	"""
 
-	def __init__(self, codebook_size:int, code_depth:int, latent_dim:int, commitment_cost:float, device):
+	def __init__(self, codebook_size:int, code_depth:int, latent_dim:int, commitment_cost:float, device:torch.device, ema_mode:bool=False):
 		"""
 		Initialize the VQVAE model.
 		Teh embedding will be of size (code_depth, latent_dim, latent_dim)
@@ -36,8 +36,7 @@ class VQVAE(AbstractVAE):
 		self.code_depth = code_depth
 		self.commitment_cost = commitment_cost
 
-		self.quantizer = VectorQuantizer(codebook_size, code_depth, commitment_cost)
-
+		self.quantizer = VectorQuantizer(codebook_size, code_depth, commitment_cost, ema=ema_mode)
 		self.encoder = nn.Sequential(
 			ResidualBlock(3, 32, downsample=True),  # 64x64 -> 32x32
 			ResidualBlock(32, 64, downsample=True),  # 32x32 -> 16x16
