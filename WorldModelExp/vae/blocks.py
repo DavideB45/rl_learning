@@ -73,13 +73,19 @@ class VectorQuantizer(nn.Module):
 	"""
 	A vector quantizer layer for VQ-VAE. 
 	"""
-	def __init__(self, codebook_size: int, embedding_dim: int, commitment_cost: float):
+	def __init__(self, codebook_size: int, embedding_dim: int, commitment_cost: float, ema: bool = False, gamma: float = 0.99, epsilon: float = 1e-5):
 		super().__init__()
 		self.codebook_size = codebook_size
 		self.embedding_dim = embedding_dim
 		self.commitment_cost = commitment_cost
 		self.embedding = nn.Embedding(codebook_size, embedding_dim)
 		self.embedding.weight.data.uniform_(-1 / codebook_size, 1 / codebook_size)
+		self.ema = ema
+		if ema:
+			self.register_buffer("ema_cluster_size", torch.zeros(codebook_size))
+			self.register_buffer("ema_weights", self.embedding.weight.detach().clone())
+			self.gamma = gamma
+			self.epsilon = epsilon
 
 	def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
 		x = x.permute(0, 2, 3, 1).contiguous()  # (B, H, W, D)
@@ -94,6 +100,19 @@ class VectorQuantizer(nn.Module):
 		loss = q_latent_loss + self.commitment_cost * e_latent_loss
 
 		if self.training:
+			if self.ema:
+				# Cluster size update
+				one_hot = F.one_hot(encoding_indices.squeeze(), self.codebook_size).float()
+				cluster_size = one_hot.sum(0)
+				self.ema_cluster_size = self.gamma * self.ema_cluster_size.to(self.embedding.weight.device) + (1 - self.gamma) * cluster_size
+				# Laplace smoothing (avoid empty clusters)
+				n = self.ema_cluster_size.sum()
+				self.ema_cluster_size = (self.ema_cluster_size + self.epsilon) / (n + self.codebook_size * self.epsilon) * n
+				# Weights update
+				dw = one_hot.t() @ flat_x.squeeze(1).detach()
+				self.ema_weights = self.gamma * self.ema_weights.to(self.embedding.weight.device) + (1 - self.gamma) * dw
+				
+				self.embedding.weight.data = self.ema_weights / self.ema_cluster_size.unsqueeze(1)
 			quantized = x + (quantized - x).detach()
 		
 		return loss, quantized.permute(0, 3, 1, 2).contiguous(), encoding_indices.reshape(input_shape[0], -1)

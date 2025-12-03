@@ -10,7 +10,7 @@ from vae.moevae import MOEVAE
 from helpers.general import best_device
 from helpers.data import make_multi_view_dataloader
 
-LATENT_DIM = 32
+LATENT_DIM = 64
 
 DATA_PATH = 'data/pusher/multi_img/'
 DEVICE = best_device()
@@ -21,7 +21,7 @@ if __name__ == "__main__":
 		device=DEVICE,
 		learn_gating=False,
 	)
-	print(moe_vae)
+	#print(moe_vae)
 	num_params = sum(p.numel() for p in moe_vae.parameters() if p.requires_grad)
 	print(f"Number of trainable parameters: {num_params}")
 	_, val_loader = make_multi_view_dataloader(
@@ -61,4 +61,35 @@ if __name__ == "__main__":
 		for j in range(4):
 			axes[i, j].axis('off')
 	plt.tight_layout()
-	plt.show()
+	plt.savefig("moe_vae_reconstructions.png")
+	#plt.show()
+
+	with open('losses_history.json', 'r') as f:
+		losses_history = json.load(f)
+		niced_losses_history = {
+			"train_loss": {k: [losses_history["train_loss"][i][k] for i in range(len(losses_history["train_loss"]))] for k in losses_history["train_loss"][0]},
+			"val_loss": {k: [losses_history["val_loss"][i][k] for i in range(len(losses_history["val_loss"]))] for k in losses_history["val_loss"][0]},
+		}
+	plt.figure(figsize=(8, 6))
+	plt.plot(niced_losses_history['train_loss']['total_loss'], label='Train Loss')
+	plt.plot(niced_losses_history['val_loss']['total_loss'], label='Validation Loss')
+	plt.xlabel('Epoch')
+	plt.ylabel('Total Loss')
+	plt.title('Training and Validation Loss over Epochs')
+	plt.legend()
+	plt.grid()
+	plt.savefig("moe_vae_loss_curve.png")
+	#plt.show()
+
+	plt.figure(figsize=(8, 6))
+	plt.plot(niced_losses_history['train_loss']['recon_loss1'], label='Train Recon Loss 1')
+	plt.plot(niced_losses_history['val_loss']['recon_loss1'], label='Validation Recon Loss 1')
+	plt.plot(niced_losses_history['train_loss']['recon_loss2'], label='Train Recon Loss 2')
+	plt.plot(niced_losses_history['val_loss']['recon_loss2'], label='Validation Recon Loss 2')
+	plt.xlabel('Epoch')
+	plt.ylabel('Reconstruction Loss')
+	plt.title('Reconstruction Loss over Epochs')
+	plt.legend()
+	plt.grid()
+	plt.savefig("moe_vae_recon_loss_curve.png")
+	#plt.show()
