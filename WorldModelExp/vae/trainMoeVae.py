@@ -9,11 +9,11 @@ from vae.moevae import MOEVAE
 from helpers.general import best_device
 from helpers.data import make_multi_view_dataloader
 
-LATENT_DIM = 32
+LATENT_DIM = 64
 REG_STRENGTH = 1.0
 CONCORD_STRENGTH = 0.0
-NUM_EPOCHS = 20
-LEARNING_RATE = 1e-3
+NUM_EPOCHS = 60
+LEARNING_RATE = 5e-4
 
 DATA_PATH = 'data/pusher/multi_img/'
 DEVICE = best_device()
@@ -24,7 +24,7 @@ if __name__ == "__main__":
 		device=DEVICE,
 		learn_gating=False,
 	)
-	print(moe_vae)
+	#print(moe_vae)
 	num_params = sum(p.numel() for p in moe_vae.parameters() if p.requires_grad)
 	print(f"Number of trainable parameters: {num_params}")
 	train_loader, val_loader = make_multi_view_dataloader(
@@ -41,8 +41,8 @@ if __name__ == "__main__":
 	reg_str = 0.0
 	concord_str = 0.0
 	for epoch in range(NUM_EPOCHS):
-		reg_str = REG_STRENGTH * min(1.0, (epoch + 1) / 10.0)
-		concord_str = CONCORD_STRENGTH * min(1.0, (epoch + 1) / 10.0)
+		reg_str = REG_STRENGTH * min(1.0, (epoch) / 20.0)
+		concord_str = CONCORD_STRENGTH * min(1.0, (epoch) / 20.0)
 		print("-" * 25 + f" {(epoch + 1):02}/{NUM_EPOCHS} " + "-" * 25)
 		moe_vae.train()
 		tr_loss = moe_vae.train_epoch(train_loader, optimizer, reg_str, concord=concord_str)
