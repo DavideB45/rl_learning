@@ -23,8 +23,8 @@ def get_img(renderer, size=(64, 64)) -> Tuple[Image.Image, Image.Image, Image.Im
 	img3 = Image.fromarray(img3).resize(size)
 	return img1, img2, img3
 
-def run(env_id="Pusher-v5", episodes=5, max_steps=100, seed=0, render=True):
-	render_mode = "rgb_array" if render else None
+def run(env_id="Pusher-v5", episodes=5, max_steps=100, seed=0):
+	render_mode = "rgb_array"
 	env = gym.make(env_id, render_mode=render_mode)
 	renderer = env.env.env.env.mujoco_renderer
 	cameras = ["cam_above 0", "cam_side 1", "cam_front 2"]
@@ -68,7 +68,6 @@ if __name__ == "__main__":
 	p.add_argument("--env", default="Pusher-v5", help="Environment id")
 	p.add_argument("--episodes", type=int, default=1, help="Number of episodes")
 	p.add_argument("--steps", type=int, default=100, help="Max steps per episode")
-	p.add_argument("--no-render", action="store_true", help="Disable rendering")
 	args = p.parse_args()
 
-	run(env_id=args.env, episodes=args.episodes, max_steps=args.steps, render=not args.no_render)
+	run(env_id=args.env, episodes=args.episodes, max_steps=args.steps)
