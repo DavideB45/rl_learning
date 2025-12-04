@@ -59,7 +59,7 @@ class PNGMultiViewDataset(Dataset):
 	'''
 	def __init__(self, path):
 		self.view1_files = sorted(glob.glob(path + '/front_img_*.png'))
-		self.view2_files = sorted(glob.glob(path + '/side_img_*.png'))
+		self.view2_files = sorted(glob.glob(path + '/above_img_*.png'))
 		if len(self.view1_files) != len(self.view2_files):
 			raise ValueError("Number of images in view1 and view2 do not match.")
 		self.transform = torchvision.transforms.ToTensor()

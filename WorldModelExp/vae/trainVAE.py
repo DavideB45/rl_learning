@@ -30,7 +30,9 @@ if __name__ == "__main__":
 				code_depth=8,
 				latent_dim=4,
 				commitment_cost=0.25,
-				device=DEVICE)
+				device=DEVICE,
+				ema_mode=True
+				)
 	print(vae)
 	num_params = sum(p.numel() for p in vae.parameters() if p.requires_grad)
 	print(f"Number of trainable parameters: {num_params}")
