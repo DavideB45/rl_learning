@@ -15,8 +15,8 @@ from global_var import CURRENT_ENV
 
 LATENT_DIM = 512
 REG_STRENGTH = 0.5
-NUM_EPOCHS = 20
-LEARNING_RATE = 2e-3
+NUM_EPOCHS = 100
+LEARNING_RATE = 5e-4
 
 DATA_PATH = CURRENT_ENV['img_dir']
 DEVICE = best_device()
@@ -52,6 +52,7 @@ if __name__ == "__main__":
 			print(f"{color}  Train {key}: {tr_loss[key]:.4f}, Val {key}: {val_loss[key]:.4f}{reset}")
 	
 	model_path = "vae_model.pth"
+	#TODO: implement using helpers funciton to do it correctly
 	torch.save(vae.state_dict(), model_path)
 	print(f"Trained VAE model saved to {model_path}")
 	

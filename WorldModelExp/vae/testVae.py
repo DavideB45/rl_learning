@@ -42,7 +42,7 @@ if __name__ == "__main__":
 	vq_vae.eval()
 	base_vae.eval()
 
-	test_loader, _ = make_img_dataloader(CURRENT_ENV['img_dir'])
+	_, test_loader = make_img_dataloader(CURRENT_ENV['img_dir'])
 
 	# get a batch of test images
 	dataiter = iter(test_loader)
