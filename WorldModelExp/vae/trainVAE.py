@@ -11,11 +11,12 @@ else:
 	from vae.vqVae import VQVAE as VAE
 from helpers.general import best_device
 from helpers.data import make_img_dataloader
+from helpers.model_loader import save_base_vae, save_vq_vae
 from global_var import CURRENT_ENV
 
-LATENT_DIM = 512
+LATENT_DIM = 64
 REG_STRENGTH = 0.5
-NUM_EPOCHS = 100
+NUM_EPOCHS = 10
 LEARNING_RATE = 5e-4
 
 DATA_PATH = CURRENT_ENV['img_dir']
@@ -51,8 +52,9 @@ if __name__ == "__main__":
 			reset = '\033[0m'
 			print(f"{color}  Train {key}: {tr_loss[key]:.4f}, Val {key}: {val_loss[key]:.4f}{reset}")
 	
-	model_path = "vae_model.pth"
-	#TODO: implement using helpers funciton to do it correctly
-	torch.save(vae.state_dict(), model_path)
+	if basic:
+		model_path = save_base_vae(CURRENT_ENV, vae, REG_STRENGTH)
+	else:
+		model_path = save_vq_vae(CURRENT_ENV, vae)
 	print(f"Trained VAE model saved to {model_path}")
 	

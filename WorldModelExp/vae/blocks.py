@@ -73,7 +73,10 @@ class VectorQuantizer(nn.Module):
 	"""
 	A vector quantizer layer for VQ-VAE. 
 	"""
-	def __init__(self, codebook_size: int, embedding_dim: int, commitment_cost: float, ema: bool = False, gamma: float = 0.99, epsilon: float = 1e-5):
+	def __init__(self, 
+			  codebook_size: int, embedding_dim: int, 
+			  commitment_cost: float, 
+			  ema: bool = False, gamma: float = 0.99, epsilon: float = 1e-5):
 		super().__init__()
 		self.codebook_size = codebook_size
 		self.embedding_dim = embedding_dim
@@ -96,8 +99,11 @@ class VectorQuantizer(nn.Module):
 		quantized = self.embedding(encoding_indices).view(input_shape)  # (B, H, W, D)
 		
 		e_latent_loss = F.mse_loss(quantized.detach(), x)
-		q_latent_loss = F.mse_loss(quantized, x.detach())
-		loss = q_latent_loss + self.commitment_cost * e_latent_loss
+		if self.ema:
+			loss = e_latent_loss * self.commitment_cost
+		else:
+			q_latent_loss = F.mse_loss(quantized, x.detach())
+			loss = q_latent_loss + self.commitment_cost * e_latent_loss
 
 		if self.training:
 			if self.ema:
