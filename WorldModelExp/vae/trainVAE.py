@@ -16,8 +16,13 @@ from global_var import CURRENT_ENV
 
 LATENT_DIM = 64
 REG_STRENGTH = 0.5
-NUM_EPOCHS = 10
+NUM_EPOCHS = 100
 LEARNING_RATE = 5e-4
+
+CODE_DEPTH = 16
+LATENT_DIM_VQ = 8
+CODEBOOK_SIZE = 256
+EMA_MODE = False
 
 DATA_PATH = CURRENT_ENV['img_dir']
 DEVICE = best_device()
@@ -27,12 +32,12 @@ if __name__ == "__main__":
 	if basic:
 		vae = VAE(latent_dim=LATENT_DIM, device=DEVICE)
 	else:
-		vae = VAE(codebook_size=256,
-				code_depth=8,
-				latent_dim=4,
+		vae = VAE(codebook_size=CODEBOOK_SIZE,
+				code_depth=CODE_DEPTH,
+				latent_dim=LATENT_DIM_VQ,
 				commitment_cost=0.25,
 				device=DEVICE,
-				ema_mode=True
+				ema_mode=EMA_MODE
 				)
 	print(vae)
 	num_params = sum(p.numel() for p in vae.parameters() if p.requires_grad)

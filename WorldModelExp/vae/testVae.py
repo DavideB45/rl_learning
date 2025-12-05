@@ -17,8 +17,8 @@ import matplotlib.pyplot as plt
 LATENT_DIM = 32
 KL_WEIGHT = 0.5
 
-CODE_DEPTH = 8
-LATENT_DIM_VQ = 4
+CODE_DEPTH = 16
+LATENT_DIM_VQ = 8
 CODEBOOK_SIZE = 256
 EMA_MODE = True
 # file to test VAE training
