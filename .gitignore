@@ -4,7 +4,7 @@
 WorldModel/data/*/img/*
 WorldModel/data/*/transition_data.json
 WorldModel/data/*/experience.json
-WorldModelExp/data/*
+WorldModelExp/data/*/multi_img
 rl_env/
 
 # Byte-compiled / optimized / DLL files
