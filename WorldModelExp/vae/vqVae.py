@@ -35,6 +35,7 @@ class VQVAE(AbstractVAE):
 		self.codebook_size = codebook_size
 		self.code_depth = code_depth
 		self.commitment_cost = commitment_cost
+		self.ema_mode = ema_mode
 
 		self.quantizer = VectorQuantizer(codebook_size, code_depth, commitment_cost, ema=ema_mode)
 		self.encoder = nn.Sequential(
