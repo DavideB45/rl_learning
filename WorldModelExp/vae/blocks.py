@@ -91,6 +91,16 @@ class VectorQuantizer(nn.Module):
 			self.epsilon = epsilon
 
 	def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+		"""
+		Forward pass of the vector quantizer.
+		Args:
+			x (torch.Tensor): Input tensor of shape (batch, code_depth, latent_dim, latent_dim)
+		Returns:
+			commitment_loss (torch.Tensor): Commitment loss.
+			quantized (torch.Tensor): Quantized tensor of shape (batch, code_depth, latent_dim, latent_dim)
+			codebook_indices (torch.Tensor): Indices of the codebook vectors used.
+		"""
+		print(f"VectorQuantizer input shape: {x.shape}")
 		x = x.permute(0, 2, 3, 1).contiguous()  # (B, H, W, D)
 		input_shape = x.shape
 		flat_x = x.view(-1, 1, self.embedding_dim)  # (B*H*W, 1, D)
@@ -122,3 +132,20 @@ class VectorQuantizer(nn.Module):
 			quantized = x + (quantized - x).detach()
 		
 		return loss, quantized.permute(0, 3, 1, 2).contiguous(), encoding_indices.reshape(input_shape[0], -1)
+	
+	def get_index_probabilities(self, x: torch.Tensor) -> torch.Tensor:
+		"""
+		Computes the probabilities of each codebook index for the input x.
+		Args:
+			x (torch.Tensor): Input tensor of shape (batch, code_depth, latent_dim, latent_dim)
+		Returns:
+			torch.Tensor: Probabilities of shape (batch, codebook_size, latent_dim, latent_dim)
+		"""
+
+		x = x.permute(0, 2, 3, 1).contiguous()  # (B, H, W, D)
+		input_shape = x.shape
+		flat_x = x.view(-1, 1, self.embedding_dim)  # (B*H*W, 1, D)
+		distances = (flat_x - self.embedding.weight.unsqueeze(0)).pow(2).mean(2)  # (B*H*W, K)
+		# Convert distances to probabilities
+		probabilities = F.softmax(-distances, dim=1)  # (B*H*W, K)
+		return probabilities.view(input_shape[0], input_shape[1], input_shape[2], self.codebook_size).permute(0, 3, 1, 2).contiguous()  # (B, K, H, W)
