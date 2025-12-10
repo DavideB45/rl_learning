@@ -77,6 +77,16 @@ class VQVAE(AbstractVAE):
 		"""
 		return self.quantizer(z)
 	
+	def encode_probabilities(self, z: torch.Tensor) -> torch.Tensor:
+		"""
+		Encodes the latent representation z into codebook index probabilities.
+		Args:
+			z (torch.Tensor): Latent tensor of shape (batch, code_depth, latent_dim, latent_dim)
+		Returns:
+			torch.Tensor: Probabilities of shape (batch, codebook_size, latent_dim, latent_dim)
+		"""
+		return self.quantizer.get_index_probabilities(z)
+	
 	def decode(self, z: torch.Tensor) -> torch.Tensor:
 		"""
 		Decodes latent z to reconstruction space (e.g. image or feature space).

@@ -46,10 +46,25 @@ if __name__ == "__main__":
 		img = torch.tensor(img).permute(0, 3, 1, 2).float().to(device)
 		with torch.no_grad():
 			latents = vq_vae.encode(img)
-			_, _, latents = vq_vae.quantize(latents)
+			probs = vq_vae.encode_probabilities(latents)
 			# (10, 16)
 			#print(f"predict function called, latents shape: {latents.shape}")
-		return latents[:, latent_to_check:latent_to_check+1]
+		print(f"Results shape: {probs.shape}")
+		#print(f"results sample: {probs[0, :, 0, 0]}")
+		print(f"Latent checking index: {latent_to_check}")
+		print(f"Bigger number: {probs[0, :, latent_to_check%LATENT_DIM_VQ, latent_to_check//LATENT_DIM_VQ].max()}")
+		print(f"Index of bigger number: {torch.argmax(probs[0, :, latent_to_check%LATENT_DIM_VQ, latent_to_check//LATENT_DIM_VQ])}")
+		print(f"biggest number at index : {probs[0, torch.argmax(probs[0, :, latent_to_check%LATENT_DIM_VQ, latent_to_check//LATENT_DIM_VQ]), latent_to_check%LATENT_DIM_VQ, latent_to_check//LATENT_DIM_VQ]}")
+		return latents[:, :, latent_to_check%LATENT_DIM_VQ, latent_to_check//LATENT_DIM_VQ]
+	
+	def best_index(img, device=device, vq_vae=vq_vae, latent_to_check=0):
+		vq_vae.eval()
+		print(f"Shape of img in best_index: {img.shape}")
+		img = img.unsqueeze(0)
+		with torch.no_grad():
+			latents = vq_vae.encode(img)
+			probs = vq_vae.encode_probabilities(latents)
+		return torch.argmax(probs[:, :, latent_to_check%LATENT_DIM_VQ, latent_to_check//LATENT_DIM_VQ], dim=1).cpu().numpy()
 	
 	for i in range(len(images)):
 		# print(f"image {i}, size: {images[i].shape}, max: {images[i].max()}, min: {images[i].min()}")
@@ -62,48 +77,50 @@ if __name__ == "__main__":
 			explanation = explainer.explain_instance(
 				images[i].cpu().numpy().transpose(1, 2, 0),
 				lambda img: predict(img, latent_to_check=j),
-				labels=(0,),
+				labels=tuple(range(CODEBOOK_SIZE)),
 				hide_color=0,
+				top_labels=CODEBOOK_SIZE,
 				num_samples=1000,
-				num_features=64,
 				batch_size=30
 			)
+			best = best_index(images[i], latent_to_check=j)
+			print(f"Latent {j}, best index: {best}, expected index: {explanation.top_labels[0]}")
 			temp, mask = explanation.get_image_and_mask(
-				label=0,
-				positive_only=True,
-				num_features=5,
+				label=explanation.top_labels[0],
+				positive_only=False,
+				num_features=100,
 				hide_rest=False,
 			)
 			if full_mask is None:
 				full_mask = mask / (LATENT_DIM_VQ*LATENT_DIM_VQ)
 			else:
 				full_mask = full_mask + (mask / (LATENT_DIM_VQ*LATENT_DIM_VQ))
-		# Get reconstructed image
-		with torch.no_grad():
-			reconstructed, _, _ = vq_vae.forward(images[i].unsqueeze(0))
-		
-		plt.figure(figsize=(16, 4))
-		plt.subplot(1, 4, 1)
-		plt.imshow(images[i].permute(1, 2, 0).cpu().numpy())
-		plt.title(f"Image {i}")
-		plt.axis('off')
-		
-		plt.subplot(1, 4, 2)
-		plt.imshow(reconstructed[0].permute(1, 2, 0).cpu().numpy())
-		plt.title("Reconstructed")
-		plt.axis('off')
+			# Get reconstructed image
+			with torch.no_grad():
+				reconstructed, _, _ = vq_vae.forward(images[i].unsqueeze(0))
+			
+			plt.figure(figsize=(16, 4))
+			plt.subplot(1, 4, 1)
+			plt.imshow(images[i].permute(1, 2, 0).cpu().numpy())
+			plt.title(f"Image {i}")
+			plt.axis('off')
+			
+			plt.subplot(1, 4, 2)
+			plt.imshow(reconstructed[0].permute(1, 2, 0).cpu().numpy())
+			plt.title("Reconstructed")
+			plt.axis('off')
 
-		plt.subplot(1, 4, 3)
-		plt.imshow(full_mask)
-		plt.title("LIME Mask")
-		plt.axis('off')
-		
-		plt.subplot(1, 4, 4)
-		plt.imshow(images[i].permute(1, 2, 0).cpu().numpy())
-		plt.imshow(full_mask, alpha=0.5, cmap='jet')
-		plt.title(f"Image {i} Overlapped")
-		plt.axis('off')
-		
-		plt.tight_layout()
-		plt.show()
+			plt.subplot(1, 4, 3)
+			plt.imshow(full_mask)
+			plt.title("LIME Mask")
+			plt.axis('off')
+			
+			plt.subplot(1, 4, 4)
+			plt.imshow(images[i].permute(1, 2, 0).cpu().numpy())
+			plt.imshow(full_mask, alpha=0.5, cmap='jet')
+			plt.title(f"Image {i} Overlapped")
+			plt.axis('off')
+			
+			plt.tight_layout()
+			plt.show()
 	

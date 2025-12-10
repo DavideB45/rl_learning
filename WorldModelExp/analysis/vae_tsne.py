@@ -55,7 +55,7 @@ if __name__ == "__main__":
 			codebook_size = int(input("Enter codebook size: "))
 			code_depth = int(input("Enter code depth: "))
 			latent_dim = int(input("Enter latent dimension size: "))
-			model = load_vq_vae(CURRENT_ENV, codebook_size, code_depth, latent_dim, device)
+			model = load_vq_vae(CURRENT_ENV, codebook_size, code_depth, latent_dim, ema_mode=True, device=device)
 		elif model_type == 'moe':
 			latent_dim = int(input("Enter latent dimension size: "))
 			kl_b = float(input("Enter KL beta value: "))
