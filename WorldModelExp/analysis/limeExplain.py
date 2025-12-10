@@ -1,6 +1,7 @@
 import os
 import sys
 
+import numpy as np
 import torch
 import matplotlib.pyplot as plt
 from tqdm import tqdm
@@ -15,9 +16,9 @@ from global_var import CURRENT_ENV
 from helpers.data import make_img_dataloader
 from helpers.model_loader import load_base_vae, load_vq_vae
 
-CODE_DEPTH = 8
 LATENT_DIM_VQ = 4
-CODEBOOK_SIZE = 256
+CODE_DEPTH = 16
+CODEBOOK_SIZE = 128
 EMA_MODE = True
 
 if __name__ == "__main__":
@@ -47,15 +48,7 @@ if __name__ == "__main__":
 		with torch.no_grad():
 			latents = vq_vae.encode(img)
 			probs = vq_vae.encode_probabilities(latents)
-			# (10, 16)
-			#print(f"predict function called, latents shape: {latents.shape}")
-		print(f"Results shape: {probs.shape}")
-		#print(f"results sample: {probs[0, :, 0, 0]}")
-		print(f"Latent checking index: {latent_to_check}")
-		print(f"Bigger number: {probs[0, :, latent_to_check%LATENT_DIM_VQ, latent_to_check//LATENT_DIM_VQ].max()}")
-		print(f"Index of bigger number: {torch.argmax(probs[0, :, latent_to_check%LATENT_DIM_VQ, latent_to_check//LATENT_DIM_VQ])}")
-		print(f"biggest number at index : {probs[0, torch.argmax(probs[0, :, latent_to_check%LATENT_DIM_VQ, latent_to_check//LATENT_DIM_VQ]), latent_to_check%LATENT_DIM_VQ, latent_to_check//LATENT_DIM_VQ]}")
-		return latents[:, :, latent_to_check%LATENT_DIM_VQ, latent_to_check//LATENT_DIM_VQ]
+		return probs[:, :, latent_to_check%LATENT_DIM_VQ, latent_to_check//LATENT_DIM_VQ]
 	
 	def best_index(img, device=device, vq_vae=vq_vae, latent_to_check=0):
 		vq_vae.eval()
@@ -64,15 +57,12 @@ if __name__ == "__main__":
 		with torch.no_grad():
 			latents = vq_vae.encode(img)
 			probs = vq_vae.encode_probabilities(latents)
+
 		return torch.argmax(probs[:, :, latent_to_check%LATENT_DIM_VQ, latent_to_check//LATENT_DIM_VQ], dim=1).cpu().numpy()
 	
 	for i in range(len(images)):
-		# print(f"image {i}, size: {images[i].shape}, max: {images[i].max()}, min: {images[i].min()}")
-		# Convert tensor to numpy array with correct format for LIME
-		# img_np = images[i].permute(1, 2, 0).cpu().numpy()
-		# img_np = (img_np * 255).astype('uint8')
-		# print(f"img_np shape: {img_np.shape}, max: {img_np.max()}, min: {img_np.min()}")
 		full_mask = None
+		all_masks = []
 		for j in range(LATENT_DIM_VQ*LATENT_DIM_VQ):
 			explanation = explainer.explain_instance(
 				images[i].cpu().numpy().transpose(1, 2, 0),
@@ -84,43 +74,57 @@ if __name__ == "__main__":
 				batch_size=30
 			)
 			best = best_index(images[i], latent_to_check=j)
-			print(f"Latent {j}, best index: {best}, expected index: {explanation.top_labels[0]}")
-			temp, mask = explanation.get_image_and_mask(
+			print(f"Latent {j}, best index: {best}, expected index: {explanation.top_labels[0:5]}, length: {len(explanation.top_labels)}")
+			temp, mask1 = explanation.get_image_and_mask(
 				label=explanation.top_labels[0],
-				positive_only=False,
-				num_features=100,
+				positive_only=True,
+				negative_only=False,
+				num_features=1000,
 				hide_rest=False,
+				min_weight=0.01
 			)
 			if full_mask is None:
-				full_mask = mask / (LATENT_DIM_VQ*LATENT_DIM_VQ)
+				full_mask = mask1.clip(0,1)
+				all_masks.append(mask1.clip(0,1))
 			else:
-				full_mask = full_mask + (mask / (LATENT_DIM_VQ*LATENT_DIM_VQ))
-			# Get reconstructed image
-			with torch.no_grad():
-				reconstructed, _, _ = vq_vae.forward(images[i].unsqueeze(0))
+				full_mask = full_mask*2 + mask1.clip(0,1)
+				all_masks.append(mask1.clip(0,1))
+		# check if there are masks that are identical
+		unique_masks = []
+		for m in all_masks:
+			if not any(np.array_equal(m, um) for um in unique_masks):
+				unique_masks.append(m)
+		print(f"Number of unique masks for image {i}: {len(unique_masks)} out of {len(all_masks)}")
+		# Get reconstructed image
+		with torch.no_grad():
+			reconstructed, _, _ = vq_vae.forward(images[i].unsqueeze(0))
 			
-			plt.figure(figsize=(16, 4))
-			plt.subplot(1, 4, 1)
-			plt.imshow(images[i].permute(1, 2, 0).cpu().numpy())
-			plt.title(f"Image {i}")
-			plt.axis('off')
-			
-			plt.subplot(1, 4, 2)
-			plt.imshow(reconstructed[0].permute(1, 2, 0).cpu().numpy())
-			plt.title("Reconstructed")
-			plt.axis('off')
+		plt.figure(figsize=(20, 4))
+		plt.subplot(1, 5, 1)
+		plt.imshow(images[i].permute(1, 2, 0).cpu().numpy())
+		plt.title(f"Image {i}")
+		plt.axis('off')
+		
+		plt.subplot(1, 5, 2)
+		plt.imshow(reconstructed[0].permute(1, 2, 0).cpu().numpy())
+		plt.title("Reconstructed")
+		plt.axis('off')
 
-			plt.subplot(1, 4, 3)
-			plt.imshow(full_mask)
-			plt.title("LIME Mask")
-			plt.axis('off')
-			
-			plt.subplot(1, 4, 4)
-			plt.imshow(images[i].permute(1, 2, 0).cpu().numpy())
-			plt.imshow(full_mask, alpha=0.5, cmap='jet')
-			plt.title(f"Image {i} Overlapped")
-			plt.axis('off')
-			
-			plt.tight_layout()
-			plt.show()
-	
+		plt.subplot(1, 5, 3)
+		plt.imshow(full_mask)
+		plt.title("LIME Mask")
+		plt.axis('off')
+		
+		plt.subplot(1, 5, 4)
+		plt.imshow(images[i].permute(1, 2, 0).cpu().numpy())
+		plt.imshow(full_mask, alpha=0.5, cmap='jet')
+		plt.title(f"Image {i} Overlapped")
+		plt.axis('off')
+		
+		plt.subplot(1, 5, 5)
+		plt.imshow(mask1)
+		plt.title("Mask Only")
+		plt.axis('off')
+		
+		plt.tight_layout()
+		plt.show()
