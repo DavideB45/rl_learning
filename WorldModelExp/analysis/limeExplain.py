@@ -41,7 +41,6 @@ if __name__ == "__main__":
 	dataiter = iter(test_loader)
 	images = next(dataiter).to(device)
 	
-	explainer = lime_image.LimeImageExplainer()
 	def predict(img, device=device, vq_vae=vq_vae, latent_to_check=0):
 		vq_vae.eval()
 		img = torch.tensor(img).permute(0, 3, 1, 2).float().to(device)
@@ -75,6 +74,7 @@ if __name__ == "__main__":
 		full_weight_mask = None
 		all_masks = []
 		for j in range(LATENT_DIM_VQ*LATENT_DIM_VQ):
+			explainer = lime_image.LimeImageExplainer()
 			explanation = explainer.explain_instance(
 				images[i].cpu().numpy().transpose(1, 2, 0),
 				lambda img: predict(img, latent_to_check=j),
@@ -105,7 +105,7 @@ if __name__ == "__main__":
 
 			weight_mask = lime_weight_mask(explanation, explanation.top_labels[0])
 			print(f"Weight mask stats for latent {j}: min {weight_mask.min()}, max {weight_mask.max()}, mean {weight_mask.mean()}")
-			print(f"All weights for latent {j}: {dict(explanation.local_exp[explanation.top_labels[0]]).__len__()}")
+			print(f"All weights for latent {j}: {np.unique(lime_weight_mask(explanation, explanation.top_labels[0])).__len__()}")
 			print(f"Full weight mask stats for latent {j}: min {full_weight_mask.min()}, max {full_weight_mask.max()}, mean {full_weight_mask.mean()}")
 			print(f"All weights for full weight mask: {np.unique(full_weight_mask).__len__()}")
 			# Show the template and mask for this latent
