@@ -60,8 +60,19 @@ if __name__ == "__main__":
 
 		return torch.argmax(probs[:, :, latent_to_check%LATENT_DIM_VQ, latent_to_check//LATENT_DIM_VQ], dim=1).cpu().numpy()
 	
+	def lime_weight_mask(explanation, label):
+		# Get superpixel weights
+		weights = dict(explanation.local_exp[label])
+		# The segmentation used by LIME
+		segments = explanation.segments
+		mask = np.ones_like(segments, dtype=float)
+		for seg_id, w in weights.items():
+			mask[segments == seg_id] = w
+		return mask
+
 	for i in range(len(images)):
 		full_mask = None
+		full_weight_mask = None
 		all_masks = []
 		for j in range(LATENT_DIM_VQ*LATENT_DIM_VQ):
 			explanation = explainer.explain_instance(
@@ -80,15 +91,44 @@ if __name__ == "__main__":
 				positive_only=True,
 				negative_only=False,
 				num_features=1000,
-				hide_rest=False,
+				hide_rest=True,
 				min_weight=0.01
 			)
 			if full_mask is None:
 				full_mask = mask1.clip(0,1)
 				all_masks.append(mask1.clip(0,1))
+				full_weight_mask = lime_weight_mask(explanation, explanation.top_labels[0])/LATENT_DIM_VQ/ LATENT_DIM_VQ
 			else:
 				full_mask = full_mask*2 + mask1.clip(0,1)
 				all_masks.append(mask1.clip(0,1))
+				full_weight_mask = full_weight_mask + lime_weight_mask(explanation, explanation.top_labels[0])/LATENT_DIM_VQ/ LATENT_DIM_VQ
+
+			weight_mask = lime_weight_mask(explanation, explanation.top_labels[0])
+			print(f"Weight mask stats for latent {j}: min {weight_mask.min()}, max {weight_mask.max()}, mean {weight_mask.mean()}")
+			print(f"All weights for latent {j}: {dict(explanation.local_exp[explanation.top_labels[0]]).__len__()}")
+			print(f"Full weight mask stats for latent {j}: min {full_weight_mask.min()}, max {full_weight_mask.max()}, mean {full_weight_mask.mean()}")
+			print(f"All weights for full weight mask: {np.unique(full_weight_mask).__len__()}")
+			# Show the template and mask for this latent
+			plt.figure(figsize=(8, 4))
+			plt.subplot(2, 2, 1)
+			plt.imshow(temp)
+			plt.title(f"Latent {j} Explanation")
+			plt.axis('off')
+			plt.subplot(2, 2, 2)
+			plt.imshow(mask1)
+			plt.title(f"Latent {j} Mask")
+			plt.axis('off')
+			plt.subplot(2, 2, 3)
+			plt.imshow(weight_mask, cmap='gray')
+			plt.title(f"Latent {j} Weights")
+			plt.axis('off')
+			plt.subplot(2, 2, 4)
+			plt.imshow(images[i].permute(1, 2, 0).cpu().numpy())
+			plt.imshow(full_weight_mask, alpha=0.2, cmap='gray')
+			plt.title(f"Latent {j} Weights Overlapped")
+			plt.axis('off')
+			plt.tight_layout()
+			plt.show()
 		# check if there are masks that are identical
 		unique_masks = []
 		for m in all_masks:
