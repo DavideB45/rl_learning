@@ -15,7 +15,7 @@ from helpers.model_loader import save_base_vae, save_vq_vae
 from global_var import CURRENT_ENV
 
 LATENT_DIM = 32
-REG_STRENGTH = 1
+REG_STRENGTH = 0.5
 NUM_EPOCHS = 100
 LEARNING_RATE = 5e-4
 
