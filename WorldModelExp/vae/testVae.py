@@ -50,8 +50,12 @@ if __name__ == "__main__":
 	
 	# reconstruct images using VAE
 	with torch.no_grad():
+		# vq reconstruction
 		vq_images, _, _ = vq_vae.forward(images)
-		recon_images, _, _ = base_vae.forward(images)
+		# base reconstruction
+		mu, logvar = base_vae.encode(images)
+		recon_images = base_vae.decode(mu)
+		#recon_images, _, _ = base_vae.forward(images)
 	
 	vq_images = vq_images.cpu()
 	recon_images = recon_images.cpu()

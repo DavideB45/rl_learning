@@ -4,7 +4,7 @@ import os
 import sys
 sys.path.insert(1, os.path.join(sys.path[0], '../'))
 
-basic = False
+basic = True
 if basic:
 	from vae.myVae import CVAE as VAE
 else:
@@ -14,7 +14,7 @@ from helpers.data import make_img_dataloader
 from helpers.model_loader import save_base_vae, save_vq_vae
 from global_var import CURRENT_ENV
 
-LATENT_DIM = 64
+LATENT_DIM = 32
 REG_STRENGTH = 1
 NUM_EPOCHS = 100
 LEARNING_RATE = 5e-4
@@ -51,7 +51,7 @@ if __name__ == "__main__":
 		vae.train()
 		tr_loss = vae.train_epoch(train_loader, torch.optim.Adam(vae.parameters(), lr=LEARNING_RATE), reg_strength)
 		vae.eval()
-		val_loss = vae.eval_epoch(val_loader, reg_strength)
+		val_loss = vae.eval_epoch(val_loader, REG_STRENGTH)
 		colors = ['\033[91m', '\033[95m', '\033[92m', '\033[93m', '\033[96m']
 		reset = '\033[0m'
 		if val_loss['total_loss'] < best_val_loss:
