@@ -3,7 +3,7 @@ from PIL import Image
 import matplotlib.pyplot as plt
 from torchvision import transforms
 import numpy as np
-from sklearn.manifold import TSNE
+from tqdm import tqdm
 import os
 import sys
 sys.path.insert(1, os.path.join(sys.path[0], '../'))
@@ -28,7 +28,7 @@ def get_sequence() -> list[Image.Image]:
 				)
 	renderer = env.env.env.env.mujoco_renderer
 	images = []
-	_, _ = env.reset(seed=42)
+	_, _ = env.reset()
 	images.append(get_img(renderer, size=(64, 64)))
 	terminated, truncated = False, False
 	while not (terminated or truncated):
@@ -49,6 +49,10 @@ if __name__ == "__main__":
 	device = best_device()
 	
 	images = get_sequence()
+	for i in range(14):
+		# Add another sequence to have more images
+		images += get_sequence()
+	print(f"Total images collected: {len(images)}")
 	show = True
 	while show:
 		model_type = input("Enter VAE model type (base/vq/moe): ")
@@ -93,18 +97,20 @@ if __name__ == "__main__":
 		num_images = len(images)
 		img_dist_matrix = np.zeros((num_images, num_images))
 		latent_dist_matrix = np.zeros((num_images, num_images))
-		for i in range(num_images):
-			for j in range(num_images):
+		for i in tqdm(range(num_images), desc="Computing distance matrices"):
+			for j in range(i, num_images):
 				img_dist_matrix[i, j] = img_distance(images[i], images[j])
+				img_dist_matrix[j, i] = img_dist_matrix[i, j]
 				latent_dist_matrix[i, j] = latent_distance(latent_representations[i], latent_representations[j])
+				latent_dist_matrix[j, i] = latent_dist_matrix[i, j]
 		
 		# Plot the distance matrices
-		plt.figure(figsize=(12, 5))
-		plt.subplot(1, 2, 1)
+		plt.figure(figsize=(5, 10))
+		plt.subplot(2, 1, 1)
 		plt.title("Image Distance Matrix")
 		plt.imshow(img_dist_matrix, cmap='viridis')
 		plt.colorbar()
-		plt.subplot(1, 2, 2)
+		plt.subplot(2, 1, 2)
 		plt.title("Latent Distance Matrix")
 		plt.imshow(latent_dist_matrix, cmap='viridis')
 		plt.colorbar()
