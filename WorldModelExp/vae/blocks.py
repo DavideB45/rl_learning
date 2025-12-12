@@ -100,7 +100,6 @@ class VectorQuantizer(nn.Module):
 			quantized (torch.Tensor): Quantized tensor of shape (batch, code_depth, latent_dim, latent_dim)
 			codebook_indices (torch.Tensor): Indices of the codebook vectors used.
 		"""
-		print(f"VectorQuantizer input shape: {x.shape}")
 		x = x.permute(0, 2, 3, 1).contiguous()  # (B, H, W, D)
 		input_shape = x.shape
 		flat_x = x.view(-1, 1, self.embedding_dim)  # (B*H*W, 1, D)

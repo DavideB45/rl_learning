@@ -15,14 +15,14 @@ from helpers.model_loader import save_base_vae, save_vq_vae
 from global_var import CURRENT_ENV
 
 LATENT_DIM = 64
-REG_STRENGTH = 0.5
+REG_STRENGTH = 1
 NUM_EPOCHS = 100
 LEARNING_RATE = 5e-4
 
-CODE_DEPTH = 16
 LATENT_DIM_VQ = 8
-CODEBOOK_SIZE = 256
-EMA_MODE = False
+CODE_DEPTH = 32
+CODEBOOK_SIZE = 128
+EMA_MODE = True
 
 DATA_PATH = CURRENT_ENV['img_dir']
 DEVICE = best_device()
@@ -44,22 +44,25 @@ if __name__ == "__main__":
 	print(f"Number of trainable parameters: {num_params}")
 	train_loader, val_loader = make_img_dataloader(data_dir=DATA_PATH, batch_size=64, test_split=0.2)
 	reg_strength = 0.0
+	best_val_loss = float('inf')
 	for epoch in range(NUM_EPOCHS):
-		reg_strength = REG_STRENGTH * min(1.0, (epoch + 1) / 10.0)
+		reg_strength = REG_STRENGTH * min(1.0, (epoch + 1) / 40.0)
 		print("-" * 25 + f" {(epoch + 1):02}/{NUM_EPOCHS} " + "-" * 25)
 		vae.train()
 		tr_loss = vae.train_epoch(train_loader, torch.optim.Adam(vae.parameters(), lr=LEARNING_RATE), reg_strength)
 		vae.eval()
 		val_loss = vae.eval_epoch(val_loader, reg_strength)
 		colors = ['\033[91m', '\033[95m', '\033[92m', '\033[93m', '\033[96m']
+		reset = '\033[0m'
+		if val_loss['total_loss'] < best_val_loss:
+			best_val_loss = val_loss['total_loss']
+			# save the best model
+			if basic:
+				save_base_vae(CURRENT_ENV, vae, REG_STRENGTH)
+			else:
+				save_vq_vae(CURRENT_ENV, vae)
+			print(f"{colors[-1]}  New best model saved!{reset}")
 		for i, key in enumerate(tr_loss):
 			color = colors[i % len(colors)]
-			reset = '\033[0m'
 			print(f"{color}  Train {key}: {tr_loss[key]:.4f}, Val {key}: {val_loss[key]:.4f}{reset}")
-	
-	if basic:
-		model_path = save_base_vae(CURRENT_ENV, vae, REG_STRENGTH)
-	else:
-		model_path = save_vq_vae(CURRENT_ENV, vae)
-	print(f"Trained VAE model saved to {model_path}")
 	
