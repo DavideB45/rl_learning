@@ -132,6 +132,25 @@ class VectorQuantizer(nn.Module):
 		
 		return loss, quantized.permute(0, 3, 1, 2).contiguous(), encoding_indices.reshape(input_shape[0], -1)
 	
+	def quantize_fixed_space(self, z:torch.Tensor) -> torch.Tensor:
+		"""
+		Quantize the input z using the codebook without updating the embeddings.
+		But allows gradient flow using straight-through estimator.
+
+		Args:
+			z (torch.Tensor): Input tensor of shape (batch, code_depth, latent_dim, latent_dim)
+		Returns:
+			quantized (torch.Tensor): Quantized tensor of shape (batch, code_depth, latent_dim, latent_dim)
+		"""
+		z = z.permute(0, 2, 3, 1).contiguous()
+		input_shape = z.shape
+		flat_z = z.view(-1, 1, self.embedding_dim)
+		distances = (flat_z - self.embedding.weight.unsqueeze(0)).pow(2).mean(2)
+		encoding_indices = torch.argmin(distances, dim=1).unsqueeze(1)
+		quantized = self.embedding(encoding_indices).view(input_shape)
+		quantized = z + (quantized - z).detach()
+		return quantized.permute(0, 3, 1, 2).contiguous()
+
 	def get_index_probabilities(self, x: torch.Tensor) -> torch.Tensor:
 		"""
 		Computes the probabilities of each codebook index for the input x.
