@@ -17,9 +17,9 @@ import matplotlib.pyplot as plt
 LATENT_DIM = 32
 KL_WEIGHT = 0.5
 
-CODE_DEPTH = 16
 LATENT_DIM_VQ = 8
-CODEBOOK_SIZE = 256
+CODE_DEPTH = 32
+CODEBOOK_SIZE = 128
 EMA_MODE = True
 # file to test VAE training
 # shows a couple of reconstructed images after training
@@ -95,6 +95,7 @@ if __name__ == "__main__":
 	plt.savefig('reconstructed_images.png', dpi=600)
 	plt.show()
 
+	exit(0)
 	indexes_array = [0 for _ in range(vq_vae.codebook_size)]
 	avg_error = 0.0
 	for batch in tqdm(test_loader):
