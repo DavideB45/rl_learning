@@ -5,6 +5,8 @@ from torch.utils.data import Dataset, DataLoader, random_split
 import torchvision
 import torch
 
+from tqdm import tqdm
+
 import os
 import sys
 sys.path.insert(1, os.path.join(sys.path[0], '../'))
@@ -107,19 +109,19 @@ class TrasitionDataset(Dataset):
 		latents = []
 		to_tensor_ = torchvision.transforms.ToTensor()
 		with torch.no_grad():
-			for episode in range(len(act)):
+			for episode in tqdm(range(len(act)), 'Encoding images'):
 				latents.append([])
 				for i in range(len(act[episode])):
 					im_path = path + f"imgs/img_{episode}_{i}.png"
 					img = Image.open(im_path).convert('RGB')
 					img = to_tensor_(img).unsqueeze(0).to(vq.device)
 					_, latent, _ = vq.quantize(vq.encode(img))
-					latent = latent.squeeze(0).clone()
+					latent = latent.squeeze(0).clone().cpu()
 					latents[-1].append(latent)
 		
 		self.representation = []
 		self.actions = []
-		for episode in range(len(act)):
+		for episode in tqdm(range(len(act)), 'Defining Dataset'):
 			for i in range(len(act[episode]) - seq_len):
 				l = []
 				for j in range(seq_len+1):

@@ -11,7 +11,7 @@ sys.path.insert(1, os.path.join(sys.path[0], '../'))
 from vae.vqVae import VQVAE
 
 class LSTMQuantized(nn.Module):
-	def __init__(self,quantizer:VQVAE, device:torch.device, action_dim:int, hidden_dim:int=512):
+	def __init__(self, quantizer:VQVAE, device:torch.device, action_dim:int, hidden_dim:int=512):
 		super(LSTMQuantized, self).__init__()
 		self.w_h = quantizer.latent_dim
 		self.d = quantizer.code_depth
@@ -127,18 +127,37 @@ class LSTMQuantized(nn.Module):
 		return output, q_output, h
 	
 	def train_epoch(self, loader:DataLoader, optim:Optimizer) -> dict:
+		self.train()
 		total_loss = 0
 		total_q_loss = 0
 		for batch in loader:
-			latent = batch['latent']
-			action = batch['action']
+			latent = batch['latent'].to(self.device)
+			action = batch['action'].to(self.device)
 			output, q_output, _ = self.forward(input=latent[:, :-1, :, :, :], action=action)
-			loss = F.mse_loss(latent[:, :-1, :, :, :], output, reduction='mean')# / output.size(0)
-			q_loss = F.mse_loss(latent[:, :-1, :, :, :], q_output, reduction='mean')
+			loss = F.mse_loss(latent[:, 1:, :, :, :], output, reduction='mean')# / output.size(0)
+			q_loss = F.mse_loss(latent[:, 1:, :, :, :], q_output, reduction='mean')
 			loss.backward()
 			optim.step()
 			total_loss += loss.item()
 			total_q_loss += q_loss.item()
+		return {
+			'mse': total_loss/len(loader),
+			'qmse': total_q_loss/len(loader)
+		}
+	
+	def eval_epoch(self, loader:DataLoader) -> dict:
+		self.eval()
+		total_loss = 0
+		total_q_loss = 0
+		with torch.no_grad():
+			for batch in loader:
+				latent = batch['latent'].to(self.device)
+				action = batch['action'].to(self.device)
+				output, q_output, _ = self.forward(input=latent[:, :-1, :, :, :], action=action)
+				loss = F.mse_loss(latent[:, 1:, :, :, :], output, reduction='mean')# / output.size(0)
+				q_loss = F.mse_loss(latent[:, 1:, :, :, :], q_output, reduction='mean')
+				total_loss += loss.item()
+				total_q_loss += q_loss.item()
 		return {
 			'mse': total_loss/len(loader),
 			'qmse': total_q_loss/len(loader)
