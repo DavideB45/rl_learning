@@ -80,6 +80,7 @@ if __name__ == "__main__":
 					mu = model.encode(img_tensor)
 					_, mu, _ = model.quantize(mu)
 					# trying to do 1D representation for TSNE
+					original = mu.clone()
 					print(mu.shape)
 					mu = mu.permute(0, 2, 3, 1).contiguous()
 					print(mu.shape)
@@ -87,6 +88,15 @@ if __name__ == "__main__":
 					latent_representations.append(mu.cpu().squeeze(0).numpy())
 					print(mu.shape)
 					print(mu.cpu().squeeze(0).numpy().shape)
+					# for i in range(4):
+					# 	for j in range(4):
+					# for k in range(8):
+					# 	print(original[0][k][0][0])
+					# 	print(mu[0][k])
+					# 	if (original[0][k][0][0] != mu[0][k]):
+					# 		print(f"At position {k} the original is {original[0][k][0][0]}, and the new one is {mu[0][k]}")
+					# 		exit()
+
 					#emb = model.quantizer.embedding
 					# try to see the closest embeddings
 					#emb_dist = torch.cdist(mu[:, 0:8], emb.weight.unsqueeze(0))
