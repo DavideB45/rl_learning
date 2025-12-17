@@ -39,21 +39,24 @@ def gather_data(n_samples=1000, size=(64, 64)):
 				default_camera_config=PUSHER['default_camera_config'],
 				)
 	renderer = env.env.env.env.mujoco_renderer
-	images = []
-	actions = []
-	rewards = []
+	images = [[]]
+	actions = [[]]
+	rewards = [[]]
 	obs, info = env.reset()
-	images.append(get_img(renderer, size))
+	images[-1].append(get_img(renderer, size))
 	for i in tqdm(range(n_samples), desc="Generating transitions", unit="transition"):
 		action = env.action_space.sample()
 		obs, reward, terminated, truncated, info = env.step(action)
-		images.append(get_img(renderer, size))
-		actions.append(action)
-		rewards.append(reward)
+		images[-1].append(get_img(renderer, size))
+		actions[-1].append(action.tolist())
+		rewards[-1].append(float(reward))
 		if terminated or truncated:
 			obs, info = env.reset()
 			if i < n_samples - 1:
-				images.append(get_img(renderer, size))
+				images.append([])
+				images[-1].append(get_img(renderer, size))
+				actions.append([])
+				rewards.append([])
 
 	# Close renderer safely
 	if hasattr(env, "mujoco_renderer") and env.mujoco_renderer is not None:
@@ -67,22 +70,24 @@ if __name__ == "__main__":
 	
 	# Example of creating a dataset of transitions
 	print("Creating transition dataset for Pusher-v5 environment")
-	images, actions, rewards = gather_data(n_samples=20000, size=(64, 64))
+	images, actions, rewards = gather_data(n_samples=30000, size=(64, 64))
 	print(f"Generated {len(images)} images, {len(actions)} actions, and {len(rewards)} rewards.")
 	
 	# Save the dataset
 	if not os.path.exists("data/pusher/imgs/"):
 		os.makedirs("data/pusher/imgs/")
-	for i, img in enumerate(images):
-		img.save(f"data/pusher/imgs/img_{i:06d}.png")
+	for episode in range(len(images)):
+		for i, img in enumerate(images[episode]):
+			img.save(f"data/pusher/imgs/img_{episode}_{i}.png")
 
-	exit()
-	# TODO: split according to the done flags so that different episodes are preserved
 	if not os.path.exists("data/pusher/"):
 		os.makedirs("data/pusher/")
 	with open("data/pusher/action_reward_data.json", "w") as f:
 		json.dump(
-			{"actions": [a.tolist() for a in actions], "rewards": rewards},
+			{
+				"actions": actions,
+				"reward": rewards
+			},
 			f,
 			indent=4
 		)

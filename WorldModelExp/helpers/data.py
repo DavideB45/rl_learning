@@ -5,6 +5,12 @@ from torch.utils.data import Dataset, DataLoader, random_split
 import torchvision
 import torch
 
+import os
+import sys
+sys.path.insert(1, os.path.join(sys.path[0], '../'))
+
+from vae.vqVae import VQVAE
+
 class PNGDataset(Dataset):
 	'''
 	Custom Dataset for loading PNG images from a directory
@@ -90,3 +96,54 @@ def make_multi_view_dataloader(data_dir, batch_size=64, test_split=0.2):
 	train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 	val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 	return train_loader, val_loader
+
+class TrasitionDataset(Dataset):
+	'''
+	Custom Dataset for loading images-action
+	'''
+	def __init__(self, path:str, seq_len:int=10, vq:VQVAE=None):
+		super().__init__()
+		act = json.load(open(path + "/action_reward_data.json", 'r'))["actions"]
+		latents = []
+		to_tensor_ = torchvision.transforms.ToTensor()
+		with torch.no_grad():
+			for episode in range(len(act)):
+				latents.append([])
+				for i in range(len(act[episode])):
+					im_path = path + f"imgs/img_{episode}_{i}.png"
+					img = Image.open(im_path).convert('RGB')
+					img = to_tensor_(img).unsqueeze(0).to(vq.device)
+					_, latent, _ = vq.quantize(vq.encode(img))
+					latent = latent.squeeze(0).clone()
+					latents[-1].append(latent)
+		
+		self.representation = []
+		self.actions = []
+		for episode in range(len(act)):
+			for i in range(len(act[episode]) - seq_len):
+				l = []
+				for j in range(seq_len+1):
+					l.append(latents[episode][i+j].clone())
+				lat = torch.stack(l)
+				self.representation.append(lat)
+				self.actions.append(act[episode][i:i+seq_len])
+
+	def __len__(self):
+		return len(self.actions)
+	
+	def __getitem__(self, idx):
+		return {
+			'latent': self.representation[idx],
+			'action': torch.tensor(self.actions[idx], dtype=torch.float32)
+		}
+
+def make_sequence_dataloaders(path:str, vq:VQVAE ,seq_len:int=10, test_split:float=0.2, batch_size:int=64) -> tuple[DataLoader, DataLoader]:
+	print(f"Creating sequence dataloader using data from {path}")
+	dataset = TrasitionDataset(path=path, seq_len=seq_len, vq=vq)
+	test_size = int(len(dataset) * test_split)
+	train_size = len(dataset) - test_size
+	generator = torch.Generator().manual_seed(42)
+	train_dataset, test_dataset = random_split(dataset, [train_size, test_size], generator=generator)
+	train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=2)
+	test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=2)
+	return train_loader, test_loader
