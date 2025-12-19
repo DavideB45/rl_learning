@@ -12,9 +12,9 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 import torch.nn.functional as F 
 from torch import no_grad
-from time import time
+from time import time, sleep
 
-LEARNING_RATE=1e-5
+LEARNING_RATE=2e-5
 
 def max_error(loader:DataLoader) -> float:
 	total_dist = 0
@@ -40,8 +40,9 @@ if __name__ == '__main__':
 	max_tr_err = max_error(tr)
 	max_vl_err = max_error(vl)
 	for i in range(200):
-		err_tr = lstm.train_epoch(tr, optim)
-		err_vl = lstm.eval_epoch(vl)
+		sleep(4)
+		err_tr = lstm.train_epoch(tr, optim, True)
+		err_vl = lstm.eval_epoch(vl, True)
 		errors_str = f'{i}: mse:{err_tr['mse']:.4f} qmse:{err_tr['qmse']:.4f} || mse:{err_vl['mse']:.4f} qmse:{err_vl['qmse']:.4f}'
 		if err_vl['qmse'] < best_q_mse:
 			print('\033[94m' + errors_str + '\033[0m')
