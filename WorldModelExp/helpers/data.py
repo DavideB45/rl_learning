@@ -116,7 +116,7 @@ class TrasitionDataset(Dataset):
 					img = Image.open(im_path).convert('RGB')
 					img = to_tensor_(img).unsqueeze(0).to(vq.device)
 					_, latent, _ = vq.quantize(vq.encode(img))
-					latent = latent.squeeze(0).clone().cpu()
+					latent = latent.detach().squeeze(0).clone().cpu()
 					latents[-1].append(latent)
 		
 		self.representation = []
