@@ -21,21 +21,32 @@ class LSTMQuantized(nn.Module):
 		self.quantizer = quantizer
 
 		self.rep_fc = nn.Sequential(
-			nn.Linear(self.latent_dim, self.latent_dim),
-			nn.ReLU()
+			nn.Linear(self.latent_dim, hidden_dim),
+			nn.LeakyReLU()
 		)
 		self.act_fc = nn.Sequential(
 			nn.Linear(action_dim, self.latent_dim),
-			nn.ReLU()
+			nn.LeakyReLU(),
+			nn.LayerNorm(self.latent_dim),
+			nn.Linear(self.latent_dim, hidden_dim),
+			nn.LeakyReLU(),
+			nn.LayerNorm(hidden_dim)
 		)
 		self.merge_fc = nn.Sequential(
-			nn.Linear(self.latent_dim*2, hidden_dim),
-			nn.ReLU(),
-			nn.LayerNorm(hidden_dim)
+			nn.Linear(self.hidden_dim*2, hidden_dim),
+			nn.LeakyReLU(),
+			nn.LayerNorm(hidden_dim),
+			nn.Linear(self.hidden_dim, self.hidden_dim),
+			nn.LeakyReLU()
 		)
 		self.lstm = LSTM(hidden_dim, hidden_dim, batch_first=True, num_layers=1)
 		self.out_fc = nn.Sequential(
 			nn.LayerNorm(hidden_dim),
+			nn.Linear(hidden_dim, hidden_dim),
+			nn.LeakyReLU(),
+			nn.LayerNorm(hidden_dim),
+			nn.Linear(hidden_dim, hidden_dim),
+			nn.LeakyReLU(),
 			nn.Linear(hidden_dim, self.latent_dim)
 		)
 
@@ -106,10 +117,10 @@ class LSTMQuantized(nn.Module):
 			torch.Tensor: the predicted sequence quantized
 			tuple[torch.Tensor, torch.Tensor]: the hidden state of the LSTM
 		'''
-		input = self.flatten_rep(input)
-		input = self.rep_fc(input)
+		input = self.flatten_rep(input.detach())
+		new_rep = self.rep_fc(input.detach())
 		action = self.act_fc(action)
-		output = torch.cat([input, action], dim=-1)
+		output = torch.cat([new_rep, action], dim=-1)
 		skip_output = self.merge_fc(output) #(B, Seq_len, Hidden_dim)
 
 		if h is None:
@@ -119,12 +130,57 @@ class LSTMQuantized(nn.Module):
 
 		output = output + skip_output #(B, Seq_len, Hidden_dim)
 		output = self.out_fc(output) #(B, Seq_len, Height*Width*Depth)
+		output = output + input.detach()
 		output = self.unflatten_rep(output, input.size(1)) # (B, Seq_len, Depth, Height, Width)
 		
 		_, q_output, _ = self.quantizer.quantize(output.view(-1, self.d, self.w_h, self.w_h))
 		q_output = q_output.view(input.size(0), input.size(1), self.d, self.w_h, self.w_h)
 		
 		return output, q_output, h
+	
+	def generate_sequence(self, input:torch.Tensor, action:torch.Tensor, h=None) -> tuple[torch.Tensor, torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
+		'''
+		Do the forward pass in an LSTM architecture
+		
+		Args:
+			input (torc.Tensor): Input tensor shape (Batch, 1, Depth, Width, Height)
+			action (torch.Tensor): a tensor representing the robot action (Batch, Seq_len, Act_size)
+			h (tuple): initial hidden state (optional)
+		Returns:
+			torch.Tensor: the predicted sequence quantized (Batch, Seq_len, Depth, Width, Height)
+			tuple[torch.Tensor, torch.Tensor]: the hidden state of the LSTM
+		'''
+		batch, len, _ = action.shape
+		device = input.device
+		preds = []
+
+		if h is None:
+			h = (torch.zeros(1, batch, self.hidden_dim).to(device),
+			     torch.zeros(1, batch, self.hidden_dim).to(device))
+
+		x = input.detach()
+
+		for t in range(len):
+			x = self.flatten_rep(x)
+			rep = self.rep_fc(x)
+
+			a = action[:, t:t+1, :]
+			a = self.act_fc(a)
+			rep = torch.cat([rep, a], dim=-1)
+			skip = self.merge_fc(rep)
+			rep, h = self.lstm(skip, h)
+			rep = rep + skip
+
+			rep = self.out_fc(rep)
+			rep = rep + x
+			rep = self.unflatten_rep(rep, 1)
+			_, rep, _ = self.quantizer.quantize(rep.view(-1, self.d, self.w_h, self.w_h))
+			rep = rep.view(batch, 1, self.d, self.w_h, self.w_h)
+			preds.append(rep)
+			x = rep
+
+		preds = torch.cat(preds, dim=1)
+		return preds, h
 	
 	def train_epoch(self, loader:DataLoader, optim:Optimizer) -> dict:
 		self.train()
