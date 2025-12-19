@@ -138,6 +138,37 @@ class LSTMQuantized(nn.Module):
 		
 		return output, q_output, h
 	
+	def autoregressive_feed(self, input:torch.Tensor, action:torch.Tensor, h=None) -> tuple[torch.Tensor, torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
+		'''
+		Do the forward pass in an LSTM architecture
+		
+		Args:
+			input (torc.Tensor): Input tensor shape (Batch, 1, Depth, Width, Height)
+			action (torch.Tensor): a tensor representing the robot action (Batch, Seq_len, Act_size)
+			h (tuple): initial hidden state (optional)
+		Returns:
+			torch.Tensor: the predicted sequence quantized (Batch, Seq_len, Depth, Width, Height)
+			tuple[torch.Tensor, torch.Tensor]: the hidden state of the LSTM
+		'''
+		batch, len, _ = action.shape
+		device = input.device
+		preds = []
+
+		if h is None:
+			h = (torch.zeros(1, batch, self.hidden_dim).to(device),
+			     torch.zeros(1, batch, self.hidden_dim).to(device))
+
+		x = input.detach()
+
+		for t in range(len):
+			out, q_out, h = self.forward(x, action[:, t:t+1, :], h)
+			print(f'Distance between consecutive = {F.mse_loss(x, out, reduction="mean")}')
+			preds.append(q_out)
+			x = q_out
+			
+		preds = torch.cat(preds, dim=1)
+		return preds, h
+
 	def generate_sequence(self, input:torch.Tensor, action:torch.Tensor, h=None) -> tuple[torch.Tensor, torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
 		'''
 		Do the forward pass in an LSTM architecture
@@ -173,9 +204,8 @@ class LSTMQuantized(nn.Module):
 
 			rep = self.out_fc(rep)
 			rep = rep + x_flat
-			print(f'Distance between consecutive = {F.mse_loss(x_flat, rep, reduction="mean")}')
 			rep = self.unflatten_rep(rep, 1)
-			_, rep, _ = self.quantizer.quantize(rep.view(-1, self.d, self.w_h, self.w_h))
+			_, rep, _ = self.quantizer.quantizer.quantize_fixed_space(rep.view(-1, self.d, self.w_h, self.w_h))
 			rep = rep.view(batch, 1, self.d, self.w_h, self.w_h)
 			preds.append(rep)
 			x = rep.detach()
@@ -183,34 +213,33 @@ class LSTMQuantized(nn.Module):
 		preds = torch.cat(preds, dim=1)
 		return preds, h
 	
-	def train_epoch(self, loader:DataLoader, optim:Optimizer) -> dict:
+	def train_epoch(self, loader:DataLoader, optim:Optimizer, autoregressive:bool) -> dict:
 		self.train()
 		total_loss = 0
 		total_q_loss = 0
-		consec_dist = 0
 		for batch in loader:
 			latent = batch['latent'].to(self.device)
 			action = batch['action'].to(self.device)
-			output, q_output, _ = self.forward(input=latent[:, :-1, :, :, :], action=action)
+			optim.zero_grad()
+			if autoregressive:
+				output, q_output, _ = self.generate_sequence(latent[:, 0:1, :, :, :], action=action)
+			else:
+				output, q_output, _ = self.forward(input=latent[:, :-1, :, :, :], action=action)
 			loss = F.mse_loss(latent[:, 1:, :, :, :], output, reduction='mean')# / output.size(0)
 			q_loss = F.mse_loss(latent[:, 1:, :, :, :], q_output, reduction='mean')
-			dist = F.mse_loss(latent[:, :-1, :, :, :], q_output, reduction='mean')
 			loss.backward()
 			optim.step()
 			total_loss += loss.item()
 			total_q_loss += q_loss.item()
-			consec_dist += dist.item()
 		return {
 			'mse': total_loss/len(loader),
 			'qmse': total_q_loss/len(loader),
-			'avg_step': consec_dist/len(loader)
 		}
 	
 	def eval_epoch(self, loader:DataLoader) -> dict:
 		self.eval()
 		total_loss = 0
 		total_q_loss = 0
-		consec_dist = 0
 		with torch.no_grad():
 			for batch in loader:
 				latent = batch['latent'].to(self.device)
@@ -218,13 +247,10 @@ class LSTMQuantized(nn.Module):
 				output, q_output, _ = self.forward(input=latent[:, :-1, :, :, :], action=action)
 				loss = F.mse_loss(latent[:, 1:, :, :, :], output, reduction='mean')# / output.size(0)
 				q_loss = F.mse_loss(latent[:, 1:, :, :, :], q_output, reduction='mean')
-				dist = F.mse_loss(latent[:, :-1, :, :, :], q_output, reduction='mean')
 				total_loss += loss.item()
 				total_q_loss += q_loss.item()
-				consec_dist += dist.item()
 		return {
 			'mse': total_loss/len(loader),
 			'qmse': total_q_loss/len(loader),
-			'avg_step': consec_dist/len(loader)
 		}
 

@@ -85,18 +85,25 @@ if __name__ == '__main__':
 	dev = best_device()
 	vq = load_vq_vae(CURRENT_ENV, 128, 4, 4, True, dev)
 	lstm = LSTMQuantized(vq, dev, CURRENT_ENV['a_size'], 512)
-	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, 99, 0.2, 64)
+	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, 99, 0.2, 2, 20)
 
 	best_q_mse = 10000
 	begin = time()
 
 	with no_grad():
+		lstm.eval()
 		sequence = next(iter(tr))
 		latent = sequence['latent'].to(dev)
 		action = sequence['action'].to(dev)
 		print(f'generating sequence given: {latent[:, 0:1, :, :, :].shape}')
-		generated, _ = lstm.generate_sequence(latent[:, 0:1, :, :, :], action)
+		generated, _ = lstm.autoregressive_feed(latent[:, 0:1, :, :, :], action)
+		_, fake_gen, _ = lstm.forward(latent[:, :-1, :, :, :], action)
+
 		print(f'Generated: {generated.shape}')
+		for i in range(4):
+			print(f'Others    dist: {F.mse_loss(generated[:, i:(i + 1), :, :, :], generated[:, i+1:(i + 2), :, :, :], reduction="mean")}')
+			print(f'Generated dist: {F.mse_loss(generated[:, i:(i + 1), :, :, :], latent[:, i:(i + 1), :, :, :], reduction="mean")}')
+			print(f'Forwarded dist: {F.mse_loss(fake_gen[:, i:(i + 1), :, :, :], latent[:, i:(i + 1), :, :, :], reduction="mean")}')
 
 	end = time()
 	print(f'Time elapsed {end - begin}')
