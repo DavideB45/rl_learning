@@ -75,7 +75,7 @@ def save_video(vq, latent_gt, latent_pred, path="rollout.mp4", fps=5):
         gt = (gt_imgs[t] * 255).astype(np.uint8)
         pr = (pred_imgs[t] * 255).astype(np.uint8)
         frame = np.concatenate([gt, pr], axis=1)
-        frames.append(frame)
+        frames.append(pr)
 
     imageio.mimsave(path, frames)
     print(f"Saved video to {path}")
