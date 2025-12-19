@@ -47,6 +47,8 @@ if __name__ == '__main__':
 			print('\033[94m' + errors_str + '\033[0m')
 			perc_err = f'tr: {_perc(err_tr["qmse"], max_tr_err):.1f}% || vl: {_perc(err_vl["qmse"], max_vl_err):.1f}%'
 			print('\033[95m' + perc_err + '\033[0m')
+			consec_dist = f'dist tr: {err_tr["avg_step"]:.3f} || vl: {err_vl["avg_step"]:.3f}'
+			print('\033[96m' +  + '\033[0m')
 			save_lstm_quantized(CURRENT_ENV, lstm)
 			best_q_mse = err_vl['qmse']
 		else:

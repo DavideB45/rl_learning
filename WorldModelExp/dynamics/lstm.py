@@ -161,8 +161,8 @@ class LSTMQuantized(nn.Module):
 		x = input.detach()
 
 		for t in range(len):
-			x = self.flatten_rep(x)
-			rep = self.rep_fc(x)
+			x_flat = self.flatten_rep(x)
+			rep = self.rep_fc(x_flat)
 
 			a = action[:, t:t+1, :]
 			a = self.act_fc(a)
@@ -172,12 +172,13 @@ class LSTMQuantized(nn.Module):
 			rep = rep + skip
 
 			rep = self.out_fc(rep)
-			rep = rep + x
+			rep = rep + x_flat
+			print(f'Distance between consecutive = {F.mse_loss(x_flat, rep, reduction="mean")}')
 			rep = self.unflatten_rep(rep, 1)
 			_, rep, _ = self.quantizer.quantize(rep.view(-1, self.d, self.w_h, self.w_h))
 			rep = rep.view(batch, 1, self.d, self.w_h, self.w_h)
 			preds.append(rep)
-			x = rep
+			x = rep.detach()
 
 		preds = torch.cat(preds, dim=1)
 		return preds, h
@@ -186,25 +187,30 @@ class LSTMQuantized(nn.Module):
 		self.train()
 		total_loss = 0
 		total_q_loss = 0
+		consec_dist = 0
 		for batch in loader:
 			latent = batch['latent'].to(self.device)
 			action = batch['action'].to(self.device)
 			output, q_output, _ = self.forward(input=latent[:, :-1, :, :, :], action=action)
 			loss = F.mse_loss(latent[:, 1:, :, :, :], output, reduction='mean')# / output.size(0)
 			q_loss = F.mse_loss(latent[:, 1:, :, :, :], q_output, reduction='mean')
+			dist = F.mse_loss(latent[:, :-1, :, :, :], q_output, reduction='mean')
 			loss.backward()
 			optim.step()
 			total_loss += loss.item()
 			total_q_loss += q_loss.item()
+			consec_dist += dist.item()
 		return {
 			'mse': total_loss/len(loader),
-			'qmse': total_q_loss/len(loader)
+			'qmse': total_q_loss/len(loader),
+			'avg_step': consec_dist/len(loader)
 		}
 	
 	def eval_epoch(self, loader:DataLoader) -> dict:
 		self.eval()
 		total_loss = 0
 		total_q_loss = 0
+		consec_dist = 0
 		with torch.no_grad():
 			for batch in loader:
 				latent = batch['latent'].to(self.device)
@@ -212,10 +218,13 @@ class LSTMQuantized(nn.Module):
 				output, q_output, _ = self.forward(input=latent[:, :-1, :, :, :], action=action)
 				loss = F.mse_loss(latent[:, 1:, :, :, :], output, reduction='mean')# / output.size(0)
 				q_loss = F.mse_loss(latent[:, 1:, :, :, :], q_output, reduction='mean')
+				dist = F.mse_loss(latent[:, :-1, :, :, :], q_output, reduction='mean')
 				total_loss += loss.item()
 				total_q_loss += q_loss.item()
+				consec_dist += dist.item()
 		return {
 			'mse': total_loss/len(loader),
-			'qmse': total_q_loss/len(loader)
+			'qmse': total_q_loss/len(loader),
+			'avg_step': consec_dist/len(loader)
 		}
 

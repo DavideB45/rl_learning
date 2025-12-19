@@ -109,7 +109,7 @@ class TrasitionDataset(Dataset):
 		latents = []
 		to_tensor_ = torchvision.transforms.ToTensor()
 		with torch.no_grad():
-			for episode in tqdm(range(len(act)), 'Encoding images'):
+			for episode in tqdm(range(min(len(act), 10)), 'Encoding images'):
 				latents.append([])
 				for i in range(len(act[episode])):
 					im_path = path + f"imgs/img_{episode}_{i}.png"
@@ -121,7 +121,7 @@ class TrasitionDataset(Dataset):
 		
 		self.representation = []
 		self.actions = []
-		for episode in tqdm(range(len(act)), 'Defining Dataset'):
+		for episode in tqdm(range(min(len(act), 10)), 'Defining Dataset'):
 			for i in range(len(act[episode]) - seq_len):
 				l = []
 				for j in range(seq_len+1):
@@ -131,7 +131,7 @@ class TrasitionDataset(Dataset):
 				self.actions.append(act[episode][i:i+seq_len])
 
 	def __len__(self):
-		return len(self.actions)
+		return 10#len(self.actions)
 	
 	def __getitem__(self, idx):
 		return {

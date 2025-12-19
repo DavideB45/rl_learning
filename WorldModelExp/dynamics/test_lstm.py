@@ -65,6 +65,7 @@ def save_video(vq, latent_gt, latent_pred, path="rollout.mp4", fps=5):
 
     gt_imgs = decode_latent_sequence(vq, latent_gt[1:T+1])
     pred_imgs = decode_latent_sequence(vq, latent_pred)
+    print(f'decoded sequence: {pred_imgs.shape}')
 
     gt_imgs = gt_imgs.permute(0, 2, 3, 1).cpu().numpy()
     pred_imgs = pred_imgs.permute(0, 2, 3, 1).cpu().numpy()
@@ -75,7 +76,7 @@ def save_video(vq, latent_gt, latent_pred, path="rollout.mp4", fps=5):
         gt = (gt_imgs[t] * 255).astype(np.uint8)
         pr = (pred_imgs[t] * 255).astype(np.uint8)
         frame = np.concatenate([gt, pr], axis=1)
-        frames.append(pr)
+        frames.append(frame)
 
     imageio.mimsave(path, frames)
     print(f"Saved video to {path}")
@@ -84,7 +85,7 @@ if __name__ == '__main__':
 	dev = best_device()
 	vq = load_vq_vae(CURRENT_ENV, 128, 4, 4, True, dev)
 	lstm = LSTMQuantized(vq, dev, CURRENT_ENV['a_size'], 512)
-	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, 10, 0.2, 64)
+	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, 99, 0.2, 64)
 
 	best_q_mse = 10000
 	begin = time()
@@ -93,15 +94,18 @@ if __name__ == '__main__':
 		sequence = next(iter(tr))
 		latent = sequence['latent'].to(dev)
 		action = sequence['action'].to(dev)
+		print(f'generating sequence given: {latent[:, 0:1, :, :, :].shape}')
 		generated, _ = lstm.generate_sequence(latent[:, 0:1, :, :, :], action)
-
+		print(f'Generated: {generated.shape}')
 
 	end = time()
 	print(f'Time elapsed {end - begin}')
-	b = 0
-	latent_gt = latent[b]
-	latent_pred = generated[b]
+	for b in range(2):
+		latent_gt = latent[b]
+		latent_pred = generated[b]
 
-	#plot_gt_vs_pred(vq, latent_gt, latent_pred, max_frames=8)
-	save_video(vq, latent_gt, latent_pred, "world_model_rollout.mp4")
+		print(f'latent shape: {latent_gt.shape}')
+		print(f'generated sequence: {latent_pred.shape}')
+		plot_gt_vs_pred(vq, latent_gt, latent_pred, max_frames=10)
+		save_video(vq, latent_gt, latent_pred, f"world_model_rollout_{b}.mp4")
 
