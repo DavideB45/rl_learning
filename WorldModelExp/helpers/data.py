@@ -103,13 +103,14 @@ class TrasitionDataset(Dataset):
 	'''
 	Custom Dataset for loading images-action
 	'''
-	def __init__(self, path:str, seq_len:int=10, vq:VQVAE=None):
+	def __init__(self, path:str, seq_len:int=10, vq:VQVAE=None, max_ep:int=1000000):
 		super().__init__()
 		act = json.load(open(path + "/action_reward_data.json", 'r'))["actions"]
 		latents = []
 		to_tensor_ = torchvision.transforms.ToTensor()
+		self.max_ep = max_ep
 		with torch.no_grad():
-			for episode in tqdm(range(min(len(act), 10)), 'Encoding images'):
+			for episode in tqdm(range(min(len(act), max_ep)), 'Encoding images'):
 				latents.append([])
 				for i in range(len(act[episode])):
 					im_path = path + f"imgs/img_{episode}_{i}.png"
@@ -121,7 +122,7 @@ class TrasitionDataset(Dataset):
 		
 		self.representation = []
 		self.actions = []
-		for episode in tqdm(range(min(len(act), 10)), 'Defining Dataset'):
+		for episode in tqdm(range(min(len(act), max_ep)), 'Defining Dataset'):
 			for i in range(len(act[episode]) - seq_len):
 				l = []
 				for j in range(seq_len+1):
@@ -131,7 +132,7 @@ class TrasitionDataset(Dataset):
 				self.actions.append(act[episode][i:i+seq_len])
 
 	def __len__(self):
-		return 10#len(self.actions)
+		return min(len(self.actions), self.max_ep)
 	
 	def __getitem__(self, idx):
 		return {
@@ -139,9 +140,9 @@ class TrasitionDataset(Dataset):
 			'action': torch.tensor(self.actions[idx], dtype=torch.float32)
 		}
 
-def make_sequence_dataloaders(path:str, vq:VQVAE ,seq_len:int=10, test_split:float=0.2, batch_size:int=64) -> tuple[DataLoader, DataLoader]:
+def make_sequence_dataloaders(path:str, vq:VQVAE ,seq_len:int=10, test_split:float=0.2, batch_size:int=64, max_ep:int=9999999) -> tuple[DataLoader, DataLoader]:
 	print(f"Creating sequence dataloader using data from {path}")
-	dataset = TrasitionDataset(path=path, seq_len=seq_len, vq=vq)
+	dataset = TrasitionDataset(path=path, seq_len=seq_len, vq=vq, max_ep=max_ep)
 	test_size = int(len(dataset) * test_split)
 	train_size = len(dataset) - test_size
 	generator = torch.Generator().manual_seed(42)
