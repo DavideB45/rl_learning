@@ -184,6 +184,7 @@ class LSTMQuantized(nn.Module):
 		batch, len, _ = action.shape
 		device = input.device
 		preds = []
+		preds_q = []
 
 		if h is None:
 			h = (torch.zeros(1, batch, self.hidden_dim).to(device),
@@ -205,13 +206,15 @@ class LSTMQuantized(nn.Module):
 			rep = self.out_fc(rep)
 			rep = rep + x_flat
 			rep = self.unflatten_rep(rep, 1)
-			_, rep, _ = self.quantizer.quantizer.quantize_fixed_space(rep.view(-1, self.d, self.w_h, self.w_h))
-			rep = rep.view(batch, 1, self.d, self.w_h, self.w_h)
 			preds.append(rep)
-			x = rep.detach()
+			rep = self.quantizer.quantizer.quantize_fixed_space(rep.view(-1, self.d, self.w_h, self.w_h))
+			rep = rep.view(batch, 1, self.d, self.w_h, self.w_h)
+			preds_q.append(rep)
+			x = rep
 
 		preds = torch.cat(preds, dim=1)
-		return preds, h
+		preds_q = torch.cat(preds_q, dim=1)
+		return preds, preds_q, h
 	
 	def train_epoch(self, loader:DataLoader, optim:Optimizer, autoregressive:bool) -> dict:
 		self.train()
@@ -236,7 +239,7 @@ class LSTMQuantized(nn.Module):
 			'qmse': total_q_loss/len(loader),
 		}
 	
-	def eval_epoch(self, loader:DataLoader) -> dict:
+	def eval_epoch(self, loader:DataLoader, autoregressive:bool) -> dict:
 		self.eval()
 		total_loss = 0
 		total_q_loss = 0
@@ -244,7 +247,10 @@ class LSTMQuantized(nn.Module):
 			for batch in loader:
 				latent = batch['latent'].to(self.device)
 				action = batch['action'].to(self.device)
-				output, q_output, _ = self.forward(input=latent[:, :-1, :, :, :], action=action)
+				if autoregressive:
+					output, q_output, _ = self.generate_sequence(latent[:, 0:1, :, :, :], action=action)
+				else:
+					output, q_output, _ = self.forward(input=latent[:, :-1, :, :, :], action=action)
 				loss = F.mse_loss(latent[:, 1:, :, :, :], output, reduction='mean')# / output.size(0)
 				q_loss = F.mse_loss(latent[:, 1:, :, :, :], q_output, reduction='mean')
 				total_loss += loss.item()
