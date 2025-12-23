@@ -32,7 +32,7 @@ if __name__ == '__main__':
 	dev = best_device()
 	vq = load_vq_vae(CURRENT_ENV, 128, 4, 4, True, dev)
 	dyn_fnn = FNN(vq, dev, CURRENT_ENV['a_size'], 2)
-	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, 2, 0.2, 64, max_ep=10)
+	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, 2, 0.2, 64)
 
 	optim = Adam(dyn_fnn.parameters(), lr=LEARNING_RATE)
 	best_q_mse = 10000

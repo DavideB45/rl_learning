@@ -102,11 +102,8 @@ class FNN(nn.Module):
 			input = input.detach()
 
 		input = self.flatten_rep(input)
-		print(f'input {input.shape} action {action.shape}')
 		input = torch.cat([input, action], dim=1)
-		print(f'input {input.shape}')
-		exit()
-
+		
 		# optional skip connection
 		
 		out = self.net(input)
