@@ -15,6 +15,7 @@ from torch import no_grad
 from time import time, sleep
 
 LEARNING_RATE=2e-5
+WEIGTH_DECAY = 1e-8
 
 def max_error(loader:DataLoader) -> float:
 	total_dist = 0
@@ -31,26 +32,28 @@ def _perc(amount:float, maxim:float) -> float:
 if __name__ == '__main__':
 	dev = best_device()
 	vq = load_vq_vae(CURRENT_ENV, 128, 4, 4, True, dev)
-	dyn_fnn = FNN(vq, dev, CURRENT_ENV['a_size'], 2)
-	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, 2, 0.2, 64)
+	dyn_fnn = FNN(vq, dev, CURRENT_ENV['a_size'], 3)
+	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, 3, 0.2, 64, max_ep=10000)
 
-	optim = Adam(dyn_fnn.parameters(), lr=LEARNING_RATE)
+	optim = Adam(dyn_fnn.parameters(), lr=LEARNING_RATE, weight_decay=WEIGTH_DECAY)
 	best_q_mse = 10000
 	begin = time()
 	max_tr_err = max_error(tr)
 	max_vl_err = max_error(vl)
 	for i in range(200):
 		err_tr = dyn_fnn.train_epoch(tr, optim, False)
-		err_vl = dyn_fnn.eval_epoch(vl, True)
+		err_vl = dyn_fnn.eval_epoch(vl, False)
 		errors_str = f'{i}: mse:{err_tr["mse"]:.4f} qmse:{err_tr["qmse"]:.4f} || mse:{err_vl["mse"]:.4f} qmse:{err_vl["qmse"]:.4f}'
 		if err_vl['qmse'] < best_q_mse:
-			print('\033[94m' + errors_str + '\033[0m')
+			print('\033[92m' + errors_str + '\033[0m')
 			perc_err = f'tr: {_perc(err_tr["qmse"], max_tr_err):.1f}% || vl: {_perc(err_vl["qmse"], max_vl_err):.1f}%'
-			print('\033[95m' + perc_err + '\033[0m')
+			print('\033[92m' + perc_err + '\033[0m')
 			#save_fnn(CURRENT_ENV, dyn_fnn)
 			best_q_mse = err_vl['qmse']
 		else:
-			print(errors_str, end='\n')
+			print('\033[91m' + errors_str + '\033[0m')
+			perc_err = f'tr: {_perc(err_tr["qmse"], max_tr_err):.1f}% || vl: {_perc(err_vl["qmse"], max_vl_err):.1f}%'
+			print('\033[91m' + perc_err + '\033[0m')
 	end = time()
 	print(f'Time elapsed {end - begin}')
 

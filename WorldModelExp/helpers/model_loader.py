@@ -57,6 +57,16 @@ def load_lstm_quantized(env:dict, vq:VQVAE, device:torch.device, hidden_dim:int)
 	model.eval()
 	return model
 
+def load_fnn(env:dict, vq:VQVAE, device:torch.device, history_len:int) -> LSTMQuantized:
+	model = FNN(vq, device, env['a_size'], history_len)
+	d = vq.code_depth
+	w_h = vq.latent_dim
+	s = vq.codebook_size
+	model_path = env['models'] + f"fnn_{history_len}_{w_h}_{d}_{s}.pth"
+	model.load_state_dict(torch.load(model_path, map_location=device))
+	model.eval()
+	return model
+
 def save_base_vae(env:dict, model:CVAE, kl_b:float) -> str:
 	if kl_b.is_integer():
 		kl_b = int(kl_b)

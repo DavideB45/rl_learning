@@ -22,19 +22,20 @@ class FNN(nn.Module):
 		# input is composed by 2 (for now) consecutive cose
 		in_dim = self.latent_dim*history_len + action_dim 
 		hidden_block = nn.Sequential(
-			nn.Linear(in_dim*2, in_dim*2),
+			nn.Linear(in_dim*4, in_dim*4),
 			nn.LeakyReLU(),
-			nn.BatchNorm1d(in_dim*2)
+			nn.BatchNorm1d(in_dim*4)
 		)
 
 		self.net = nn.Sequential(
-			nn.Linear(in_dim, in_dim*2),
+			nn.Linear(in_dim, in_dim*4),
 			nn.LeakyReLU(),
-			nn.BatchNorm1d(in_dim*2),
+			nn.BatchNorm1d(in_dim*4),
 			hidden_block,
 			hidden_block,
 			hidden_block,
-			nn.Linear(in_dim*2, in_dim),
+			hidden_block,
+			nn.Linear(in_dim*4, self.latent_dim),
 		)
 
 		self.device = device
@@ -102,11 +103,11 @@ class FNN(nn.Module):
 			input = input.detach()
 
 		input = self.flatten_rep(input)
-		input = torch.cat([input, action], dim=1)
+		out = torch.cat([input, action], dim=1)
 		
-		# optional skip connection
-		
-		out = self.net(input)
+		out = self.net(out)
+		out = out + input[:, self.latent_dim*(self.history -1):].detach()
+
 		out = self.unflatten_rep(out)
 		out_q = self.quantizer.quantizer.quantize_fixed_space(out)
 		
@@ -152,7 +153,7 @@ class FNN(nn.Module):
 				raise NotImplementedError()
 				output, q_output, _ = self.generate_sequence(latent[:, 0:1, :, :, :], action=action)
 			else:
-				output, q_output, _ = self.forward(input=latent[:, 0:self.history, :, :, :], action=action[:, self.history-1, :])
+				output, q_output = self.forward(input=latent[:, 0:self.history, :, :, :], action=action[:, self.history-1, :])
 				loss = F.mse_loss(latent[:, self.history, :, :, :], output, reduction='mean')
 				q_loss = F.mse_loss(latent[:, self.history, :, :, :], q_output, reduction='mean')
 			loss.backward()
@@ -176,7 +177,7 @@ class FNN(nn.Module):
 					raise NotImplementedError()
 					output, q_output, _ = self.generate_sequence(latent[:, 0:1, :, :, :], action=action)
 				else:
-					output, q_output, _ = self.forward(input=latent[:, 0:self.history, :, :, :], action=action[:, self.history-1, :])
+					output, q_output = self.forward(input=latent[:, 0:self.history, :, :, :], action=action[:, self.history-1, :])
 					loss = F.mse_loss(latent[:, self.history, :, :, :], output, reduction='mean')
 					q_loss = F.mse_loss(latent[:, self.history, :, :, :], q_output, reduction='mean')
 				total_loss += loss.item()
