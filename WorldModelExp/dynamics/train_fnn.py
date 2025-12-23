@@ -14,8 +14,8 @@ import torch.nn.functional as F
 from torch import no_grad
 from time import time, sleep
 
-LEARNING_RATE=2e-5
-WEIGTH_DECAY = 1e-8
+LEARNING_RATE=5e-5
+WEIGTH_DECAY = 0
 
 def max_error(loader:DataLoader) -> float:
 	total_dist = 0
@@ -32,8 +32,8 @@ def _perc(amount:float, maxim:float) -> float:
 if __name__ == '__main__':
 	dev = best_device()
 	vq = load_vq_vae(CURRENT_ENV, 128, 4, 4, True, dev)
-	dyn_fnn = FNN(vq, dev, CURRENT_ENV['a_size'], 3)
-	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, 3, 0.2, 64, max_ep=10000)
+	dyn_fnn = FNN(vq, dev, CURRENT_ENV['a_size'], 5)
+	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, 5, 0.01, 64, max_ep=10000)
 
 	optim = Adam(dyn_fnn.parameters(), lr=LEARNING_RATE, weight_decay=WEIGTH_DECAY)
 	best_q_mse = 10000
@@ -56,6 +56,7 @@ if __name__ == '__main__':
 			print('\033[91m' + perc_err + '\033[0m')
 	end = time()
 	print(f'Time elapsed {end - begin}')
+	save_fnn(CURRENT_ENV, dyn_fnn)
 
 
 ##### SOME PRELIMINARY RESULTS ####

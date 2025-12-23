@@ -57,7 +57,7 @@ def load_lstm_quantized(env:dict, vq:VQVAE, device:torch.device, hidden_dim:int)
 	model.eval()
 	return model
 
-def load_fnn(env:dict, vq:VQVAE, device:torch.device, history_len:int) -> LSTMQuantized:
+def load_fnn(env:dict, vq:VQVAE, device:torch.device, history_len:int) -> FNN:
 	model = FNN(vq, device, env['a_size'], history_len)
 	d = vq.code_depth
 	w_h = vq.latent_dim
