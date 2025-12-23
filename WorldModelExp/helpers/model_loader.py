@@ -6,6 +6,7 @@ from vae.vqVae import VQVAE
 from vae.myVae import CVAE
 from vae.moevae import MOEVAE
 from dynamics.lstm import LSTMQuantized
+from dynamics.fnn import FNN
 
 import torch
 
@@ -74,5 +75,13 @@ def save_lstm_quantized(env:dict, model:LSTMQuantized) -> str:
 	w_h = model.w_h
 	s = model.quantizer.codebook_size
 	model_path = env['models'] + f"lstmq_{model.hidden_dim}_{w_h}_{d}_{s}.pth"
+	torch.save(model.state_dict(), model_path)
+	return model_path
+
+def save_fnn(env:dict, model:FNN) -> str:
+	d = model.d
+	w_h = model.w_h
+	s = model.quantizer.codebook_size
+	model_path = env['models'] + f"fnn_{model.history}_{w_h}_{d}_{s}.pth"
 	torch.save(model.state_dict(), model_path)
 	return model_path
