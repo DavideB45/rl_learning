@@ -84,7 +84,8 @@ def save_video(vq, latent_gt, latent_pred, path="rollout.mp4", fps=5):
 if __name__ == '__main__':
 	dev = best_device()
 	vq = load_vq_vae(CURRENT_ENV, 128, 4, 4, True, dev)
-	lstm = LSTMQuantized(vq, dev, CURRENT_ENV['a_size'], 512)
+	#lstm = LSTMQuantized(vq, dev, CURRENT_ENV['a_size'], 512)
+	lstm = load_lstm_quantized(CURRENT_ENV, vq, dev, 512)
 	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, 99, 0.2, 2, 20)
 
 	best_q_mse = 10000
