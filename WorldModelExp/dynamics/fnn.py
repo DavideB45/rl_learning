@@ -113,19 +113,16 @@ class FNN(nn.Module):
 		
 		return out, out_q
 	
-	def ar_forward(self, input:torch.Tensor, action:torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+	def ar_forward(self, input:torch.Tensor, action:torch.Tensor) -> torch.Tensor:
 		'''
 		Do the forward pass in an autoregressive way using until consuming all the actions, no teacher forcing will be used
 		
 		Args:
-			input (torc.Tensor): Input tensor shape (Batch, 2, Depth, Width, Height)
+			input (torc.Tensor): Input tensor shape (Batch, history_len, Depth, Width, Height)
 			action (torch.Tensor): a tensor representing the robot action (Batch, Seq_len, Act_size)
-			h (tuple): initial hidden state (optional)
 		Returns:
 			torch.Tensor: the predicted sequence quantized (Batch, Seq_len, Depth, Width, Height)
-			tuple[torch.Tensor, torch.Tensor]: the hidden state of the LSTM
 		'''
-		raise NotImplementedError()
 		batch, len, _ = action.shape
 		device = input.device
 		preds = []
@@ -133,13 +130,13 @@ class FNN(nn.Module):
 		x = input.detach()
 
 		for t in range(len):
-			out, q_out, h = self.forward(x, action[:, t:t+1, :], h)
-			print(f'Distance between consecutive = {F.mse_loss(x, out, reduction="mean")}')
+			out, q_out = self.forward(x, action[:, t, :])
+			q_out = q_out.unsqueeze(1)
 			preds.append(q_out)
-			x = q_out
+			x = torch.cat([x[:, 1:, :], q_out], dim=1)
 			
 		preds = torch.cat(preds, dim=1)
-		return preds, h
+		return preds
 
 	def train_epoch(self, loader:DataLoader, optim:Optimizer, autoregressive:bool) -> dict:
 		self.train()
