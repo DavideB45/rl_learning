@@ -125,7 +125,7 @@ class LSTMQuantized(nn.Module):
 
 		if h is None:
 			h = (torch.zeros(1, input.size(0), self.hidden_dim).to(input.device),
-			     torch.zeros(1, input.size(0), self.hidden_dim).to(input.device))
+				 torch.zeros(1, input.size(0), self.hidden_dim).to(input.device))
 		output, h = self.lstm(skip_output, h)
 
 		output = output + skip_output #(B, Seq_len, Hidden_dim)
@@ -156,13 +156,12 @@ class LSTMQuantized(nn.Module):
 
 		if h is None:
 			h = (torch.zeros(1, batch, self.hidden_dim).to(device),
-			     torch.zeros(1, batch, self.hidden_dim).to(device))
+				 torch.zeros(1, batch, self.hidden_dim).to(device))
 
 		x = input.detach()
 
 		for t in range(len):
 			out, q_out, h = self.forward(x, action[:, t:t+1, :], h)
-			print(f'Distance between consecutive = {F.mse_loss(x, out, reduction="mean")}')
 			preds.append(q_out)
 			x = q_out
 			
@@ -188,7 +187,7 @@ class LSTMQuantized(nn.Module):
 
 		if h is None:
 			h = (torch.zeros(1, batch, self.hidden_dim).to(device),
-			     torch.zeros(1, batch, self.hidden_dim).to(device))
+				 torch.zeros(1, batch, self.hidden_dim).to(device))
 
 		x = input.detach()
 
@@ -260,3 +259,53 @@ class LSTMQuantized(nn.Module):
 			'qmse': total_q_loss/len(loader),
 		}
 
+	def weighted_mse(self, x:torch.Tensor, y:torch.Tensor, error_decay:float=0.9) -> dict:
+			mse_per_timestep = ((x - y) ** 2).mean(dim=(2,3,4))
+			weights = error_decay ** torch.arange(1, mse_per_timestep.size(1) + 1, device=y.device)
+			loss = (mse_per_timestep * weights).mean()
+			return loss
+
+	def train_rwm_style(self, loader:DataLoader, optim:Optimizer, init_len:int=3, err_decay:float=0.9) -> dict:
+		self.train()
+		total_loss = 0
+		total_q_loss = 0
+		for batch in loader:
+			latent = batch['latent'].to(self.device)
+			action = batch['action'].to(self.device)
+			optim.zero_grad()
+			#forward for init_len steps
+			_, _, h = self.forward(latent[:, 0:init_len, :, :, :], action[:, 0:init_len :])
+			q_output, _ = self.autoregressive_feed(latent[:, init_len:init_len+1, :, :, :], action[:, init_len:, :], h)
+			# compute the loss in the magic way
+			q_loss = self.weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay)
+			# loss = F.mse_loss(latent[:, init_len+1:, :, :, :], output, reduction='mean')
+			# q_loss = F.mse_loss(latent[:, init_len+1:, :, :, :], q_output, reduction='mean')
+			
+			q_loss.backward()
+			optim.step()
+			total_q_loss += q_loss.item()
+		return {
+			'mse': total_loss/len(loader),
+			'qmse': total_q_loss/len(loader),
+		}
+
+	@torch.no_grad()
+	def eval_rwm_style(self, loader: DataLoader, init_len: int = 3, err_decay:float=0.9) -> dict:
+		self.eval()
+		total_loss = 0.0
+		total_q_loss = 0.0
+
+		for batch in loader:
+			latent = batch['latent'].to(self.device)
+			action = batch['action'].to(self.device)
+
+			_, _, h = self.forward(latent[:, 0:init_len, :, :, :],action[:, 0:init_len, :])
+			q_output, _ = self.autoregressive_feed(latent[:, init_len:init_len + 1, :, :, :],action[:, init_len:, :], h)
+
+			q_loss = self.weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay)
+			total_q_loss += q_loss.item()
+
+		return {
+			'mse': total_loss / len(loader),
+			'qmse': total_q_loss / len(loader),
+		}
