@@ -30,9 +30,9 @@ def _perc(amount:float, maxim:float) -> float:
 
 if __name__ == '__main__':
 	dev = best_device()
-	vq = load_vq_vae(CURRENT_ENV, 128, 4, 4, True, dev)
-	lstm = LSTMQuantized(vq, dev, CURRENT_ENV['a_size'], 512)
-	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, 10, 0.2, 64)
+	vq = load_vq_vae(CURRENT_ENV, 256, 8, 4, True, dev)
+	lstm = LSTMQuantized(vq, dev, CURRENT_ENV['a_size'], 1024)
+	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, 40, 0.2, 64)
 
 	optim = Adam(lstm.parameters(), lr=LEARNING_RATE)
 	best_q_mse = 10000
@@ -41,8 +41,8 @@ if __name__ == '__main__':
 	max_vl_err = max_error(vl)
 	for i in range(200):
 		sleep(4)
-		err_tr = lstm.train_epoch(tr, optim, True)
-		err_vl = lstm.eval_epoch(vl, True)
+		err_tr = lstm.train_rwm_style(tr, optim, init_len=5, err_decay=0.99)
+		err_vl = lstm.eval_rwm_style(vl, init_len=5, err_decay=0.99)
 		errors_str = f'{i}: mse:{err_tr['mse']:.4f} qmse:{err_tr['qmse']:.4f} || mse:{err_vl['mse']:.4f} qmse:{err_vl['qmse']:.4f}'
 		if err_vl['qmse'] < best_q_mse:
 			print('\033[94m' + errors_str + '\033[0m')
@@ -58,3 +58,20 @@ if __name__ == '__main__':
 
 ##### SOME PRELIMINARY RESULTS ####
 # 512 4 4 128 -> 14.3% | 0.75 | 0.59
+
+# 1024 4 8 256:
+# 
+# training is very slow, but it can make sense to have an early stop after 5/7 epochs of no improvement
+# although the training keeps imporving also after 150 epocs and can be valuable
+# lr was set to be 2e-5 which is quite low indeed, but in previous experiments high lr was a problem
+# maybe when we will use more data batch size can be increased and so can lr
+# 
+# trained with 40 steps, initialised with 5 error decay 0.99
+# usual tr val split with 20% validation
+#
+# errors:
+#	tr	|	vl	|
+#	.33	|	.30	|
+# 10.4% |  8.2% |
+#
+# 6867 sec () 1:54:27
