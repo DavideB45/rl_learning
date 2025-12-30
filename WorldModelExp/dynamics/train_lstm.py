@@ -30,7 +30,7 @@ def _perc(amount:float, maxim:float) -> float:
 
 if __name__ == '__main__':
 	dev = best_device()
-	vq = load_vq_vae(CURRENT_ENV, 256, 8, 4, True, dev)
+	vq = load_vq_vae(CURRENT_ENV, 256, 4, 4, True, dev)
 	lstm = LSTMQuantized(vq, dev, CURRENT_ENV['a_size'], 1024)
 	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, 40, 0.2, 64)
 
@@ -39,8 +39,8 @@ if __name__ == '__main__':
 	begin = time()
 	max_tr_err = max_error(tr)
 	max_vl_err = max_error(vl)
+	no_imporvemets = 0
 	for i in range(200):
-		sleep(4)
 		err_tr = lstm.train_rwm_style(tr, optim, init_len=5, err_decay=0.99)
 		err_vl = lstm.eval_rwm_style(vl, init_len=5, err_decay=0.99)
 		errors_str = f'{i}: mse:{err_tr['mse']:.4f} qmse:{err_tr['qmse']:.4f} || mse:{err_vl['mse']:.4f} qmse:{err_vl['qmse']:.4f}'
@@ -50,8 +50,12 @@ if __name__ == '__main__':
 			print('\033[95m' + perc_err + '\033[0m')
 			save_lstm_quantized(CURRENT_ENV, lstm)
 			best_q_mse = err_vl['qmse']
+			no_imporvemets = 0
 		else:
+			no_imporvemets += 1
 			print(errors_str, end='\n')
+			if no_imporvemets >= 8:
+				print('Early stopping for no improvements')
 	end = time()
 	print(f'Time elapsed {end - begin}')
 
@@ -66,7 +70,7 @@ if __name__ == '__main__':
 # lr was set to be 2e-5 which is quite low indeed, but in previous experiments high lr was a problem
 # maybe when we will use more data batch size can be increased and so can lr
 # 
-# trained with 40 steps, initialised with 5 error decay 0.99
+# trained with 40 steps, initialised with 5-6 error decay 0.99
 # usual tr val split with 20% validation
 #
 # errors:
@@ -75,3 +79,22 @@ if __name__ == '__main__':
 # 10.4% |  8.2% |
 #
 # 6867 sec () 1:54:27
+# 4 seconds of sleep each epoch
+
+# 1024 4 4 256:
+# 
+# Added early stopping after 8 epochs of no improvement, same parameter as above
+# Consideration: the paper that uses transformer world model uses a
+# vector dimention for quantization of 512 obtaining a representation that is
+# 4x4x512 which is something...
+# 
+# trained with 40 steps, initialised with 5-6 error decay 0.99
+# usual tr val split with 20% validation
+#
+# errors:
+#	tr	|	vl	|
+#	tbd	|	tbd	|
+#  -.-% |  -.-% |
+#
+# ---- sec () -:--:--
+# 4 seconds of sleep each epoch
