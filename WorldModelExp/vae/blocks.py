@@ -167,3 +167,32 @@ class VectorQuantizer(nn.Module):
 		# Convert distances to probabilities
 		probabilities = F.softmax(-distances, dim=1)  # (B*H*W, K)
 		return probabilities.view(input_shape[0], input_shape[1], input_shape[2], self.codebook_size).permute(0, 3, 1, 2).contiguous()  # (B, K, H, W)
+	
+	def vec_from_prob(self, x: torch.Tensor) -> torch.Tensor:
+		'''
+		Get the latent space vector corresponding to the higher number in the input 
+		
+		:param x: A vector (output from a sigmoid or a one hot encoded) of size code_depth
+		:type x: torch.Tensor
+		:return: the vector corresponding to the argmax
+		:rtype: torch.Tensor
+		'''
+		indices = torch.argmax(x, dim=1)
+		return self.embedding(indices)
+	
+	def onehot_from_vec(self, x:torch.Tensor) -> torch.Tensor:
+		'''
+		Convert a latent vector to its one-hot encoded representation based on closest codebook vector.
+		
+		:param x: Input tensor of shape (batch, code_depth, latent_dim, latent_dim)
+		:type x: torch.Tensor
+		:return: One-hot encoded tensor of shape (batch, codebook_size, latent_dim, latent_dim)
+		:rtype: torch.Tensor
+		'''
+		x = x.permute(0, 2, 3, 1).contiguous()  # (B, H, W, D)
+		input_shape = x.shape
+		flat_x = x.view(-1, 1, self.embedding_dim)  # (B*H*W, 1, D)
+		distances = (flat_x - self.embedding.weight.unsqueeze(0)).pow(2).mean(2)  # (B*H*W, K)
+		encoding_indices = torch.argmin(distances, dim=1)  # (B*H*W,)
+		one_hot = F.one_hot(encoding_indices, self.codebook_size).float()  # (B*H*W, K)
+		return one_hot.view(input_shape[0], input_shape[1], input_shape[2], self.codebook_size).permute(0, 3, 1, 2).contiguous()  # (B, K, H, W)

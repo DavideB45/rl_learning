@@ -192,22 +192,22 @@ class LSTMQuantized(nn.Module):
 		}
 
 	def weighted_mse(self, x:torch.Tensor, y:torch.Tensor, error_decay:float=0.9) -> torch.Tensor:
-			'''
-			Compute the mean square error for each time step and weight it by the decay factor
-			
-			:param x: the generated sequence
-			:type x: torch.Tensor
-			:param y: the original sequence
-			:type y: torch.Tensor
-			:param error_decay: the decay factor for the loss
-			:type error_decay: float
-			:return: the computed error
-			:rtype: Tensor
-			'''
-			mse_per_timestep = ((x - y) ** 2).mean(dim=(2,3,4))
-			weights = error_decay ** torch.arange(1, mse_per_timestep.size(1) + 1, device=y.device)
-			loss = (mse_per_timestep * weights).mean()
-			return loss
+		'''
+		Compute the mean square error for each time step and weight it by the decay factor
+		
+		:param x: the generated sequence
+		:type x: torch.Tensor
+		:param y: the original sequence
+		:type y: torch.Tensor
+		:param error_decay: the decay factor for the loss
+		:type error_decay: float
+		:return: the computed error
+		:rtype: Tensor
+		'''
+		mse_per_timestep = ((x - y) ** 2).mean(dim=(2,3,4))
+		weights = error_decay ** torch.arange(1, mse_per_timestep.size(1) + 1, device=y.device)
+		loss = (mse_per_timestep * weights).mean()
+		return loss
 
 	def train_rwm_style(self, loader:DataLoader, optim:Optimizer, init_len:int=3, err_decay:float=0.9) -> dict:
 		self.train()

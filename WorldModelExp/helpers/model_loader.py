@@ -47,12 +47,15 @@ def load_moe_vae(env:dict, latent_dim:int, kl_b:float, concordance_reg:float, de
 	model.eval()
 	return model
 
-def load_lstm_quantized(env:dict, vq:VQVAE, device:torch.device, hidden_dim:int) -> LSTMQuantized:
+def load_lstm_quantized(env:dict, vq:VQVAE, device:torch.device, hidden_dim:int, tf:bool=False) -> LSTMQuantized:
 	model = LSTMQuantized(vq, device, env['a_size'], hidden_dim)
 	d = vq.code_depth
 	w_h = vq.latent_dim
 	s = vq.codebook_size
-	model_path = env['models'] + f"lstmq_{hidden_dim}_{w_h}_{d}_{s}.pth"
+	model_path = env['models'] + f"lstmq_{hidden_dim}_{w_h}_{d}_{s}"
+	if tf:
+		model_path += '_tf'
+	model_path += ".pth"
 	model.load_state_dict(torch.load(model_path, map_location=device))
 	model.eval()
 	return model
@@ -80,11 +83,14 @@ def save_vq_vae(env:dict, model:VQVAE) -> str:
 	torch.save(model.state_dict(), model_path)
 	return model_path
 
-def save_lstm_quantized(env:dict, model:LSTMQuantized) -> str:
+def save_lstm_quantized(env:dict, model:LSTMQuantized, tf:bool=False) -> str:
 	d = model.d
 	w_h = model.w_h
 	s = model.quantizer.codebook_size
-	model_path = env['models'] + f"lstmq_{model.hidden_dim}_{w_h}_{d}_{s}.pth"
+	model_path = env['models'] + f"lstmq_{model.hidden_dim}_{w_h}_{d}_{s}"
+	if tf:
+		model_path += '_tf'
+	model_path += ".pth"
 	torch.save(model.state_dict(), model_path)
 	return model_path
 
