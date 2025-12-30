@@ -58,7 +58,6 @@ class LSTMQuantized(nn.Module):
 		Takes as input the unflattened output (possibly quantized) of the vq-vae \
 		and flattens it based on the VQVAE model used.
 		Each consecutive 'Depth' elements of the output compose a vector 
-		TODO: possibly add a possibility to make this work for normal vae doing noop 
 		
 		Args:
 			input (torc.Tensor): Input tensor shape (Batch, Seq_len, Depth, Width, Height)
@@ -71,10 +70,9 @@ class LSTMQuantized(nn.Module):
 	
 	def unflatten_rep(self, input:torch.Tensor, s:int) -> torch.Tensor:
 		'''
-		Takes as input a flat tensor of the LSTM \
+		Takes as input a flat tensor of the LSTM 
 		and unflatten it based on the VQVAE model used.
 		Each consecutive Depth elements of the output compose a vector 
-		TODO: possibly add a possibility to make this work for normal vae doing noop 
 		
 		Args:
 			input (torc.Tensor): Input tensor shape (Batch, Seq_len, Width*Height*Depth)
@@ -90,32 +88,18 @@ class LSTMQuantized(nn.Module):
 		input = input.view(b, s, w, h, d)
 		input = input.permute(0, 1, 4, 2, 3).contiguous()
 		return input
-	
-	def mse_loss(x:torch.Tensor, y:torch.Tensor) -> torch.Tensor:
-		'''
-		Docstring for loss
-		
-		Args:
-			x (torch.Tensor): ground truth
-			y (torch.Tensor): the prediction
-		Returns:
-			dict: the loss
-		'''
-		return F.mse_loss(y, x, reduction='sum') / x.size(0)
-
 
 	def forward(self, input:torch.Tensor, action:torch.Tensor, h=None) -> tuple[torch.Tensor, torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
 		'''
 		Do the forward pass in an LSTM architecture
 		
-		Args:
-			input (torc.Tensor): Input tensor shape (Batch, Seq_len, Depth, Width, Height)
-			action (torch.Tensor): a tensor representing the robot action
-			h (tuple): initial hidden state (optional)
-		Returns:
-			torch.Tensor: the predicted sequence
-			torch.Tensor: the predicted sequence quantized
-			tuple[torch.Tensor, torch.Tensor]: the hidden state of the LSTM
+		:param input: Input tensor shape (Batch, Seq_len, Depth, Width, Height)
+		:type input: torch.Tensor
+		:param action: a tensor representing the robot action
+		:type action: torch.Tensor
+		:param h: initial hidden state (optional)
+		:return: the predicted sequence before quantization | the predicted sequence quantized (Batch, Seq_len, Depth, Width, Height) | the hidden state of the LSTM
+		:rtype: tuple[Tensor, Tensor, tuple[Tensor, Tensor]]
 		'''
 		input = self.flatten_rep(input.detach())
 		new_rep = self.rep_fc(input.detach())
@@ -138,84 +122,38 @@ class LSTMQuantized(nn.Module):
 		
 		return output, q_output, h
 	
-	def autoregressive_feed(self, input:torch.Tensor, action:torch.Tensor, h=None) -> tuple[torch.Tensor, torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
+	def ar_forward(self, input:torch.Tensor, action:torch.Tensor, h=None) -> tuple[torch.Tensor, torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
 		'''
-		Do the forward pass in an LSTM architecture
+		Do the forward pass in an LSTM architecture in an autoregressive fashion
 		
-		Args:
-			input (torc.Tensor): Input tensor shape (Batch, 1, Depth, Width, Height)
-			action (torch.Tensor): a tensor representing the robot action (Batch, Seq_len, Act_size)
-			h (tuple): initial hidden state (optional)
-		Returns:
-			torch.Tensor: the predicted sequence quantized (Batch, Seq_len, Depth, Width, Height)
-			tuple[torch.Tensor, torch.Tensor]: the hidden state of the LSTM
+		:param input: Input tensor shape (Batch, 1, Depth, Width, Height)
+		:type input: torch.Tensor
+		:param action: a tensor representing the robot action (Batch, Seq_len, Act_size)
+		:type action: torch.Tensor
+		:param h: initial hidden state (optional)
+		:return: the predicted sequence before quantization | the predicted sequence quantized (Batch, Seq_len, Depth, Width, Height) | the hidden state of the LSTM
+		:rtype: tuple[Tensor, Tensor, tuple[Tensor, Tensor]]
 		'''
 		batch, len, _ = action.shape
-		device = input.device
+		preds_q = []
 		preds = []
 
 		if h is None:
-			h = (torch.zeros(1, batch, self.hidden_dim).to(device),
-				 torch.zeros(1, batch, self.hidden_dim).to(device))
-
+			h = (torch.zeros(1, batch, self.hidden_dim).to(self.device),
+				 torch.zeros(1, batch, self.hidden_dim).to(self.device))
 		x = input.detach()
-
 		for t in range(len):
 			out, q_out, h = self.forward(x, action[:, t:t+1, :], h)
-			preds.append(q_out)
+			preds_q.append(q_out)
+			preds.append(out)
 			x = q_out
 			
-		preds = torch.cat(preds, dim=1)
-		return preds, h
-
-	def generate_sequence(self, input:torch.Tensor, action:torch.Tensor, h=None) -> tuple[torch.Tensor, torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
-		'''
-		Do the forward pass in an LSTM architecture
-		
-		Args:
-			input (torc.Tensor): Input tensor shape (Batch, 1, Depth, Width, Height)
-			action (torch.Tensor): a tensor representing the robot action (Batch, Seq_len, Act_size)
-			h (tuple): initial hidden state (optional)
-		Returns:
-			torch.Tensor: the predicted sequence quantized (Batch, Seq_len, Depth, Width, Height)
-			tuple[torch.Tensor, torch.Tensor]: the hidden state of the LSTM
-		'''
-		batch, len, _ = action.shape
-		device = input.device
-		preds = []
-		preds_q = []
-
-		if h is None:
-			h = (torch.zeros(1, batch, self.hidden_dim).to(device),
-				 torch.zeros(1, batch, self.hidden_dim).to(device))
-
-		x = input.detach()
-
-		for t in range(len):
-			x_flat = self.flatten_rep(x)
-			rep = self.rep_fc(x_flat)
-
-			a = action[:, t:t+1, :]
-			a = self.act_fc(a)
-			rep = torch.cat([rep, a], dim=-1)
-			skip = self.merge_fc(rep)
-			rep, h = self.lstm(skip, h)
-			rep = rep + skip
-
-			rep = self.out_fc(rep)
-			rep = rep + x_flat
-			rep = self.unflatten_rep(rep, 1)
-			preds.append(rep)
-			rep = self.quantizer.quantizer.quantize_fixed_space(rep.view(-1, self.d, self.w_h, self.w_h))
-			rep = rep.view(batch, 1, self.d, self.w_h, self.w_h)
-			preds_q.append(rep)
-			x = rep
-
-		preds = torch.cat(preds, dim=1)
 		preds_q = torch.cat(preds_q, dim=1)
+		preds = torch.cat(preds, dim=1)
 		return preds, preds_q, h
 	
-	def train_epoch(self, loader:DataLoader, optim:Optimizer, autoregressive:bool) -> dict:
+	
+	def train_epoch(self, loader:DataLoader, optim:Optimizer) -> dict:
 		self.train()
 		total_loss = 0
 		total_q_loss = 0
@@ -223,11 +161,8 @@ class LSTMQuantized(nn.Module):
 			latent = batch['latent'].to(self.device)
 			action = batch['action'].to(self.device)
 			optim.zero_grad()
-			if autoregressive:
-				output, q_output, _ = self.generate_sequence(latent[:, 0:1, :, :, :], action=action)
-			else:
-				output, q_output, _ = self.forward(input=latent[:, :-1, :, :, :], action=action)
-			loss = F.mse_loss(latent[:, 1:, :, :, :], output, reduction='mean')# / output.size(0)
+			output, q_output, _ = self.forward(input=latent[:, :-1, :, :, :], action=action)
+			loss = F.mse_loss(latent[:, 1:, :, :, :], output, reduction='mean')
 			q_loss = F.mse_loss(latent[:, 1:, :, :, :], q_output, reduction='mean')
 			loss.backward()
 			optim.step()
@@ -238,7 +173,7 @@ class LSTMQuantized(nn.Module):
 			'qmse': total_q_loss/len(loader),
 		}
 	
-	def eval_epoch(self, loader:DataLoader, autoregressive:bool) -> dict:
+	def eval_epoch(self, loader:DataLoader) -> dict:
 		self.eval()
 		total_loss = 0
 		total_q_loss = 0
@@ -246,10 +181,7 @@ class LSTMQuantized(nn.Module):
 			for batch in loader:
 				latent = batch['latent'].to(self.device)
 				action = batch['action'].to(self.device)
-				if autoregressive:
-					output, q_output, _ = self.generate_sequence(latent[:, 0:1, :, :, :], action=action)
-				else:
-					output, q_output, _ = self.forward(input=latent[:, :-1, :, :, :], action=action)
+				output, q_output, _ = self.forward(input=latent[:, :-1, :, :, :], action=action)
 				loss = F.mse_loss(latent[:, 1:, :, :, :], output, reduction='mean')# / output.size(0)
 				q_loss = F.mse_loss(latent[:, 1:, :, :, :], q_output, reduction='mean')
 				total_loss += loss.item()
@@ -259,7 +191,19 @@ class LSTMQuantized(nn.Module):
 			'qmse': total_q_loss/len(loader),
 		}
 
-	def weighted_mse(self, x:torch.Tensor, y:torch.Tensor, error_decay:float=0.9) -> dict:
+	def weighted_mse(self, x:torch.Tensor, y:torch.Tensor, error_decay:float=0.9) -> torch.Tensor:
+			'''
+			Compute the mean square error for each time step and weight it by the decay factor
+			
+			:param x: the generated sequence
+			:type x: torch.Tensor
+			:param y: the original sequence
+			:type y: torch.Tensor
+			:param error_decay: the decay factor for the loss
+			:type error_decay: float
+			:return: the computed error
+			:rtype: Tensor
+			'''
 			mse_per_timestep = ((x - y) ** 2).mean(dim=(2,3,4))
 			weights = error_decay ** torch.arange(1, mse_per_timestep.size(1) + 1, device=y.device)
 			loss = (mse_per_timestep * weights).mean()
@@ -273,17 +217,15 @@ class LSTMQuantized(nn.Module):
 			latent = batch['latent'].to(self.device)
 			action = batch['action'].to(self.device)
 			optim.zero_grad()
-			#forward for init_len steps
 			_, _, h = self.forward(latent[:, 0:init_len, :, :, :], action[:, 0:init_len :])
-			q_output, _ = self.autoregressive_feed(latent[:, init_len:init_len+1, :, :, :], action[:, init_len:, :], h)
-			# compute the loss in the magic way
+			output, q_output, _ = self.ar_forward(latent[:, init_len:init_len+1, :, :, :], action[:, init_len:, :], h)
 			q_loss = self.weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay)
-			# loss = F.mse_loss(latent[:, init_len+1:, :, :, :], output, reduction='mean')
-			# q_loss = F.mse_loss(latent[:, init_len+1:, :, :, :], q_output, reduction='mean')
-			
+			with torch.no_grad():
+				loss = self.weighted_mse(latent[:, init_len + 1:, :, :, :], output, err_decay)
 			q_loss.backward()
 			optim.step()
 			total_q_loss += q_loss.item()
+			total_loss += loss.item()
 		return {
 			'mse': total_loss/len(loader),
 			'qmse': total_q_loss/len(loader),
@@ -294,17 +236,15 @@ class LSTMQuantized(nn.Module):
 		self.eval()
 		total_loss = 0.0
 		total_q_loss = 0.0
-
 		for batch in loader:
 			latent = batch['latent'].to(self.device)
 			action = batch['action'].to(self.device)
-
 			_, _, h = self.forward(latent[:, 0:init_len, :, :, :],action[:, 0:init_len, :])
-			q_output, _ = self.autoregressive_feed(latent[:, init_len:init_len + 1, :, :, :],action[:, init_len:, :], h)
-
+			output, q_output, _ = self.ar_forward(latent[:, init_len:init_len + 1, :, :, :],action[:, init_len:, :], h)
 			q_loss = self.weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay)
 			total_q_loss += q_loss.item()
-
+			loss = self.weighted_mse(latent[:, init_len + 1:, :, :, :], output, err_decay)
+			total_loss += loss.item()
 		return {
 			'mse': total_loss / len(loader),
 			'qmse': total_q_loss / len(loader),
