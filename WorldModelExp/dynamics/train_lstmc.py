@@ -31,8 +31,8 @@ def _perc(amount:float, maxim:float) -> float:
 if __name__ == '__main__':
 	dev = best_device()
 	vq = load_vq_vae(CURRENT_ENV, 256, 8, 4, True, dev)
-	lstm = LSTMQClass(vq, dev, CURRENT_ENV['a_size'], 512)
-	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, 40, 0.2, 64, 10)
+	lstm = LSTMQClass(vq, dev, CURRENT_ENV['a_size'], 1024)
+	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, 40, 0.2, 64, 1000000)
 
 	optim = Adam(lstm.parameters(), lr=LEARNING_RATE)
 	best_q_mse = 10000
@@ -42,7 +42,7 @@ if __name__ == '__main__':
 	no_imporvemets = 0
 	for i in range(200):
 		err_tr = lstm.train_epoch(tr, optim)#, init_len=5, err_decay=0.99)
-		err_vl = lstm.eval_rwm_style(vl, init_len=5, err_decay=0.99)
+		err_vl = lstm.eval_epoch(vl)#, init_len=5, err_decay=0.99)
 		errors_str = f'{i}: mse:{err_tr['mse']:.4f} qmse:{err_tr['qmse']:.4f} || mse:{err_vl['mse']:.4f} qmse:{err_vl['qmse']:.4f}'
 		if err_vl['qmse'] < best_q_mse:
 			print('\033[94m' + errors_str + '\033[0m')
