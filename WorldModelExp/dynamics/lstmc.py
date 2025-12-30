@@ -49,7 +49,7 @@ class LSTMQClass(nn.Module):
 			nn.Linear(hidden_dim, hidden_dim),
 			nn.LeakyReLU(),
 			nn.Linear(hidden_dim, self.classes*self.w_h*self.w_h),
-			nn.Sigmoid()
+			#nn.Sigmoid()
 		)
 
 		self.device = device
@@ -102,7 +102,7 @@ class LSTMQClass(nn.Module):
 		Args:
 			target (torc.Tensor): Input tensor shape (Batch, Seq_len, Depth, Width, Height)
 		Returns:
-			torch.Tensor: the flattened input (Batch, Seq_len, Width*Height*Classes)
+			torch.Tensor: the flattened input (Batch, Seq_len, Width, Height, Classes)
 		'''
 		b = target.size(0)
 		s = target.size(1)
@@ -114,7 +114,7 @@ class LSTMQClass(nn.Module):
 		target = target.permute(0, 1, 3, 4, 2).contiguous() # (B, S, W, H, D)
 		target = target.view(b*s, d, w, h) # (B*S, W, H, D)
 		target = self.quantizer.quantizer.onehot_from_vec(target) # (B*S, W, H, C)
-		target = target.view(b, s, w*h*c) # (B, S, W*H*C)
+		target = target.view(b, s, w, h, c).contiguous() # (B, S, W, H, C)
 		return target
 
 	def forward(self, input:torch.Tensor, action:torch.Tensor, h=None) -> tuple[torch.Tensor, torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
@@ -194,11 +194,10 @@ class LSTMQClass(nn.Module):
 		h = w
 		c = self.classes # codebook size
 		
-		print(pred.shape)
-		print(target.shape)
 		pred = pred.view(b*s*w*h, c)
-		target = target.view(b*s*w*h, c)
-		return F.cross_entropy(pred, target, reduction='mean')
+		#target = target.view(b*s*w*h, c)
+		target_indices = torch.argmax(target, dim=-1).view(b * s * w * h)
+		return F.cross_entropy(pred, target_indices, reduction='mean')
 	
 	def train_epoch(self, loader:DataLoader, optim:Optimizer) -> dict:
 		self.train()
@@ -209,9 +208,8 @@ class LSTMQClass(nn.Module):
 			action = batch['action'].to(self.device)
 			optim.zero_grad()
 			output, q_output, _ = self.forward(input=latent[:, :-1, :, :, :], action=action)
-			# use bce loss
-			target = self.compute_classification_target(latent)
-			loss = self.compute_ce(output, target[:, 1:, :, :, :])
+			target = self.compute_classification_target(latent[:, 1:, :, :, :])
+			loss = self.compute_ce(output, target)
 			q_loss = F.mse_loss(latent[:, 1:, :, :, :], q_output, reduction='mean')
 			loss.backward()
 			optim.step()
@@ -222,20 +220,22 @@ class LSTMQClass(nn.Module):
 			'qmse': total_q_loss/len(loader),
 		}
 	
+	@torch.no_grad()
 	def eval_epoch(self, loader:DataLoader) -> dict:
-		raise NotImplementedError()
-		self.eval()
+		self.train()
 		total_loss = 0
 		total_q_loss = 0
-		with torch.no_grad():
-			for batch in loader:
-				latent = batch['latent'].to(self.device)
-				action = batch['action'].to(self.device)
-				output, q_output, _ = self.forward(input=latent[:, :-1, :, :, :], action=action)
-				loss = F.mse_loss(latent[:, 1:, :, :, :], output, reduction='mean')# / output.size(0)
-				q_loss = F.mse_loss(latent[:, 1:, :, :, :], q_output, reduction='mean')
-				total_loss += loss.item()
-				total_q_loss += q_loss.item()
+		for batch in loader:
+			latent = batch['latent'].to(self.device)
+			action = batch['action'].to(self.device)
+
+			output, q_output, _ = self.forward(input=latent[:, :-1, :, :, :], action=action)
+			target = self.compute_classification_target(latent[:, 1:, :, :, :])
+			loss = self.compute_ce(output, target)
+			q_loss = F.mse_loss(latent[:, 1:, :, :, :], q_output, reduction='mean')
+			
+			total_loss += loss.item()
+			total_q_loss += q_loss.item()
 		return {
 			'mse': total_loss/len(loader),
 			'qmse': total_q_loss/len(loader),
