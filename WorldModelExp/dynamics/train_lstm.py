@@ -83,7 +83,7 @@ if __name__ == '__main__':
 
 # 1024 4 4 256:
 # 
-# Added early stopping after 8 epochs of no improvement, same parameter as above
+# Early stopping was not really stopping, same parameter as above
 # Consideration: the paper that uses transformer world model uses a
 # vector dimention for quantization of 512 obtaining a representation that is
 # 4x4x512 which is something...
@@ -93,8 +93,12 @@ if __name__ == '__main__':
 #
 # errors:
 #	tr	|	vl	|
-#	tbd	|	tbd	|
-#  -.-% |  -.-% |
+#	.28	|	.30	|
+#  7.9% |  8.4% |
 #
 # ---- sec () -:--:--
-# 4 seconds of sleep each epoch
+# mi sono disconnesso dal hbp-vulcano prima del termine
+# i miglioramenti sembravano fermi dopo 140 epoche
+
+# Note: the input (also when generated) is detached this can 
+# stop additional gradient to flow through the LSTM
