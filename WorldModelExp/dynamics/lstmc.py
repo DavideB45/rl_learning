@@ -111,10 +111,10 @@ class LSTMQClass(nn.Module):
 		c = self.classes # codebook size
 		d = self.d # depth
 
-		target = target.permute(0, 1, 3, 4, 2).contiguous() # (B, S, W, H, D)
-		target = target.view(b*s, d, w, h) # (B*S, W, H, D)
-		target = self.quantizer.quantizer.onehot_from_vec(target) # (B*S, W, H, C)
-		target = target.view(b, s, w, h, c).contiguous() # (B, S, W, H, C)
+		target = target.contiguous().view(b*s, d, w, h) # (B*S, D, W, H)
+		target = self.quantizer.quantizer.onehot_from_vec(target) # (B*S, C, W, H)
+		target = target.view(b, s, c, w, h).contiguous() # (B, S, C, W, H)
+		target = target.permute(0, 1, 3, 4, 2) # (B, S, W, H, C)
 		return target
 
 	def forward(self, input:torch.Tensor, action:torch.Tensor, h=None) -> tuple[torch.Tensor, torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
@@ -158,7 +158,6 @@ class LSTMQClass(nn.Module):
 		:return: the predicted sequence before quantization | the predicted sequence quantized (Batch, Seq_len, Depth, Width, Height) | the hidden state of the LSTM
 		:rtype: tuple[Tensor, Tensor, tuple[Tensor, Tensor]]
 		'''
-		raise NotImplementedError()
 		batch, len, _ = action.shape
 		preds_q = []
 		preds = []
@@ -198,10 +197,37 @@ class LSTMQClass(nn.Module):
 		#target = target.view(b*s*w*h, c)
 		target_indices = torch.argmax(target, dim=-1).view(b * s * w * h)
 		return F.cross_entropy(pred, target_indices, reduction='mean')
+
+	def compute_accuracy(self, pred:torch.Tensor, target:torch.Tensor) -> torch.Tensor:
+		'''
+		Compute the classification accuracy
+		
+		:param pred: the generated sequence (Batch, Seq_len, Width*Height*Classes)
+		:type pred: torch.Tensor
+		:param target: the original sequence (Batch, Seq_len, Width*Height*Classes)
+		:type target: torch.Tensor
+		:return: the accuracy (fraction of correct predictions)
+		:rtype: Tensor
+		'''
+		b = target.size(0)
+		s = target.size(1)
+		w = self.w_h
+		h = w
+		c = self.classes
+		
+		pred = pred.view(b*s*w*h, c)
+		target_indices = torch.argmax(target, dim=-1).view(b * s * w * h)
+		pred_indices = torch.argmax(pred, dim=-1)
+		
+		correct = (pred_indices == target_indices).float()
+		accuracy = correct.mean()
+		
+		return accuracy
 	
 	def train_epoch(self, loader:DataLoader, optim:Optimizer) -> dict:
 		self.train()
 		total_loss = 0
+		accuracy = 0
 		total_q_loss = 0
 		for batch in loader:
 			latent = batch['latent'].to(self.device)
@@ -210,95 +236,132 @@ class LSTMQClass(nn.Module):
 			output, q_output, _ = self.forward(input=latent[:, :-1, :, :, :], action=action)
 			target = self.compute_classification_target(latent[:, 1:, :, :, :])
 			loss = self.compute_ce(output, target)
-			q_loss = F.mse_loss(latent[:, 1:, :, :, :], q_output, reduction='mean')
+			with torch.no_grad():
+				accuracy += self.compute_accuracy(output, target)
+				total_q_loss += F.mse_loss(latent[:, 1:, :, :, :], q_output, reduction='mean').item()
 			loss.backward()
 			optim.step()
 			total_loss += loss.item()
-			total_q_loss += q_loss.item()
 		return {
-			'mse': total_loss/len(loader),
-			'qmse': total_q_loss/len(loader),
+			'ce': total_loss/len(loader),
+			'acc': accuracy/len(loader),
+			'mse': total_q_loss/len(loader),
 		}
 	
 	@torch.no_grad()
 	def eval_epoch(self, loader:DataLoader) -> dict:
-		self.train()
+		self.eval()
 		total_loss = 0
 		total_q_loss = 0
+		accuracy = 0
 		for batch in loader:
 			latent = batch['latent'].to(self.device)
 			action = batch['action'].to(self.device)
 
 			output, q_output, _ = self.forward(input=latent[:, :-1, :, :, :], action=action)
 			target = self.compute_classification_target(latent[:, 1:, :, :, :])
-			loss = self.compute_ce(output, target)
-			q_loss = F.mse_loss(latent[:, 1:, :, :, :], q_output, reduction='mean')
+			total_loss += self.compute_ce(output, target).item()
+			accuracy += self.compute_accuracy(output, target)
+			total_q_loss += F.mse_loss(latent[:, 1:, :, :, :], q_output, reduction='mean').item()
 			
-			total_loss += loss.item()
-			total_q_loss += q_loss.item()
 		return {
-			'mse': total_loss/len(loader),
-			'qmse': total_q_loss/len(loader),
+			'ce': total_loss/len(loader),
+			'acc': accuracy/len(loader),
+			'mse': total_q_loss/len(loader),
 		}
 
 	def weighted_ce(self, x:torch.Tensor, y:torch.Tensor, error_decay:float=0.9) -> torch.Tensor:
-			'''
-			Compute the mean square error for each time step and weight it by the decay factor
-			
-			:param x: the generated sequence
-			:type x: torch.Tensor
-			:param y: the original sequence
-			:type y: torch.Tensor
-			:param error_decay: the decay factor for the loss
-			:type error_decay: float
-			:return: the computed error
-			:rtype: Tensor
-			'''
-			raise NotImplementedError()
-			mse_per_timestep = ((x - y) ** 2).mean(dim=(2,3,4))
-			weights = error_decay ** torch.arange(1, mse_per_timestep.size(1) + 1, device=y.device)
-			loss = (mse_per_timestep * weights).mean()
-			return loss
+		'''
+		Compute the cross entropy error for each time step and weight it by the decay factor
+		
+		:param x: the generated sequence (Batch, Seq_len, Width*Height*Classes)
+		:type x: torch.Tensor
+		:param y: the original sequence (Batch, Seq_len, Width*Height*Classes)
+		:type y: torch.Tensor
+		:param error_decay: the decay factor for the loss
+		:type error_decay: float
+		:return: the computed error
+		:rtype: Tensor
+		'''
+		b = y.size(0)
+		s = y.size(1)
+		w = self.w_h
+		h = w
+		c = self.classes
+		
+		x = x.view(b, s, w*h, c)  # (B, S, W*H, C)
+		y_indices = torch.argmax(y, dim=-1).view(b, s, w*h)  # (B, S, W*H)
+		x = x.permute(0, 3, 1, 2)  # (B, C, S, W*H) - put classes in dim 1 for cross_entropy
+		ce_per_location = F.cross_entropy(x, y_indices, reduction='none')  # (B, S, W*H)
+		ce_per_timestep = ce_per_location.mean(dim=-1)  # (B, S) - average over spatial locations
+		weights = error_decay ** torch.arange(1, s + 1, device=y.device)  # (S,)
+		weighted_loss = (ce_per_timestep * weights.unsqueeze(0)).mean()  # scalar
+		
+		return weighted_loss
+	
+	def weighted_mse(self, x:torch.Tensor, y:torch.Tensor, error_decay:float=0.9) -> torch.Tensor:
+		'''
+		Compute the mean square error for each time step and weight it by the decay factor
+		
+		:param x: the generated sequence
+		:type x: torch.Tensor
+		:param y: the original sequence
+		:type y: torch.Tensor
+		:param error_decay: the decay factor for the loss
+		:type error_decay: float
+		:return: the computed error
+		:rtype: Tensor
+		'''
+		mse_per_timestep = ((x - y) ** 2).mean(dim=(2,3,4))
+		weights = error_decay ** torch.arange(1, mse_per_timestep.size(1) + 1, device=y.device)
+		loss = (mse_per_timestep * weights).mean()
+		return loss
 
 	def train_rwm_style(self, loader:DataLoader, optim:Optimizer, init_len:int=3, err_decay:float=0.9) -> dict:
-		raise NotImplementedError()
 		self.train()
-		total_loss = 0
+		total_ce = 0
 		total_q_loss = 0
+		accuracy = 0
 		for batch in loader:
 			latent = batch['latent'].to(self.device)
 			action = batch['action'].to(self.device)
 			optim.zero_grad()
 			_, _, h = self.forward(latent[:, 0:init_len, :, :, :], action[:, 0:init_len :])
 			output, q_output, _ = self.ar_forward(latent[:, init_len:init_len+1, :, :, :], action[:, init_len:, :], h)
-			q_loss = self.weighted_ce(latent[:, init_len + 1:, :, :, :], q_output, err_decay)
+			
+			target = self.compute_classification_target(latent[:, init_len + 1:, :, :, :])
+			loss = self.weighted_ce(output, target, err_decay)
 			with torch.no_grad():
-				loss = self.weighted_ce(latent[:, init_len + 1:, :, :, :], output, err_decay)
-			q_loss.backward()
+				total_q_loss += self.weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay).item()
+				accuracy += self.compute_accuracy(output, target)
+			loss.backward()
 			optim.step()
-			total_q_loss += q_loss.item()
-			total_loss += loss.item()
+			total_ce += loss.item()
 		return {
-			'mse': total_loss/len(loader),
-			'qmse': total_q_loss/len(loader),
+			'ce': total_ce/len(loader),
+			'acc': accuracy/len(loader),
+			'mse': total_q_loss/len(loader),
 		}
 
 	@torch.no_grad()
 	def eval_rwm_style(self, loader: DataLoader, init_len: int = 3, err_decay:float=0.9) -> dict:
-		raise NotImplementedError()
 		self.eval()
-		total_loss = 0.0
+		total_ce = 0.0
 		total_q_loss = 0.0
+		accuracy = 0
 		for batch in loader:
 			latent = batch['latent'].to(self.device)
 			action = batch['action'].to(self.device)
 			_, _, h = self.forward(latent[:, 0:init_len, :, :, :],action[:, 0:init_len, :])
 			output, q_output, _ = self.ar_forward(latent[:, init_len:init_len + 1, :, :, :],action[:, init_len:, :], h)
-			q_loss = self.weighted_ce(latent[:, init_len + 1:, :, :, :], q_output, err_decay)
-			total_q_loss += q_loss.item()
-			loss = self.weighted_ce(latent[:, init_len + 1:, :, :, :], output, err_decay)
-			total_loss += loss.item()
+
+			target = self.compute_classification_target(latent[:, init_len + 1:, :, :, :])
+			total_ce += self.weighted_ce(output, target, err_decay).item()
+			total_q_loss += self.weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay).item()
+			accuracy += self.compute_accuracy(output, target)
+			
 		return {
-			'mse': total_loss / len(loader),
-			'qmse': total_q_loss / len(loader),
+			'ce': total_ce/len(loader),
+			'acc': accuracy/len(loader),
+			'mse': total_q_loss/len(loader),
 		}
