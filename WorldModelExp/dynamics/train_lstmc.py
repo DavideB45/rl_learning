@@ -44,3 +44,12 @@ if __name__ == '__main__':
 				print('Early stopping for no improvements')
 	end = time()
 	print(f'Time elapsed {end - begin}')
+
+##########################
+# 1024 4 8 256:
+#
+# 101: ce:0.0042 mse:0.0009 || ce:0.0139 mse:0.0299
+# tr acc: 100.0% || vl acc: 99.8%
+# tempo di allenamento mi pare uguale, lo ho fermato dopo circa un'oretta
+# non mi sembra abbia senso andare oltre con il training
+# questa è decisamente superiore alla versione che usa MSE
