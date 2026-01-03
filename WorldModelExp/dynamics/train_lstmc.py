@@ -18,7 +18,7 @@ LEARNING_RATE=2e-5
 
 if __name__ == '__main__':
 	dev = best_device()
-	vq = load_vq_vae(CURRENT_ENV, 256, 8, 4, True, dev)
+	vq = load_vq_vae(CURRENT_ENV, 128, 4, 4, True, dev)
 	lstm = LSTMQClass(vq, dev, CURRENT_ENV['a_size'], 1024)
 	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, 40, 0.2, 64, 1000000000)
 
@@ -53,3 +53,13 @@ if __name__ == '__main__':
 # tempo di allenamento mi pare uguale, lo ho fermato dopo circa un'oretta
 # non mi sembra abbia senso andare oltre con il training
 # questa è decisamente superiore alla versione che usa MSE
+
+# 1024 4 4 128:
+#
+# Allenato usando la KL scritta forse in modo non eccellente (vedere se esistono implementazioni migliori)
+# Il training è comparabile con quello del modello sopra tuttavia sono
+# basati su VQVAE divresi quindi un confronto non può essere fatto
+# 107: ce:0.7786 mse:1.1551 || ce:0.8166 mse:1.2540
+# tr acc: 87.9% || vl acc: 87.4%
+# stava ancora migliorando ma ero un po' stufo e volevo vedere come andava la ce
+
