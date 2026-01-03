@@ -63,3 +63,17 @@ if __name__ == '__main__':
 # tr acc: 87.9% || vl acc: 87.4%
 # stava ancora migliorando ma ero un po' stufo e volevo vedere come andava la ce
 
+# 1024 4 4 128:
+#
+# Allenato usando la CE
+#37: ce:0.4557 mse:1.6589 || ce:0.4789 mse:1.8746
+# tr acc: 87.5% || vl acc: 86.6%
+# 38: ce:0.4187 mse:1.4733 || ce:0.4388 mse:1.6487
+# tr acc: 89.0% || vl acc: 88.2%
+#
+# 58: ce:0.0544 mse:0.1049 || ce:0.0721 mse:0.1980
+# tr acc: 99.3% || vl acc: 98.8%
+#
+# 70: ce:0.0222 mse:0.0315 || ce:0.0351 mse:0.0938
+# tr acc: 99.8% || vl acc: 99.4%
+# l'ho stoppato perché dovevo andare a fare shopping e non penso possa milgiorare di molto...
