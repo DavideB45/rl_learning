@@ -14,7 +14,7 @@ from time import time
 if __name__ == '__main__':
 	dev = best_device()
 	vq = load_vq_vae(CURRENT_ENV, 256, 8, 4, True, dev)
-	lstm = load_lstm_quantized(CURRENT_ENV, vq, dev, 1024)
+	lstm = load_lstm_quantized(CURRENT_ENV, vq, dev, 1024, False, True)
 	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, 99, 0.2, 2, 20)
 	init_len = 5
 
@@ -28,7 +28,7 @@ if __name__ == '__main__':
 		action = sequence['action'].to(dev)
 		print(f'generating sequence given: {latent[:, 0:init_len, :, :, :].shape}')
 		_, _, h = lstm.forward(latent[:, 0:init_len, :, :, :], action[:, 0:init_len :])
-		generated, _ = lstm.ar_forward(latent[:, init_len:init_len+1, :, :, :], action[:, init_len:, :], h)
+		_, generated, _ = lstm.ar_forward(latent[:, init_len:init_len+1, :, :, :], action[:, init_len:, :], h)
 
 
 	end = time()

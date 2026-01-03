@@ -9,6 +9,7 @@ import os
 import sys
 sys.path.insert(1, os.path.join(sys.path[0], '../'))
 from vae.vqVae import VQVAE
+from helpers.metrics import weighted_mse, weighted_ce, pred_accuracy
 
 class LSTMQClass(nn.Module):
 	def __init__(self, quantizer:VQVAE, device:torch.device, action_dim:int, hidden_dim:int=512):
@@ -198,32 +199,6 @@ class LSTMQClass(nn.Module):
 		target_indices = torch.argmax(target, dim=-1).view(b * s * w * h)
 		return F.cross_entropy(pred, target_indices, reduction='mean')
 
-	def compute_accuracy(self, pred:torch.Tensor, target:torch.Tensor) -> torch.Tensor:
-		'''
-		Compute the classification accuracy
-		
-		:param pred: the generated sequence (Batch, Seq_len, Width*Height*Classes)
-		:type pred: torch.Tensor
-		:param target: the original sequence (Batch, Seq_len, Width*Height*Classes)
-		:type target: torch.Tensor
-		:return: the accuracy (fraction of correct predictions)
-		:rtype: Tensor
-		'''
-		b = target.size(0)
-		s = target.size(1)
-		w = self.w_h
-		h = w
-		c = self.classes
-		
-		pred = pred.view(b*s*w*h, c)
-		target_indices = torch.argmax(target, dim=-1).view(b * s * w * h)
-		pred_indices = torch.argmax(pred, dim=-1)
-		
-		correct = (pred_indices == target_indices).float()
-		accuracy = correct.mean()
-		
-		return accuracy
-	
 	def train_epoch(self, loader:DataLoader, optim:Optimizer) -> dict:
 		self.train()
 		total_loss = 0
@@ -237,7 +212,7 @@ class LSTMQClass(nn.Module):
 			target = self.compute_classification_target(latent[:, 1:, :, :, :])
 			loss = self.compute_ce(output, target)
 			with torch.no_grad():
-				accuracy += self.compute_accuracy(output, target)
+				accuracy += pred_accuracy(output, target, self.w_h, self.classes)
 				total_q_loss += F.mse_loss(latent[:, 1:, :, :, :], q_output, reduction='mean').item()
 			loss.backward()
 			optim.step()
@@ -261,7 +236,7 @@ class LSTMQClass(nn.Module):
 			output, q_output, _ = self.forward(input=latent[:, :-1, :, :, :], action=action)
 			target = self.compute_classification_target(latent[:, 1:, :, :, :])
 			total_loss += self.compute_ce(output, target).item()
-			accuracy += self.compute_accuracy(output, target)
+			accuracy += pred_accuracy(output, target, self.w_h, self.classes)
 			total_q_loss += F.mse_loss(latent[:, 1:, :, :, :], q_output, reduction='mean').item()
 			
 		return {
@@ -269,53 +244,6 @@ class LSTMQClass(nn.Module):
 			'acc': accuracy/len(loader),
 			'mse': total_q_loss/len(loader),
 		}
-
-	def weighted_ce(self, x:torch.Tensor, y:torch.Tensor, error_decay:float=0.9) -> torch.Tensor:
-		'''
-		Compute the cross entropy error for each time step and weight it by the decay factor
-		
-		:param x: the generated sequence (Batch, Seq_len, Width*Height*Classes)
-		:type x: torch.Tensor
-		:param y: the original sequence (Batch, Seq_len, Width*Height*Classes)
-		:type y: torch.Tensor
-		:param error_decay: the decay factor for the loss
-		:type error_decay: float
-		:return: the computed error
-		:rtype: Tensor
-		'''
-		b = y.size(0)
-		s = y.size(1)
-		w = self.w_h
-		h = w
-		c = self.classes
-		
-		x = x.view(b, s, w*h, c)  # (B, S, W*H, C)
-		y_indices = torch.argmax(y, dim=-1).view(b, s, w*h)  # (B, S, W*H)
-		x = x.permute(0, 3, 1, 2)  # (B, C, S, W*H) - put classes in dim 1 for cross_entropy
-		ce_per_location = F.cross_entropy(x, y_indices, reduction='none')  # (B, S, W*H)
-		ce_per_timestep = ce_per_location.mean(dim=-1)  # (B, S) - average over spatial locations
-		weights = error_decay ** torch.arange(1, s + 1, device=y.device)  # (S,)
-		weighted_loss = (ce_per_timestep * weights.unsqueeze(0)).mean()  # scalar
-		
-		return weighted_loss
-	
-	def weighted_mse(self, x:torch.Tensor, y:torch.Tensor, error_decay:float=0.9) -> torch.Tensor:
-		'''
-		Compute the mean square error for each time step and weight it by the decay factor
-		
-		:param x: the generated sequence
-		:type x: torch.Tensor
-		:param y: the original sequence
-		:type y: torch.Tensor
-		:param error_decay: the decay factor for the loss
-		:type error_decay: float
-		:return: the computed error
-		:rtype: Tensor
-		'''
-		mse_per_timestep = ((x - y) ** 2).mean(dim=(2,3,4))
-		weights = error_decay ** torch.arange(1, mse_per_timestep.size(1) + 1, device=y.device)
-		loss = (mse_per_timestep * weights).mean()
-		return loss
 
 	def train_rwm_style(self, loader:DataLoader, optim:Optimizer, init_len:int=3, err_decay:float=0.9) -> dict:
 		self.train()
@@ -330,10 +258,10 @@ class LSTMQClass(nn.Module):
 			output, q_output, _ = self.ar_forward(latent[:, init_len:init_len+1, :, :, :], action[:, init_len:, :], h)
 			
 			target = self.compute_classification_target(latent[:, init_len + 1:, :, :, :])
-			loss = self.weighted_ce(output, target, err_decay)
+			loss = weighted_ce(output, target, err_decay)
 			with torch.no_grad():
-				total_q_loss += self.weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay).item()
-				accuracy += self.compute_accuracy(output, target)
+				total_q_loss += weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay).item()
+				accuracy += pred_accuracy(output, target)
 			loss.backward()
 			optim.step()
 			total_ce += loss.item()
@@ -356,9 +284,9 @@ class LSTMQClass(nn.Module):
 			output, q_output, _ = self.ar_forward(latent[:, init_len:init_len + 1, :, :, :],action[:, init_len:, :], h)
 
 			target = self.compute_classification_target(latent[:, init_len + 1:, :, :, :])
-			total_ce += self.weighted_ce(output, target, err_decay).item()
-			total_q_loss += self.weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay).item()
-			accuracy += self.compute_accuracy(output, target)
+			total_ce += weighted_ce(output, target, self.w_h, self.classes, err_decay).item()
+			total_q_loss += weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay).item()
+			accuracy += pred_accuracy(output, target, self.w_h, self.classes)
 			
 		return {
 			'ce': total_ce/len(loader),
