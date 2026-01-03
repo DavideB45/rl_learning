@@ -6,6 +6,7 @@ from vae.vqVae import VQVAE
 from vae.myVae import CVAE
 from vae.moevae import MOEVAE
 from dynamics.lstm import LSTMQuantized
+from dynamics.lstmc import LSTMQClass
 from dynamics.fnn import FNN
 
 import torch
@@ -48,7 +49,10 @@ def load_moe_vae(env:dict, latent_dim:int, kl_b:float, concordance_reg:float, de
 	return model
 
 def load_lstm_quantized(env:dict, vq:VQVAE, device:torch.device, hidden_dim:int, tf:bool=False, cl:bool=False) -> LSTMQuantized:
-	model = LSTMQuantized(vq, device, env['a_size'], hidden_dim)
+	if cl:
+		model = LSTMQClass(vq, device, env['a_size'], hidden_dim)
+	else:
+		model = LSTMQuantized(vq, device, env['a_size'], hidden_dim)
 	d = vq.code_depth
 	w_h = vq.latent_dim
 	s = vq.codebook_size

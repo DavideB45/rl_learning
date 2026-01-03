@@ -9,6 +9,7 @@ import os
 import sys
 sys.path.insert(1, os.path.join(sys.path[0], '../'))
 from vae.vqVae import VQVAE
+from helpers.metrics import weighted_mse
 
 class LSTMQuantized(nn.Module):
 	def __init__(self, quantizer:VQVAE, device:torch.device, action_dim:int, hidden_dim:int=512):
@@ -191,24 +192,6 @@ class LSTMQuantized(nn.Module):
 			'qmse': total_q_loss/len(loader),
 		}
 
-	def weighted_mse(self, x:torch.Tensor, y:torch.Tensor, error_decay:float=0.9) -> torch.Tensor:
-		'''
-		Compute the mean square error for each time step and weight it by the decay factor
-		
-		:param x: the generated sequence
-		:type x: torch.Tensor
-		:param y: the original sequence
-		:type y: torch.Tensor
-		:param error_decay: the decay factor for the loss
-		:type error_decay: float
-		:return: the computed error
-		:rtype: Tensor
-		'''
-		mse_per_timestep = ((x - y) ** 2).mean(dim=(2,3,4))
-		weights = error_decay ** torch.arange(1, mse_per_timestep.size(1) + 1, device=y.device)
-		loss = (mse_per_timestep * weights).mean()
-		return loss
-
 	def train_rwm_style(self, loader:DataLoader, optim:Optimizer, init_len:int=3, err_decay:float=0.9) -> dict:
 		self.train()
 		total_loss = 0
@@ -219,9 +202,9 @@ class LSTMQuantized(nn.Module):
 			optim.zero_grad()
 			_, _, h = self.forward(latent[:, 0:init_len, :, :, :], action[:, 0:init_len :])
 			output, q_output, _ = self.ar_forward(latent[:, init_len:init_len+1, :, :, :], action[:, init_len:, :], h)
-			q_loss = self.weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay)
+			q_loss = weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay)
 			with torch.no_grad():
-				loss = self.weighted_mse(latent[:, init_len + 1:, :, :, :], output, err_decay)
+				loss = weighted_mse(latent[:, init_len + 1:, :, :, :], output, err_decay)
 			q_loss.backward()
 			optim.step()
 			total_q_loss += q_loss.item()
@@ -241,9 +224,9 @@ class LSTMQuantized(nn.Module):
 			action = batch['action'].to(self.device)
 			_, _, h = self.forward(latent[:, 0:init_len, :, :, :],action[:, 0:init_len, :])
 			output, q_output, _ = self.ar_forward(latent[:, init_len:init_len + 1, :, :, :],action[:, init_len:, :], h)
-			q_loss = self.weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay)
+			q_loss = weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay)
 			total_q_loss += q_loss.item()
-			loss = self.weighted_mse(latent[:, init_len + 1:, :, :, :], output, err_decay)
+			loss = weighted_mse(latent[:, init_len + 1:, :, :, :], output, err_decay)
 			total_loss += loss.item()
 		return {
 			'mse': total_loss / len(loader),
