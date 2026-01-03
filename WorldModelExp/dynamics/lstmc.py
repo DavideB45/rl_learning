@@ -9,7 +9,7 @@ import os
 import sys
 sys.path.insert(1, os.path.join(sys.path[0], '../'))
 from vae.vqVae import VQVAE
-from helpers.metrics import weighted_mse, weighted_ce, pred_accuracy
+from helpers.metrics import weighted_mse, weighted_ce, weighted_categorical_kl, pred_accuracy
 
 class LSTMQClass(nn.Module):
 	def __init__(self, quantizer:VQVAE, device:torch.device, action_dim:int, hidden_dim:int=512):
@@ -113,7 +113,8 @@ class LSTMQClass(nn.Module):
 		d = self.d # depth
 
 		target = target.contiguous().view(b*s, d, w, h) # (B*S, D, W, H)
-		target = self.quantizer.quantizer.onehot_from_vec(target) # (B*S, C, W, H)
+		#target = self.quantizer.quantizer.onehot_from_vec(target) # (B*S, C, W, H)
+		target = self.quantizer.quantizer.get_index_probabilities(target)
 		target = target.view(b, s, c, w, h).contiguous() # (B, S, C, W, H)
 		target = target.permute(0, 1, 3, 4, 2) # (B, S, W, H, C)
 		return target
@@ -245,7 +246,7 @@ class LSTMQClass(nn.Module):
 			'mse': total_q_loss/len(loader),
 		}
 
-	def train_rwm_style(self, loader:DataLoader, optim:Optimizer, init_len:int=3, err_decay:float=0.9) -> dict:
+	def train_rwm_style(self, loader:DataLoader, optim:Optimizer, init_len:int=3, err_decay:float=0.9, useKL:bool=False) -> dict:
 		self.train()
 		total_ce = 0
 		total_q_loss = 0
@@ -257,11 +258,14 @@ class LSTMQClass(nn.Module):
 			_, _, h = self.forward(latent[:, 0:init_len, :, :, :], action[:, 0:init_len :])
 			output, q_output, _ = self.ar_forward(latent[:, init_len:init_len+1, :, :, :], action[:, init_len:, :], h)
 			
-			target = self.compute_classification_target(latent[:, init_len + 1:, :, :, :])
-			loss = weighted_ce(output, target, err_decay)
+			target = self.compute_classification_target(latent[:, init_len + 1:, :, :, :]).detach()
+			if useKL:
+				loss = weighted_categorical_kl(output, target, self.w_h, self.classes, err_decay)
+			else:
+				loss = weighted_ce(output, target, self.w_h, self.classes, err_decay)
 			with torch.no_grad():
 				total_q_loss += weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay).item()
-				accuracy += pred_accuracy(output, target)
+				accuracy += pred_accuracy(output, target, self.w_h, self.classes)
 			loss.backward()
 			optim.step()
 			total_ce += loss.item()
@@ -272,7 +276,7 @@ class LSTMQClass(nn.Module):
 		}
 
 	@torch.no_grad()
-	def eval_rwm_style(self, loader: DataLoader, init_len: int = 3, err_decay:float=0.9) -> dict:
+	def eval_rwm_style(self, loader: DataLoader, init_len: int = 3, err_decay:float=0.9, useKL:bool=False) -> dict:
 		self.eval()
 		total_ce = 0.0
 		total_q_loss = 0.0
@@ -284,7 +288,10 @@ class LSTMQClass(nn.Module):
 			output, q_output, _ = self.ar_forward(latent[:, init_len:init_len + 1, :, :, :],action[:, init_len:, :], h)
 
 			target = self.compute_classification_target(latent[:, init_len + 1:, :, :, :])
-			total_ce += weighted_ce(output, target, self.w_h, self.classes, err_decay).item()
+			if useKL:
+				total_ce += weighted_categorical_kl(output, target, self.w_h, self.classes, err_decay)
+			else:
+				total_ce += weighted_ce(output, target, self.w_h, self.classes, err_decay).item()
 			total_q_loss += weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay).item()
 			accuracy += pred_accuracy(output, target, self.w_h, self.classes)
 			
