@@ -14,8 +14,9 @@ from time import time
 if __name__ == '__main__':
 	dev = best_device()
 	vq = load_vq_vae(CURRENT_ENV, 256, 8, 4, True, dev)
-	lstm = load_lstm_quantized(CURRENT_ENV, vq, dev, 1024, False, True)
-	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, 99, 0.2, 2, 20)
+	lstm = load_lstm_quantized(CURRENT_ENV, vq, dev, 1024, False, False)
+	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, 99, 0.5, 32, 200000)
+	print(lstm.eval_epoch(vl))
 	init_len = 5
 
 	best_q_mse = 10000
@@ -40,5 +41,5 @@ if __name__ == '__main__':
 		print(f'latent shape: {latent_gt.shape}')
 		print(f'generated sequence: {latent_pred.shape}')
 		plot_gt_vs_pred(vq, latent_gt, latent_pred, max_frames=10)
-		save_video(vq, latent_gt, latent_pred, f"world_model_rollout_{b}.mp4")
+		save_video(vq, latent_gt, latent_pred, f"images/world_model_rollout_{b}.mp4")
 
