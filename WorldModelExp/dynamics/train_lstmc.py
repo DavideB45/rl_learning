@@ -12,20 +12,34 @@ from torch.optim import Adam
 from time import time
 
 LEARNING_RATE=2e-5
+LAMBDA_REG = 2e-3
+USE_KL = False
+
+CDODEBOOK_SIZE = 128
+CODE_DEPTH = 16
+LATENT_DIM = 4
+
+HIDDEN_DIM = 1024
 
 if __name__ == '__main__':
-	dev = best_device()
-	vq = load_vq_vae(CURRENT_ENV, 128, 8, 4, True, dev)
-	lstm = LSTMQClass(vq, dev, CURRENT_ENV['a_size'], 1024)
-	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, 40, 0.2, 64, 1000000000)
+	
+	print(
+		f"LR={LEARNING_RATE}, LREG={LAMBDA_REG}, KL={USE_KL}\n"
+		f"CB={CDODEBOOK_SIZE}, DEPTH={CODE_DEPTH}, LAT={LATENT_DIM}, HID={HIDDEN_DIM}"
+	)
 
-	optim = Adam(lstm.parameters(), lr=LEARNING_RATE)
+	dev = best_device()
+	vq = load_vq_vae(CURRENT_ENV, CDODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM, True, dev)
+	lstm = LSTMQClass(vq, dev, CURRENT_ENV['a_size'], HIDDEN_DIM)
+	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, 15, 0.1, 64, 1000000000)
+
+	optim = Adam(lstm.parameters(), lr=LEARNING_RATE, weight_decay=LAMBDA_REG)
 	best_ce = 10000
 	begin = time()
 	no_imporvemets = 0
 	for i in range(200):
-		err_tr = lstm.train_rwm_style(tr, optim, init_len=5, err_decay=0.99)
-		err_vl = lstm.eval_rwm_style(vl, init_len=5, err_decay=0.99)
+		err_tr = lstm.train_rwm_style(tr, optim, init_len=5, err_decay=0.99, useKL=USE_KL)
+		err_vl = lstm.eval_rwm_style(vl, init_len=5, err_decay=0.99, useKL=USE_KL)
 		errors_str = f'{i}: ce:{err_tr['ce']:.4f} mse:{err_tr['mse']:.4f} || ce:{err_vl['ce']:.4f} mse:{err_vl['mse']:.4f}'
 		if err_vl['ce'] < best_ce:
 			print('\033[94m' + errors_str + '\033[0m')
@@ -37,8 +51,9 @@ if __name__ == '__main__':
 		else:
 			no_imporvemets += 1
 			print(errors_str, end='\n')
-			if no_imporvemets >= 8:
+			if no_imporvemets >= 5:
 				print('Early stopping for no improvements')
+				break
 	end = time()
 	print(f'Time elapsed {end - begin}')
 
