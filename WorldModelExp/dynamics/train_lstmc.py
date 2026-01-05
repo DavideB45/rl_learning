@@ -9,16 +9,13 @@ from helpers.general import best_device
 from global_var import CURRENT_ENV
 
 from torch.optim import Adam
-from torch.utils.data import DataLoader
-import torch.nn.functional as F 
-from torch import no_grad
 from time import time
 
 LEARNING_RATE=2e-5
 
 if __name__ == '__main__':
 	dev = best_device()
-	vq = load_vq_vae(CURRENT_ENV, 128, 4, 4, True, dev)
+	vq = load_vq_vae(CURRENT_ENV, 128, 8, 4, True, dev)
 	lstm = LSTMQClass(vq, dev, CURRENT_ENV['a_size'], 1024)
 	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, 40, 0.2, 64, 1000000000)
 
