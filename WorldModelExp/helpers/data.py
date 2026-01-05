@@ -1,7 +1,7 @@
 import glob
 import json
 from PIL import Image
-from torch.utils.data import Dataset, DataLoader, random_split
+from torch.utils.data import Dataset, DataLoader, Subset
 import torchvision
 import torch
 
@@ -47,16 +47,21 @@ def make_img_dataloader(data_dir=None, images=None, batch_size=64, test_split=0.
 	data_dir: directory containing the dataset images
 	images: optional list of PIL Images to use instead of loading from disk
 	batch_size: batch size for dataloader
-	shuffle: whether to shuffle the data
 	returns: DataLoader
 	'''
 	if data_dir is None and images is None:
 		raise ValueError("Provide either a data_dir or images.")
 	print(f"Creating dataloader from {'images' if images is not None else data_dir}")
 	dataset = PNGDataset(path=data_dir, images=images)
-	train_size = int((1 - test_split) * len(dataset))
-	val_size = len(dataset) - train_size
-	train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+	n_total = len(dataset)
+	train_size = int((1 - test_split) * n_total)
+	train_indices = list(range(0, train_size))
+	test_indices = list(range(train_size, n_total))
+	train_dataset = Subset(dataset, train_indices)
+	test_dataset = Subset(dataset, test_indices)
+	train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=2)
+	test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=2)
+	return train_loader, test_loader
 	train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 	val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 	return train_loader, val_loader
@@ -143,8 +148,15 @@ class TrasitionDataset(Dataset):
 def make_sequence_dataloaders(path:str, vq:VQVAE ,seq_len:int=10, test_split:float=0.2, batch_size:int=64, max_ep:int=9999999) -> tuple[DataLoader, DataLoader]:
 	print(f"Creating sequence dataloader using data from {path}")
 	dataset = TrasitionDataset(path=path, seq_len=seq_len, vq=vq, max_ep=max_ep)
-	test_size = int(len(dataset) * test_split)
-	train_size = len(dataset) - test_size
+	n_total = len(dataset)
+	train_size = n_total - int(n_total * test_split)
+	train_indices = list(range(0, train_size))
+	test_indices = list(range(train_size, n_total))
+	train_dataset = Subset(dataset, train_indices)
+	test_dataset = Subset(dataset, test_indices)
+	train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=2)
+	test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=2)
+	return train_loader, test_loader
 	generator = torch.Generator().manual_seed(42)
 	train_dataset, test_dataset = random_split(dataset, [train_size, test_size], generator=generator)
 	train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=2)
