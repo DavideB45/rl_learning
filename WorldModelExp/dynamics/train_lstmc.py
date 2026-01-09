@@ -11,15 +11,15 @@ from global_var import CURRENT_ENV
 from torch.optim import Adam
 from time import time
 
-LEARNING_RATE=2e-5
+LEARNING_RATE=1e-5
 LAMBDA_REG = 2e-3
-USE_KL = False
+USE_KL = True
 
 CDODEBOOK_SIZE = 128
 CODE_DEPTH = 16
 LATENT_DIM = 4
 
-HIDDEN_DIM = 1024
+HIDDEN_DIM = 2048
 
 if __name__ == '__main__':
 	

@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 LATENT_DIM = 32
 KL_WEIGHT = 0.5
 
-LATENT_DIM_VQ = 8
+LATENT_DIM_VQ = 4
 CODE_DEPTH = 32
 CODEBOOK_SIZE = 128
 EMA_MODE = True
@@ -93,7 +93,7 @@ if __name__ == "__main__":
 			plt.title('VQ Reconstructed Images')
 	
 	plt.savefig('reconstructed_images.png', dpi=600)
-	plt.show()
+	#plt.show()
 
 	exit(0)
 	indexes_array = [0 for _ in range(vq_vae.codebook_size)]

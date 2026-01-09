@@ -4,7 +4,7 @@ import os
 import sys
 sys.path.insert(1, os.path.join(sys.path[0], '../'))
 
-basic = True
+basic = False
 if basic:
 	from vae.myVae import CVAE as VAE
 else:
@@ -20,9 +20,9 @@ NUM_EPOCHS = 100
 LEARNING_RATE = 5e-4
 
 LATENT_DIM_VQ = 4
-CODE_DEPTH = 4
+CODE_DEPTH = 16
 CODEBOOK_SIZE = 128
-EMA_MODE = False
+EMA_MODE = True
 
 DATA_PATH = CURRENT_ENV['img_dir']
 DEVICE = best_device()

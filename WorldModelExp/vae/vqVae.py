@@ -126,6 +126,7 @@ class VQVAE(AbstractVAE):
 		Returns:
 			avg_loss (dict): Average loss over the epoch.
 		'''
+		self.train()
 		losses = {
 			"total_loss": 0.0,
 			"recon_loss": 0.0,
@@ -159,6 +160,7 @@ class VQVAE(AbstractVAE):
 		Returns:
 			avg_loss (dict): Average loss over the epoch.
 		'''
+		self.eval()
 		losses = {
 			"total_loss": 0.0,
 			"recon_loss": 0.0,
