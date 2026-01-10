@@ -23,7 +23,7 @@ class PNGDataset(Dataset):
 		
 		self.from_disk = images is None
 
-		self.files = glob.glob(path + '/front_img_*.png') if self.from_disk else []
+		self.files = glob.glob(path + '/img_*.png') if self.from_disk else []
 		self.transform = torchvision.transforms.ToTensor()
 		self.data = []
 		self.images = images

@@ -1,7 +1,7 @@
 FINAL_VERSION = True
 DREAM_VERSION = False
 
-IMG_DIR = "multi_img/"
+IMG_DIR = "imgs/"
 TRANSITIONS = "transition_data.json"
 MODELS_DIR = "models/"
 
