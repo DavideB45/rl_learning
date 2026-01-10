@@ -6,7 +6,7 @@ WorldModel/data/*/transition_data.json
 WorldModel/data/*/experience.json
 WorldModelExp/data/*/multi_img
 WorldModelExp/data/*/imgs
-WorldModelExp/data/*/action*
+WorldModelExp/data/*/action
 rl_env/
 
 # Byte-compiled / optimized / DLL files
