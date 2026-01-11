@@ -153,6 +153,28 @@ class LSTMQuantized(nn.Module):
 		preds = torch.cat(preds, dim=1)
 		return preds, preds_q, h
 	
+	def compute_classification_target(self, target:torch.Tensor) -> torch.Tensor:
+		'''
+		Takes as input the unflattened target and encodes it into a one hot encoding vector
+
+		Args:
+			target (torc.Tensor): Input tensor shape (Batch, Seq_len, Depth, Width, Height)
+		Returns:
+			torch.Tensor: the flattened input (Batch, Seq_len, Width, Height, Classes)
+		'''
+		b = target.size(0)
+		s = target.size(1)
+		w = self.quantizer.latent_dim
+		h = w
+		c = self.quantizer.codebook_size
+		d = self.quantizer.code_depth # depth
+
+		target = target.contiguous().view(b*s, d, w, h) # (B*S, D, W, H)
+		#target = self.quantizer.quantizer.onehot_from_vec(target) # (B*S, C, W, H)
+		target = self.quantizer.quantizer.get_index_probabilities(target)
+		target = target.view(b, s, c, w, h).contiguous() # (B, S, C, W, H)
+		target = target.permute(0, 1, 3, 4, 2) # (B, S, W, H, C)
+		return target
 	
 	def train_epoch(self, loader:DataLoader, optim:Optimizer) -> dict:
 		self.train()
@@ -196,22 +218,27 @@ class LSTMQuantized(nn.Module):
 		self.train()
 		total_loss = 0
 		total_q_loss = 0
+		accuracy = 0.0
 		for batch in loader:
 			latent = batch['latent'].to(self.device)
 			action = batch['action'].to(self.device)
 			optim.zero_grad()
 			_, _, h = self.forward(latent[:, 0:init_len, :, :, :], action[:, 0:init_len :])
 			output, q_output, _ = self.ar_forward(latent[:, init_len:init_len+1, :, :, :], action[:, init_len:, :], h)
-			q_loss = weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay)
+			loss = weighted_mse(latent[:, init_len + 1:, :, :, :], output, err_decay)
 			with torch.no_grad():
-				loss = weighted_mse(latent[:, init_len + 1:, :, :, :], output, err_decay)
-			q_loss.backward()
+				q_loss = weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay)
+				target = self.compute_classification_target(latent[:, init_len + 1:, :, :, :]).detach()
+				pred = self.compute_classification_target(q_output).detach()
+				accuracy += (target.argmax(dim=-1) == pred.argmax(dim=-1)).float().mean().item()
+			loss.backward()
 			optim.step()
 			total_q_loss += q_loss.item()
 			total_loss += loss.item()
 		return {
 			'mse': total_loss/len(loader),
 			'qmse': total_q_loss/len(loader),
+			'acc': accuracy*100/len(loader),
 		}
 
 	@torch.no_grad()
@@ -219,6 +246,7 @@ class LSTMQuantized(nn.Module):
 		self.eval()
 		total_loss = 0.0
 		total_q_loss = 0.0
+		accuracy = 0.0
 		for batch in loader:
 			latent = batch['latent'].to(self.device)
 			action = batch['action'].to(self.device)
@@ -228,7 +256,11 @@ class LSTMQuantized(nn.Module):
 			total_q_loss += q_loss.item()
 			loss = weighted_mse(latent[:, init_len + 1:, :, :, :], output, err_decay)
 			total_loss += loss.item()
+			target = self.compute_classification_target(latent[:, init_len + 1:, :, :, :]).detach()
+			pred = self.compute_classification_target(q_output).detach()
+			accuracy += (target.argmax(dim=-1) == pred.argmax(dim=-1)).float().mean().item()
 		return {
 			'mse': total_loss / len(loader),
 			'qmse': total_q_loss / len(loader),
+			'acc': accuracy*100 / len(loader),
 		}

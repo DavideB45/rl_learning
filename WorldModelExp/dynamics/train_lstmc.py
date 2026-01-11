@@ -11,41 +11,44 @@ from global_var import CURRENT_ENV
 from torch.optim import Adam
 from time import time
 
-LEARNING_RATE=2e-5
+LEARNING_RATE=1e-5
 LAMBDA_REG = 2e-3
-USE_KL = False
+USE_KL = True
 
-CDODEBOOK_SIZE = 128
+CDODEBOOK_SIZE = 64
 CODE_DEPTH = 16
 LATENT_DIM = 4
 
 HIDDEN_DIM = 1024
+SEQ_LEN = 8
+INIT_LEN = 2
 
 if __name__ == '__main__':
 	
 	print(
 		f"LR={LEARNING_RATE}, LREG={LAMBDA_REG}, KL={USE_KL}\n"
-		f"CB={CDODEBOOK_SIZE}, DEPTH={CODE_DEPTH}, LAT={LATENT_DIM}, HID={HIDDEN_DIM}"
+		f"CB={CDODEBOOK_SIZE}, DEPTH={CODE_DEPTH}, LAT={LATENT_DIM}, HID={HIDDEN_DIM}\n"
+		f"SEQ_LEN={SEQ_LEN}, INIT_LEN={INIT_LEN + 1}, LOSS ON {SEQ_LEN - INIT_LEN - 1} steps"
 	)
 
 	dev = best_device()
 	vq = load_vq_vae(CURRENT_ENV, CDODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM, True, dev)
 	lstm = LSTMQClass(vq, dev, CURRENT_ENV['a_size'], HIDDEN_DIM)
-	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, 15, 0.1, 64, 1000000000)
+	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, SEQ_LEN, 0.1, 64, 1000000000)
 
 	optim = Adam(lstm.parameters(), lr=LEARNING_RATE, weight_decay=LAMBDA_REG)
 	best_ce = 10000
 	begin = time()
 	no_imporvemets = 0
 	for i in range(200):
-		err_tr = lstm.train_rwm_style(tr, optim, init_len=5, err_decay=0.99, useKL=USE_KL)
-		err_vl = lstm.eval_rwm_style(vl, init_len=5, err_decay=0.99, useKL=USE_KL)
+		err_tr = lstm.train_rwm_style(tr, optim, init_len=INIT_LEN, err_decay=0.99, useKL=USE_KL)
+		err_vl = lstm.eval_rwm_style(vl, init_len=INIT_LEN, err_decay=0.99, useKL=USE_KL)
 		errors_str = f'{i}: ce:{err_tr['ce']:.4f} mse:{err_tr['mse']:.4f} || ce:{err_vl['ce']:.4f} mse:{err_vl['mse']:.4f}'
 		if err_vl['ce'] < best_ce:
 			print('\033[94m' + errors_str + '\033[0m')
 			perc_err = f'tr acc: {(err_tr["acc"]*100):.1f}% || vl acc: {(err_vl["acc"]*100):.1f}%'
 			print('\033[95m' + perc_err + '\033[0m')
-			save_lstm_quantized(CURRENT_ENV, lstm, cl=True)
+			save_lstm_quantized(CURRENT_ENV, lstm, cl=True, kl=USE_KL)
 			best_ce = err_vl['ce']
 			no_imporvemets = 0
 		else:

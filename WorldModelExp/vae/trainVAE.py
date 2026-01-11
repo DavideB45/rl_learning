@@ -4,7 +4,7 @@ import os
 import sys
 sys.path.insert(1, os.path.join(sys.path[0], '../'))
 
-basic = True
+basic = False
 if basic:
 	from vae.myVae import CVAE as VAE
 else:
@@ -16,13 +16,14 @@ from global_var import CURRENT_ENV
 
 LATENT_DIM = 32
 REG_STRENGTH = 0.5
+
 NUM_EPOCHS = 100
 LEARNING_RATE = 5e-4
 
 LATENT_DIM_VQ = 4
-CODE_DEPTH = 4
-CODEBOOK_SIZE = 128
-EMA_MODE = False
+CODE_DEPTH = 16
+CODEBOOK_SIZE = 64
+EMA_MODE = True
 
 DATA_PATH = CURRENT_ENV['img_dir']
 DEVICE = best_device()
@@ -43,6 +44,7 @@ if __name__ == "__main__":
 	num_params = sum(p.numel() for p in vae.parameters() if p.requires_grad)
 	print(f"Number of trainable parameters: {num_params}")
 	train_loader, val_loader = make_img_dataloader(data_dir=DATA_PATH, batch_size=64, test_split=0.2)
+	print(f"Training on {len(train_loader.dataset)} images, validating on {len(val_loader.dataset)} images.")
 	reg_strength = 0.0
 	best_val_loss = float('inf')
 	for epoch in range(NUM_EPOCHS):
