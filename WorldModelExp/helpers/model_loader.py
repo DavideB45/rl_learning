@@ -31,6 +31,7 @@ def load_vq_vae(env:dict, codebook_size:int, code_depth:int, latent_dim:int, ema
 		device=device
 	)
 	model_path = env['models'] + f"vq_{latent_dim}_{code_depth}_{codebook_size}_{ema_mode}.pth"
+	print(f'Loading {f"vq_{latent_dim}_{code_depth}_{codebook_size}_{ema_mode}.pth"}')
 	model.load_state_dict(torch.load(model_path, map_location=device))
 	model.eval()
 	return model
