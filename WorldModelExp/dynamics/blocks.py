@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-
+# This code was taken from a torch tutorial
 class MultiHeadAttention(nn.Module):
     """
     Computes multi-head attention. Supports nested or padded tensors.
@@ -47,7 +47,7 @@ class MultiHeadAttention(nn.Module):
         """
         Forward pass; runs the following process:
             1. Apply input projection
-            2. Split heads and prepare for SDPA
+            2. Split heads and prepare for SDPA (scaled fot product attention)
             3. Run SDPA
             4. Apply output projection
 
@@ -99,7 +99,7 @@ class MultiHeadAttention(nn.Module):
         # Step 3. Run SDPA
         # (N, nheads, L_t, E_head)
         attn_output = F.scaled_dot_product_attention(
-            query, key, value, dropout_p=self.dropout, is_causal=is_causal
+            query, key, value, dropout_p=self.dropout if self.training else 0, is_causal=is_causal
         )
         # (N, nheads, L_t, E_head) -> (N, L_t, nheads, E_head) -> (N, L_t, E_total)
         attn_output = attn_output.transpose(1, 2).flatten(-2)
@@ -109,3 +109,33 @@ class MultiHeadAttention(nn.Module):
         attn_output = self.out_proj(attn_output)
 
         return attn_output
+
+# This is again code from me
+class Transformer(nn.Module):
+    """
+    The standard transformer layer, I guess actually a decoder only, 
+    you give something in and it gave something out.
+    I think the shapes should be something like (Batch, Len, Size) and the output is gonna be the same
+    """
+
+    def __init__(self, size:int, n_heads:int, dropout=0.1, device:torch.device=None):
+        super().__init__()
+        self.size = size
+
+        self.norm1 = nn.LayerNorm(size)
+        self.mha = MultiHeadAttention(size, size, size, size, nheads=n_heads, dropout=dropout, device=device)
+        self.norm2 = nn.LayerNorm(size) 
+        # sum here
+        self.fnn = nn.Sequential(
+            nn.Linear(size, size*n_heads),
+            nn.GELU(),
+            nn.Linear(size*n_heads, size)
+        )
+        print('[WARNING] remember to compile')
+        # sum here
+
+    def forward(self, sequence:torch.Tensor) -> torch.Tensor:
+        out = self.norm1(sequence)
+        out = self.mha(out, out, out) + sequence
+        out = self.norm2(out)
+        return self.fnn(out) + out
