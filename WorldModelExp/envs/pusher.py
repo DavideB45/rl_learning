@@ -39,22 +39,30 @@ def gather_data(n_samples=1000, size=(64, 64)):
 				default_camera_config=PUSHER['default_camera_config'],
 				)
 	renderer = env.env.env.env.mujoco_renderer
-	images = [[]]
+	proprioception = [[]]
 	actions = [[]]
 	rewards = [[]]
 	obs, info = env.reset()
-	images[-1].append(get_img(renderer, size))
+	proprioception[-1].append(obs.tolist())
+	episode = 0
+	step = 0
+	get_img(renderer, size).save(f"data/pusher/imgs/img_{episode}_{step}.png")
 	for i in tqdm(range(n_samples), desc="Generating transitions", unit="transition"):
+		step += 1
 		action = env.action_space.sample()
 		obs, reward, terminated, truncated, info = env.step(action)
-		images[-1].append(get_img(renderer, size))
+		proprioception[-1].append(obs.tolist())
+		get_img(renderer, size).save(f"data/pusher/imgs/img_{episode}_{step}.png")
 		actions[-1].append(action.tolist())
 		rewards[-1].append(float(reward))
 		if terminated or truncated:
 			obs, info = env.reset()
 			if i < n_samples - 1:
-				images.append([])
-				images[-1].append(get_img(renderer, size))
+				episode += 1
+				step = 0
+				proprioception.append([])
+				proprioception[-1].append(obs.tolist())
+				get_img(renderer, size).save(f"data/pusher/imgs/img_{episode}_{step}.png")
 				actions.append([])
 				rewards.append([])
 
@@ -64,21 +72,18 @@ def gather_data(n_samples=1000, size=(64, 64)):
 		env.mujoco_renderer = None
 
 	#env.close()
-	return images, actions, rewards
+	return actions, rewards, proprioception
 
 if __name__ == "__main__":
-	
-	# Example of creating a dataset of transitions
-	print("Creating transition dataset for Pusher-v5 environment")
-	images, actions, rewards = gather_data(n_samples=1000, size=(64, 64))
-	print(f"Generated {len(images)} images, {len(actions)} actions, and {len(rewards)} rewards.")
-	
 	# Save the dataset
 	if not os.path.exists("data/pusher/imgs/"):
 		os.makedirs("data/pusher/imgs/")
-	for episode in range(len(images)):
-		for i, img in enumerate(images[episode]):
-			img.save(f"data/pusher/imgs/img_{episode}_{i}.png")
+	
+	# Example of creating a dataset of transitions
+	print("Creating transition dataset for Pusher-v5 environment")
+	actions, rewards, proprioception = gather_data(n_samples=300000, size=(64, 64))
+	print(f"Generated {len(actions)} actions, and {len(rewards)} rewards.")
+
 
 	if not os.path.exists("data/pusher/"):
 		os.makedirs("data/pusher/")
@@ -86,7 +91,8 @@ if __name__ == "__main__":
 		json.dump(
 			{
 				"actions": actions,
-				"reward": rewards
+				"reward": rewards,
+				"proprioception": proprioception
 			},
 			f,
 			indent=4
