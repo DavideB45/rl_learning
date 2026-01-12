@@ -18,6 +18,9 @@ class AbstractVAE(nn.Module, ABC):
 		self.latent_dim = latent_dim
 		self.device = device
 
+	def param_count(self) -> int:
+		return sum(p.numel() for p in self.parameters() if p.requires_grad)
+
 	@abstractmethod
 	def encode(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
 		"""

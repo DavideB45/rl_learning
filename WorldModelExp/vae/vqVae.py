@@ -55,6 +55,9 @@ class VQVAE(AbstractVAE):
 		)
 		self.to(device)
 
+	def param_count(self) -> int:
+		return sum(p.numel() for p in self.parameters() if p.requires_grad) + sum(p.numel() for p in self.quantizer.parameters() if p.requires_grad)
+
 	def encode(self, x: torch.Tensor) -> torch.Tensor:
 		"""
 		Encodes input x into latent representation before quantization.

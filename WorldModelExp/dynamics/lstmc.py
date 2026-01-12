@@ -56,6 +56,9 @@ class LSTMQClass(nn.Module):
 		self.device = device
 		self.to(device)
 
+	def param_count(self) -> int:
+		return sum(p.numel() for p in self.parameters() if p.requires_grad)
+	
 	def flatten_rep(self, input:torch.Tensor) -> torch.Tensor:
 		'''
 		Takes as input the unflattened output (possibly quantized) of the vq-vae \
