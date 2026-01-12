@@ -15,12 +15,12 @@ LEARNING_RATE=1e-5
 LAMBDA_REG = 2e-3
 USE_KL = True
 
-CDODEBOOK_SIZE = 64
-CODE_DEPTH = 16
+CDODEBOOK_SIZE = 256
+CODE_DEPTH = 8
 LATENT_DIM = 4
 
 HIDDEN_DIM = 1024
-SEQ_LEN = 8
+SEQ_LEN = 6
 INIT_LEN = 2
 
 if __name__ == '__main__':
@@ -28,7 +28,7 @@ if __name__ == '__main__':
 	print(
 		f"LR={LEARNING_RATE}, LREG={LAMBDA_REG}, KL={USE_KL}\n"
 		f"CB={CDODEBOOK_SIZE}, DEPTH={CODE_DEPTH}, LAT={LATENT_DIM}, HID={HIDDEN_DIM}\n"
-		f"SEQ_LEN={SEQ_LEN}, INIT_LEN={INIT_LEN + 1}, LOSS ON {SEQ_LEN - INIT_LEN - 1} steps"
+		f"SEQ_LEN={SEQ_LEN}, INIT_LEN={INIT_LEN + 1}, LOSS ON {SEQ_LEN - INIT_LEN} steps"
 	)
 
 	dev = best_device()
@@ -40,6 +40,8 @@ if __name__ == '__main__':
 	best_ce = 10000
 	begin = time()
 	no_imporvemets = 0
+	err_vl = lstm.eval_rwm_style(vl, init_len=INIT_LEN, err_decay=0.99, useKL=USE_KL)
+	print(err_vl)
 	for i in range(200):
 		err_tr = lstm.train_rwm_style(tr, optim, init_len=INIT_LEN, err_decay=0.99, useKL=USE_KL)
 		err_vl = lstm.eval_rwm_style(vl, init_len=INIT_LEN, err_decay=0.99, useKL=USE_KL)
