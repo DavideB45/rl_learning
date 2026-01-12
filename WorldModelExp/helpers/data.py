@@ -117,18 +117,18 @@ class TrasitionDataset(Dataset):
 		with torch.no_grad():
 			for episode in tqdm(range(min(len(act), max_ep)), 'Encoding images'):
 				latents.append([])
-				for i in range(len(act[episode])): # TODO: check if this is correct or if it should be +1
+				for i in range(len(act[episode]) + 1):
 					im_path = path + f"imgs/img_{episode}_{i}.png"
 					img = Image.open(im_path).convert('RGB')
 					img = to_tensor_(img).unsqueeze(0).to(vq.device)
 					_, latent, _ = vq.quantize(vq.encode(img))
 					latent = latent.detach().squeeze(0).clone().cpu()
 					latents[-1].append(latent)
-		
+
 		self.representation = []
 		self.actions = []
 		for episode in tqdm(range(min(len(act), max_ep)), 'Defining Dataset'):
-			for i in range(len(act[episode]) - seq_len):
+			for i in range(0, len(act[episode]) - seq_len + 1, 2):
 				l = []
 				for j in range(seq_len+1):
 					l.append(latents[episode][i+j].clone())
