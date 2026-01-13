@@ -268,7 +268,7 @@ class LSTMQClass(nn.Module):
 				loss = weighted_ce(output, target, self.w_h, self.classes, err_decay)
 			with torch.no_grad():
 				total_q_loss += weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay).item()
-				accuracy += pred_accuracy(output, target, self.w_h, self.classes)
+				accuracy += pred_accuracy(output, target, self.w_h, self.classes).item()
 			loss.backward()
 			optim.step()
 			total_ce += loss.item()
@@ -292,11 +292,11 @@ class LSTMQClass(nn.Module):
 
 			target = self.compute_classification_target(latent[:, init_len + 1:, :, :, :])
 			if useKL:
-				total_ce += weighted_categorical_kl(output, target, self.w_h, self.classes, err_decay)
+				total_ce += weighted_categorical_kl(output, target, self.w_h, self.classes, err_decay).item()
 			else:
 				total_ce += weighted_ce(output, target, self.w_h, self.classes, err_decay).item()
 			total_q_loss += weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay).item()
-			accuracy += pred_accuracy(output, target, self.w_h, self.classes)
+			accuracy += pred_accuracy(output, target, self.w_h, self.classes).item()
 			
 		return {
 			'ce': total_ce/len(loader),

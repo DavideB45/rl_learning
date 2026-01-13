@@ -62,6 +62,7 @@ def make_lstm(lr:float, wd:float, kl:bool, hd:int, tr, vl) -> dict:
 			no_imporvemets += 1
 			if no_imporvemets >= 5:
 				break
+	return history
 
 
 if __name__ == '__main__':
