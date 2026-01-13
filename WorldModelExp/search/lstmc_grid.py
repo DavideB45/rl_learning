@@ -55,7 +55,6 @@ def make_lstm(lr:float, wd:float, kl:bool, hd:int, tr, vl) -> dict:
 		history['vl']['acc'].append(err_vl['acc'])
 		
 		if err_vl['ce'] < best_ce:
-			save_lstm_quantized(CURRENT_ENV, lstm, cl=True, kl=kl)
 			best_ce = err_vl['ce']
 			no_imporvemets = 0
 		else:
