@@ -8,6 +8,7 @@ WorldModelExp/data/*/multi_img
 WorldModelExp/data/*/imgs
 WorldModelExp/data/*/action_reward_data.json
 rl_env/
+legacy/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
