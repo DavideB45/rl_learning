@@ -10,12 +10,12 @@ from helpers.general import best_device
 from global_var import CURRENT_ENV
 
 from torch.optim import Adam
-
+from time import time
 
 VAE_TO_TEST = [(4, 16, 128), (4, 16, 64)] # latent, code_depth, codebook_size
 NUM_EPOCS=65 # this is (if there is no early stopping around 1 our per model)
 LEARNING_RATES=[1e-5, 2e-5]
-LAMBDA_REGS = [0, 1e-3, 2e-3]
+LAMBDA_REGS = [0, 1e-3]
 USE_KL = [True, False]
 
 HIDDEN_DIM = 1024
@@ -77,7 +77,6 @@ def make_lstm(lr:float, wd:float, kl:bool, hd:int, tr, vl, min_err) -> tuple[dic
 			curr_best = err_vl['ce']
 			no_imporvemets = 0
 			if curr_best < min_err:
-				print(f'New best model with vl ce {curr_best:.4f}, saving...')
 				save_lstm_quantized(CURRENT_ENV, lstm, cl=True, kl=kl)
 				min_err = curr_best
 		else:
@@ -90,13 +89,15 @@ def make_lstm(lr:float, wd:float, kl:bool, hd:int, tr, vl, min_err) -> tuple[dic
 if __name__ == '__main__':
 	
 	# for vae in vae needs to be a tuple so it's easier to optimize (we will test only 2 probably)
+	i = 0
 	for ld, cd, cs in VAE_TO_TEST:
 		vq = load_vq_vae(CURRENT_ENV, cs, cd, ld, True, dev)
-		tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, SEQ_LEN, 0.1, 64, 10000000000)
+		tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, SEQ_LEN, 0.1, 64, 10)
 		for kl in USE_KL:
 			min_err = float('inf')
 			for lr in LEARNING_RATES:
 				for wd in LAMBDA_REGS:
+					start = time()
 					history, min_err = make_lstm(lr=lr, wd=wd, kl=kl, hd=HIDDEN_DIM, tr=tr, vl=vl, min_err=min_err)
 					# save the model history for future reference
 					path = f"{CURRENT_ENV['data_dir']}histories/"
@@ -105,3 +106,6 @@ if __name__ == '__main__':
 					version = f'lstmc_{HIDDEN_DIM}_{ld}_{cd}_{cs}_{kl}_{lr}_{wd}'
 					with open(f"{path}{version}.json", "w") as f:
 						json.dump(history, f, indent=4)
+					end = time()
+					i += 1
+					print(f"Trained ({i}/16) LSTMC {version} in {(end - start)/60:.2f} minutes.")

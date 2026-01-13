@@ -115,7 +115,9 @@ class TrasitionDataset(Dataset):
 		to_tensor_ = torchvision.transforms.ToTensor()
 		self.max_ep = max_ep
 		with torch.no_grad():
-			for episode in tqdm(range(min(len(act), max_ep)), 'Encoding images'):
+			print(f"Encoding dataset from {path} using VQ-VAE...")
+			# for episode in tqdm(range(min(len(act), max_ep)), 'Encoding Dataset'):
+			for episode in range(min(len(act), max_ep)):
 				latents.append([])
 				for i in range(len(act[episode]) + 1):
 					im_path = path + f"imgs/img_{episode}_{i}.png"
@@ -127,8 +129,10 @@ class TrasitionDataset(Dataset):
 
 		self.representation = []
 		self.actions = []
-		for episode in tqdm(range(min(len(act), max_ep)), 'Defining Dataset'):
-			for i in range(0, len(act[episode]) - seq_len + 1, 2):
+		print(f"Creating sequences of length {seq_len}...")
+		# for episode in tqdm(range(min(len(act), max_ep)), 'Defining Dataset'):
+		for episode in range(min(len(act), max_ep)):
+			for i in range(0, len(act[episode]) - seq_len + 1, 3):
 				l = []
 				for j in range(seq_len+1):
 					l.append(latents[episode][i+j].clone())
