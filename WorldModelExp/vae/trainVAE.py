@@ -17,7 +17,7 @@ from global_var import CURRENT_ENV
 LATENT_DIM = 32
 REG_STRENGTH = 0.5
 
-NUM_EPOCHS = 100
+NUM_EPOCHS = 50
 LEARNING_RATE = 5e-4
 
 LATENT_DIM_VQ = 4
@@ -40,7 +40,7 @@ if __name__ == "__main__":
 				device=DEVICE,
 				ema_mode=EMA_MODE
 				)
-	print(vae)
+	#print(vae)
 	num_params = sum(p.numel() for p in vae.parameters() if p.requires_grad)
 	print(f"Number of trainable parameters: {num_params}")
 	train_loader, val_loader = make_img_dataloader(data_dir=DATA_PATH, batch_size=64, test_split=0.2)
