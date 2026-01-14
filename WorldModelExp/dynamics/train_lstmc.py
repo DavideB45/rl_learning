@@ -12,16 +12,16 @@ from torch.optim import Adam
 from time import time
 
 LEARNING_RATE=1e-5
-LAMBDA_REG = 2e-3
-USE_KL = True
+LAMBDA_REG = 0
+USE_KL = False
 
-CDODEBOOK_SIZE = 156
-CODE_DEPTH = 8
+CDODEBOOK_SIZE = 128
+CODE_DEPTH = 16
 LATENT_DIM = 4
 
 HIDDEN_DIM = 1024
-SEQ_LEN = 6
-INIT_LEN = 2
+SEQ_LEN = 4
+INIT_LEN = 1
 
 if __name__ == '__main__':
 	

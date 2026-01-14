@@ -15,15 +15,15 @@ from torch import no_grad
 from time import time
 
 LEARNING_RATE=1e-5
-LAMBDA_REG = 2e-3
+LAMBDA_REG = 0e-3
 
-CDODEBOOK_SIZE = 64
+CDODEBOOK_SIZE = 128
 CODE_DEPTH = 16
 LATENT_DIM = 4
 
 HIDDEN_DIM = 1024
-SEQ_LEN = 8
-INIT_LEN = 2
+SEQ_LEN = 4
+INIT_LEN = 1
 
 def max_error(loader:DataLoader) -> float:
 	total_dist = 0
