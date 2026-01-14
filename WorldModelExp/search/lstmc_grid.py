@@ -16,11 +16,11 @@ VAE_TO_TEST = [(4, 16, 128), (4, 16, 64)] # latent, code_depth, codebook_size
 NUM_EPOCS=65 # this is (if there is no early stopping around 1 our per model)
 LEARNING_RATES=[1e-5, 2e-5]
 LAMBDA_REGS = [0, 1e-3]
-USE_KL = [True, False]
+USE_KL = [False]
 
 HIDDEN_DIM = 1024
-SEQ_LEN = 7
-INIT_LEN = 2
+SEQ_LEN = 23
+INIT_LEN = 18
 
 dev = best_device()
 
@@ -109,3 +109,4 @@ if __name__ == '__main__':
 					end = time()
 					i += 1
 					print(f"Trained ({i}/16) LSTMC {version} in {(end - start)/60:.2f} minutes.")
+					print(f"Current min found for {cs} = {min_err}")
