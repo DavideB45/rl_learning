@@ -1,0 +1,25 @@
+nohup: ignoring input
+Loading vq_4_16_128_True.pth
+Creating sequence dataloader using data from data/pusher/
+Encoding dataset from data/pusher/ using VQ-VAE...
+Creating sequences of length 7...
+Trained (1/16) LSTMC lstmc_1024_4_16_128_True_1e-05_0 in 35.27 minutes.
+Trained (2/16) LSTMC lstmc_1024_4_16_128_True_1e-05_0.001 in 44.76 minutes.
+Trained (3/16) LSTMC lstmc_1024_4_16_128_True_2e-05_0 in 24.97 minutes.
+Trained (4/16) LSTMC lstmc_1024_4_16_128_True_2e-05_0.001 in 41.41 minutes.
+Trained (5/16) LSTMC lstmc_1024_4_16_128_False_1e-05_0 in 30.26 minutes.
+Trained (6/16) LSTMC lstmc_1024_4_16_128_False_1e-05_0.001 in 44.48 minutes.
+Trained (7/16) LSTMC lstmc_1024_4_16_128_False_2e-05_0 in 20.38 minutes.
+Trained (8/16) LSTMC lstmc_1024_4_16_128_False_2e-05_0.001 in 40.72 minutes.
+Loading vq_4_16_64_True.pth
+Creating sequence dataloader using data from data/pusher/
+Encoding dataset from data/pusher/ using VQ-VAE...
+Creating sequences of length 7...
+Trained (9/16) LSTMC lstmc_1024_4_16_64_True_1e-05_0 in 31.32 minutes.
+Trained (10/16) LSTMC lstmc_1024_4_16_64_True_1e-05_0.001 in 35.00 minutes.
+Trained (11/16) LSTMC lstmc_1024_4_16_64_True_2e-05_0 in 19.16 minutes.
+Trained (12/16) LSTMC lstmc_1024_4_16_64_True_2e-05_0.001 in 35.78 minutes.
+Trained (13/16) LSTMC lstmc_1024_4_16_64_False_1e-05_0 in 28.46 minutes.
+Trained (14/16) LSTMC lstmc_1024_4_16_64_False_1e-05_0.001 in 43.92 minutes.
+Trained (15/16) LSTMC lstmc_1024_4_16_64_False_2e-05_0 in 16.65 minutes.
+Trained (16/16) LSTMC lstmc_1024_4_16_64_False_2e-05_0.001 in 43.94 minutes.
