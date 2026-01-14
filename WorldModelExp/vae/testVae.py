@@ -38,11 +38,12 @@ if __name__ == "__main__":
 	).to(device)
 	print(f"Testing {CURRENT_ENV['env_name']} VAE model")
 	vq_vae = load_vq_vae(CURRENT_ENV, CODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM_VQ, EMA_MODE, device)
-	base_vae = load_base_vae(CURRENT_ENV, LATENT_DIM, KL_WEIGHT, device)	
+	vq_vae2 = load_vq_vae(CURRENT_ENV, 128, CODE_DEPTH, LATENT_DIM_VQ, EMA_MODE, device)
+	#base_vae = load_base_vae(CURRENT_ENV, LATENT_DIM, KL_WEIGHT, device)	
 	vq_vae.eval()
-	base_vae.eval()
+	#base_vae.eval()
 
-	_, test_loader = make_img_dataloader(CURRENT_ENV['img_dir'])
+	test_loader, _ = make_img_dataloader(CURRENT_ENV['img_dir'])
 
 	# get a batch of test images
 	dataiter = iter(test_loader)
@@ -52,11 +53,11 @@ if __name__ == "__main__":
 	with torch.no_grad():
 		# vq reconstruction
 		vq_images, _, _ = vq_vae.forward(images)
+		recon_images, _, _ = vq_vae2.forward(images)
 		# base reconstruction
-		mu, logvar = base_vae.encode(images)
-		recon_images = base_vae.decode(mu)
-		#recon_images, _, _ = base_vae.forward(images)
-	
+		#mu, logvar = base_vae.encode(images)
+		#recon_images = base_vae.decode(mu)
+		
 	vq_images = vq_images.cpu()
 	recon_images = recon_images.cpu()
 	images = images.cpu()
@@ -83,17 +84,17 @@ if __name__ == "__main__":
 		plt.imshow(recon_images[i].permute(1, 2, 0).numpy())
 		plt.axis('off')
 		if i == 0:
-			plt.title('Base Reconstructed Images')
+			plt.title('Codebook 128 Reconstructed Images')
 
 		# VQ reconstructed image
 		plt.subplot(3, num_images, i + 1 + 2 * num_images)
 		plt.imshow(vq_images[i].permute(1, 2, 0).numpy())
 		plt.axis('off')
 		if i == 0:
-			plt.title('VQ Reconstructed Images')
+			plt.title('Codebook 64 Reconstructed Images')
 	
 	plt.savefig('reconstructed_images.png', dpi=600)
-	plt.show()
+	#plt.show()
 
 	exit(0)
 	indexes_array = [0 for _ in range(vq_vae.codebook_size)]
@@ -119,5 +120,5 @@ if __name__ == "__main__":
 	plt.ylabel('Frequency')
 	plt.title('Codebook Usage Frequencies')
 	plt.savefig('codebook_usage.png', dpi=600)
-	plt.show()
+	#plt.show()
 			

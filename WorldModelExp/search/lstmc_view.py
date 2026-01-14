@@ -63,9 +63,9 @@ def plot_metric_across_runs(histories: dict, set="tr", metric="ce"):
 
 	plt.figure(figsize=(7, 4))
 	for name, hist in histories.items():
-		plt.plot(hist[set][metric], label=name, color='r' if '128' in name.split('_') else 'g')
+		plt.plot(hist[set][metric], label=name)#, color='r' if '128' in name.split('_') else 'g')
 
-	plt.title(metric)
+	plt.title(metric + ' ' + set)
 	plt.xlabel("Epoch")
 	plt.ylabel(metric)
 	plt.legend(fontsize=8)
@@ -87,22 +87,33 @@ def filter_parameter(all:dict, codebook_sizes=[128, 64], kl=[True, False], lr=[1
 			raise RuntimeError("Keys must be strings")
 	return interest_files
 
+def get_best_model_keys(all:dict) -> list[(float, str)]:
+	sorted_keys = []
+	for name, hist in all.items():
+		best = max(hist['vl']['acc'])
+		sorted_keys.append((best, name))
+	sorted_keys = sorted(sorted_keys, reverse=True)
+	return sorted_keys
+
+
 if __name__ == '__main__':
 
-	LEARNING_RATE=1e-5
-	LAMBDA_REG = 2e-3
-	USE_KL = True
+	LEARNING_RATE=2e-5
+	LAMBDA_REG = 0
+	USE_KL = False
 
 	LATENT_DIM = 4
 	CODE_DEPTH = 16
-	CDODEBOOK_SIZE = 64
+	CDODEBOOK_SIZE = 128
 
 	file_name = f'lstmc_{HIDDEN_DIM}_{LATENT_DIM}_{CODE_DEPTH}_{CDODEBOOK_SIZE}_{USE_KL}_{LEARNING_RATE}_{LAMBDA_REG}'
 	
 	h = load_all_histories(CURRENT_ENV['data_dir'] + "histories/")
+	sorted_keys = get_best_model_keys(h)
 	print(" --- --- [MODELS FOUNDED] --- --- ")
-	for name in list(h.keys()):
-		print(name)
+	for i, name in enumerate(sorted_keys):
+		print(f"{i}: {name}")
 	plot_history(h[file_name], title=file_name)
-	h = filter_parameter(h, kl=[True])
+	h = filter_parameter(h, kl=[False, True], codebook_sizes=[64])
 	plot_metric_across_runs(h, metric="acc", set="vl")
+
