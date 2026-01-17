@@ -92,7 +92,7 @@ if __name__ == '__main__':
 	i = 0
 	for ld, cd, cs in VAE_TO_TEST:
 		vq = load_vq_vae(CURRENT_ENV, cs, cd, ld, True, dev)
-		tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, SEQ_LEN, 0.1, 64, 1000000)
+		tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, SEQ_LEN, 0.1, 64, 1000000000)
 		for kl in USE_KL:
 			min_err = float('inf')
 			for lr in LEARNING_RATES:
