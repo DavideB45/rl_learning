@@ -23,7 +23,7 @@ tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, SEQ_LEN, 0.1, 1,
 print(f'tr len: {len(tr)}')
 print(f'vl len: {len(vl)}')
 
-from dynamics.blocks import Transformer
+from WorldModelExp.dynamics.blocks_tr import Transformer
 
 transf = Transformer(10, 2)
 transf.train()
