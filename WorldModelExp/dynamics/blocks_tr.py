@@ -134,7 +134,7 @@ class Transformer(nn.Module):
 
 	def forward(self, sequence:torch.Tensor) -> torch.Tensor:
 		out = self.norm1(sequence)
-		out = self.mha(out, out, out) + sequence
+		out = self.mha(out, out, out, is_causal=True) + sequence
 		out = self.norm2(out)
 		return self.fnn(out) + out
 
@@ -203,3 +203,62 @@ class TransformerEncoder(nn.Module):
 		out = self.transform(sequence) + sequence
 		out = self.project(out)
 		return self.positional_encode(out)
+
+class TransformerDecoder(nn.Module):
+	"""
+	This is an abstract class that creates a standard for the decoder, \
+	any implementation should follow this in order to be used inside a TRansformerArc instance
+	"""	
+
+	def __init__(self, in_size:int, out_size:int):
+		super().__init__()
+		self.in_size = in_size
+		self.out_size = out_size
+
+	def forward(self, sequence:torch.Tensor) -> torch.Tensor:
+		'''
+		This should be able toreceive in input a sequence
+		
+		:param sequence: The sequence to decode of shape ``(Batch, Len, Embedding)``
+		:type sequence: torch.Tensor
+		:return: The decoded elements
+		'''
+		raise NotImplementedError('You are directly calling the function of an abstract class, please implent forward on the subclass')
+	
+	def loss(self, prediction:torch.Tensor, gt:torch.Tensor, special_arg:float) -> torch.Tensor:
+		raise NotImplementedError('You are directly calling the function of an abstract class, please define loss the subclass')
+
+class TransformerDecoderRD(TransformerDecoder):
+	'''
+	This decoder implementation is the simplest one, in which the decoder brings the output\
+	in the original input space and uses weighted MSE to measure the error
+
+	Although simple this is probably the most reusable implementations since it does not assume any\
+	particular structure in the model input
+
+	The RD signature stands for regressor with decay factor, since the erroe weight is decreased\
+	for furder predictions based on the special_arg parameter
+	'''
+
+	def __init__(self, in_size:int, out_size:int):
+		super().__init__()
+		self.decode = nn.Sequential(
+			nn.LayerNorm(in_size),
+			nn.Linear(in_features=in_size, out_features=out_size),
+			nn.GELU(),
+			nn.LayerNorm(out_size),
+			nn.Linear(in_features=out_size, out_features=out_size),
+		)
+
+	def forward(self, sequence:torch.Tensor) -> torch.Tensor:
+		'''
+		This should be able toreceive in input a sequence
+		
+		:param sequence: The sequence to decode of shape ``(Batch, Len, Embedding)``
+		:type sequence: torch.Tensor
+		:return: The decoded elements
+		'''
+		return self.decode(sequence)
+
+	def loss(self, prediction:torch.Tensor, gt:torch.Tensor, special_arg:float) -> torch.Tensor:
+		raise NotImplementedError('You are directly calling the function of an abstract class, please define loss the subclass')
