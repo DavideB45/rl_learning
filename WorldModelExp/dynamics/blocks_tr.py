@@ -138,13 +138,14 @@ class Transformer(nn.Module):
 		out = self.norm2(out)
 		return self.fnn(out) + out
 
-class PositionalEncoding(nn.Module):
-	"""
-	PositionalEncoding Class from yet another pytorch tutorial:
-	available @ https://pytorch-tutorials-preview.netlify.app/beginner/transformer_tutorial.html
-	"""
+# Source - https://stackoverflow.com/a
+# Posted by Yakov Dan, modified by community. See post 'Timeline' for change history
+# Retrieved 2026-01-17, License - CC BY-SA 4.0
+# only (likely inefficient) addition is the batch_first option
 
-	def __init__(self, emb_size: int, dropout: float = 0.1, max_len: int = 500):
+class PositionalEncoding(nn.Module):
+
+	def __init__(self, emb_size: int, dropout: float = 0.1, max_len: int = 5000, batch_first = False):
 		super().__init__()
 		self.dropout = nn.Dropout(p=dropout)
 
@@ -154,14 +155,21 @@ class PositionalEncoding(nn.Module):
 		pe[:, 0, 0::2] = torch.sin(position * div_term)
 		pe[:, 0, 1::2] = torch.cos(position * div_term)
 		self.register_buffer('pe', pe)
+		self.batch_first = batch_first
 
 	def forward(self, x: torch.Tensor) -> torch.Tensor:
 		"""
 		Arguments:
 			x: Tensor, shape ``[seq_len, batch_size, embedding_dim]``
 		"""
-		x = x + self.pe[:x.size(0)]
+		if self.batch_first:
+			x = x.permute(1, 0, 2)
+			x = x + self.pe[:x.size(0)]
+			x = x.permute(1, 0, 2)
+		else:
+			x = x + self.pe[:x.size(0)]
 		return self.dropout(x)
+
 
 class TransformerEncoder(nn.Module):
 	"""
@@ -169,19 +177,19 @@ class TransformerEncoder(nn.Module):
 	It also apply a positional encoding to the given sequence
 	"""
 
-	def __init__(self, in_size:int, out_size:int, dropout:float = 0.1, max_len:int = 500):
+	def __init__(self, in_size:int, out_size:int, dropout:float = 0.1, max_len:int = 500, batch_first=True):
 		super().__init__()
 
 		self.transform = nn.Sequential(
 			nn.Linear(in_features=in_size, out_features=in_size*2),
 			nn.GELU(),
-			nn.LayerNorm(),
+			nn.LayerNorm(in_size*2),
 			nn.Linear(in_features=in_size*2, out_features=in_size),
 			nn.GELU(),
-			nn.LayerNorm(),
+			nn.LayerNorm(in_size),
 		)
 		self.project = nn.Linear(in_features=in_size, out_features=out_size)
-		self.positional_encode = PositionalEncoding(out_size, dropout, max_len)
+		self.positional_encode = PositionalEncoding(out_size, dropout, max_len, batch_first)
 
 	def forward(self, sequence:torch.Tensor) -> torch.Tensor:
 		'''

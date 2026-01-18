@@ -1,34 +1,33 @@
-from global_var import CURRENT_ENV
+from dynamics.blocks_tr import Transformer, PositionalEncoding
+import torch as t
 
-from helpers.data import make_sequence_dataloaders
-from helpers.model_loader import load_vq_vae
+EMB = 2
+LEN = 3
+BAT = 2
+enc = PositionalEncoding(emb_size=EMB, dropout=0, max_len=14)
+
+print('Seq Bat Emb')
+standard = enc(t.zeros([LEN, BAT, EMB]))
+for i in range(LEN):
+	print(standard[i, :])
+
+enc = PositionalEncoding(emb_size=EMB, dropout=0, max_len=14, batch_first=True)
+print('Bat Seq Emb')
+bf = enc(t.zeros([BAT, LEN, EMB]))
+for i in range(LEN):
+	print(bf[:, i, :])
+
+from dynamics.transformer import TransformerArc
 from helpers.general import best_device
 
-LEARNING_RATE=1e-5
-LAMBDA_REG = 2e-3
-USE_KL = True
+model = TransformerArc(
+	in_size=3,
+	emb_size=10,
+	max_seq_len=20,
+	n_heads=2,
+	n_transformer=3,
+	dropout=0.1,
+	device=best_device()
+)
 
-CDODEBOOK_SIZE = 128
-CODE_DEPTH = 4
-LATENT_DIM = 4
-
-HIDDEN_DIM = 1024
-SEQ_LEN = 8 # which would be 8 actions and 9 images
-INIT_LEN = 2
-
-dev = best_device()
-vq = load_vq_vae(CURRENT_ENV, CDODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM, True, dev)
-tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, SEQ_LEN, 0.1, 1, 1000000000)
-
-print(f'tr len: {len(tr)}')
-print(f'vl len: {len(vl)}')
-
-from WorldModelExp.dynamics.blocks_tr import Transformer
-
-transf = Transformer(10, 2)
-transf.train()
-print(transf.mha.training)
-print(transf.training)
-transf.eval()
-print(transf.mha.training)
-print(transf.training)
+print(model)
