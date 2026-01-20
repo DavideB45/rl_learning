@@ -11,17 +11,17 @@ from global_var import CURRENT_ENV
 from torch.optim import Adam
 from time import time
 
-LEARNING_RATE=1e-5
-LAMBDA_REG = 0
+LEARNING_RATE=2e-5
+LAMBDA_REG = 0.0001
 USE_KL = False
 
-CDODEBOOK_SIZE = 128
+CDODEBOOK_SIZE = 64
 CODE_DEPTH = 16
 LATENT_DIM = 4
 
 HIDDEN_DIM = 1024
-SEQ_LEN = 4
-INIT_LEN = 1
+SEQ_LEN = 32
+INIT_LEN = 18
 
 if __name__ == '__main__':
 	
@@ -45,7 +45,7 @@ if __name__ == '__main__':
 	for i in range(200):
 		err_tr = lstm.train_rwm_style(tr, optim, init_len=INIT_LEN, err_decay=0.99, useKL=USE_KL)
 		err_vl = lstm.eval_rwm_style(vl, init_len=INIT_LEN, err_decay=0.99, useKL=USE_KL)
-		errors_str = f'{i}: ce:{err_tr['ce']:.4f} mse:{err_tr['mse']:.4f} || ce:{err_vl['ce']:.4f} mse:{err_vl['mse']:.4f}'
+		errors_str = f"{i}: ce:{err_tr['ce']:.4f} mse:{err_tr['mse']:.4f} || ce:{err_vl['ce']:.4f} mse:{err_vl['mse']:.4f}"
 		if err_vl['ce'] < best_ce:
 			print('\033[94m' + errors_str + '\033[0m')
 			perc_err = f'tr acc: {(err_tr["acc"]*100):.1f}% || vl acc: {(err_vl["acc"]*100):.1f}%'

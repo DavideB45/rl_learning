@@ -35,6 +35,7 @@ class LSTMQClass(nn.Module):
 			nn.LayerNorm(hidden_dim)
 		)
 		self.merge_fc = nn.Sequential(
+			#nn.Linear(self.hidden_dim*2, hidden_dim),
 			nn.Linear(self.hidden_dim*2, hidden_dim),
 			nn.LeakyReLU(),
 			nn.LayerNorm(hidden_dim),
@@ -136,8 +137,9 @@ class LSTMQClass(nn.Module):
 		'''
 		input = self.flatten_rep(input.detach())
 		new_rep = self.rep_fc(input.detach())
-		action = self.act_fc(action)
-		output = torch.cat([new_rep, action], dim=-1)
+		#action = self.act_fc(action)
+		#output = torch.cat([new_rep, action], dim=-1)
+		output = new_rep
 		skip_output = self.merge_fc(output) #(B, Seq_len, Hidden_dim)
 
 		if h is None:
