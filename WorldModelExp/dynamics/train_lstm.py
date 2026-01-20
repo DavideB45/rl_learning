@@ -22,8 +22,8 @@ CODE_DEPTH = 16
 LATENT_DIM = 4
 
 HIDDEN_DIM = 1024
-SEQ_LEN = 4
-INIT_LEN = 1
+SEQ_LEN = 7
+INIT_LEN = 2
 
 def max_error(loader:DataLoader) -> float:
 	total_dist = 0
@@ -42,12 +42,12 @@ if __name__ == '__main__':
 	print(
 		f"LR={LEARNING_RATE}, LREG={LAMBDA_REG}\n"
 		f"CB={CDODEBOOK_SIZE}, DEPTH={CODE_DEPTH}, LAT={LATENT_DIM}, HID={HIDDEN_DIM}\n"
-		f"SEQ_LEN={SEQ_LEN}, INIT_LEN={INIT_LEN + 1}, LOSS ON {SEQ_LEN - INIT_LEN - 1} steps"
+		f"SEQ_LEN={SEQ_LEN}, INIT_LEN={INIT_LEN + 1}, LOSS ON {SEQ_LEN - INIT_LEN} steps"
 	)
 	dev = best_device()
 	vq = load_vq_vae(CURRENT_ENV, CDODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM, True, dev)
 	lstm = LSTMQuantized(vq, dev, CURRENT_ENV['a_size'], HIDDEN_DIM)
-	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, SEQ_LEN, 0.1, 64)
+	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, SEQ_LEN, 0.5, 2, 20)
 
 	optim = Adam(lstm.parameters(), lr=LEARNING_RATE, weight_decay=LAMBDA_REG)
 	best_q_mse = 10000
@@ -58,7 +58,7 @@ if __name__ == '__main__':
 	for i in range(200):
 		err_vl = lstm.eval_rwm_style(vl, init_len=INIT_LEN, err_decay=0.99)
 		err_tr = lstm.train_rwm_style(tr, optim, init_len=INIT_LEN, err_decay=0.99)
-		errors_str = f'{i}: mse:{err_tr['mse']:.4f} qmse:{err_tr['qmse']:.4f} || mse:{err_vl['mse']:.4f} qmse:{err_vl['qmse']:.4f}'
+		errors_str = f"{i}: mse:{err_tr['mse']:.4f} qmse:{err_tr['qmse']:.4f} || mse:{err_vl['mse']:.4f} qmse:{err_vl['qmse']:.4f}"
 		if err_vl['qmse'] < best_q_mse:
 			print('\033[94m' + errors_str + '\033[0m')
 			perc_err = f'tr: {err_tr["acc"]:.1f}% || vl: {err_vl["acc"]:.1f}%'
@@ -66,6 +66,7 @@ if __name__ == '__main__':
 			save_lstm_quantized(CURRENT_ENV, lstm)
 			best_q_mse = err_vl['qmse']
 			no_imporvemets = 0
+			exit()
 		else:
 			no_imporvemets += 1
 			print(errors_str, end='\n')

@@ -9,7 +9,7 @@ import os
 import sys
 sys.path.insert(1, os.path.join(sys.path[0], '../'))
 from vae.vqVae import VQVAE
-from helpers.metrics import weighted_mse
+from helpers.metrics import weighted_mse, change_mse
 
 class LSTMQuantized(nn.Module):
 	def __init__(self, quantizer:VQVAE, device:torch.device, action_dim:int, hidden_dim:int=512):
@@ -225,9 +225,11 @@ class LSTMQuantized(nn.Module):
 			optim.zero_grad()
 			_, _, h = self.forward(latent[:, 0:init_len, :, :, :], action[:, 0:init_len :])
 			output, q_output, _ = self.ar_forward(latent[:, init_len:init_len+1, :, :, :], action[:, init_len:, :], h)
-			loss = weighted_mse(latent[:, init_len + 1:, :, :, :], output, err_decay)
+			#loss = weighted_mse(latent[:, init_len + 1:, :, :, :], output, err_decay)
+			loss = change_mse(latent[:, init_len + 1:, :, :, :], q_output)
 			with torch.no_grad():
-				q_loss = weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay)
+				#q_loss = weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay)
+				q_loss = change_mse(latent[:, init_len + 1:, :, :, :], q_output)
 				target = self.compute_classification_target(latent[:, init_len + 1:, :, :, :]).detach()
 				pred = self.compute_classification_target(q_output).detach()
 				accuracy += (target.argmax(dim=-1) == pred.argmax(dim=-1)).float().mean().item()
@@ -252,9 +254,11 @@ class LSTMQuantized(nn.Module):
 			action = batch['action'].to(self.device)
 			_, _, h = self.forward(latent[:, 0:init_len, :, :, :],action[:, 0:init_len, :])
 			output, q_output, _ = self.ar_forward(latent[:, init_len:init_len + 1, :, :, :],action[:, init_len:, :], h)
-			q_loss = weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay)
+			#q_loss = weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay)
+			q_loss = change_mse(latent[:, init_len + 1:, :, :, :], q_output)
 			total_q_loss += q_loss.item()
-			loss = weighted_mse(latent[:, init_len + 1:, :, :, :], output, err_decay)
+			#loss = weighted_mse(latent[:, init_len + 1:, :, :, :], output, err_decay)
+			loss = change_mse(latent[:, init_len + 1:, :, :, :], q_output)
 			total_loss += loss.item()
 			target = self.compute_classification_target(latent[:, init_len + 1:, :, :, :]).detach()
 			pred = self.compute_classification_target(q_output).detach()

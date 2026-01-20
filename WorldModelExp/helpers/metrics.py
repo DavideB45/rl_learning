@@ -128,11 +128,12 @@ def change_mse(pred:torch.Tensor, target:torch.Tensor) -> torch.Tensor:
 	:param target: the original sequence (Batch, Seq_len, Width*Height*Classes)
 	:return: the computed error based on input change
 	'''
+	print(target.shape)
 	err_weight = target[:, 1:, :] - target[:, :-1, :]
+	print(err_weight.shape)
 	first_weight = torch.ones_like(target[:, 0:1, :])
 	err_weight = torch.cat([first_weight, err_weight], dim=1)
-	err_weight = 
-	mse_per_timestep = ((x - y) ** 2).mean(dim=(2,3,4))
-	weights = error_decay ** torch.arange(1, mse_per_timestep.size(1) + 1, device=y.device)
-	loss = (mse_per_timestep * weights).mean()
+	print(err_weight.shape)
+	err_weight = torch.clip(torch.abs(err_weight), max=10)
+	loss = (((pred - target) ** 2)*err_weight).mean()
 	return loss
