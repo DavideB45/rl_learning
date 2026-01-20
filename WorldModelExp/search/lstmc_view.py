@@ -12,7 +12,7 @@ VAE_TO_TEST = [(4, 16, 128), (4, 16, 64)] # latent, code_depth, codebook_size
 NUM_EPOCS=65 # this is (if there is no early stopping around 1 our per model)
 LEARNING_RATES=[1e-5, 2e-5]
 LAMBDA_REGS = [0, 1e-3, 2e-3]
-USE_KL = [True, False]
+USE_KL = [True]
 
 HIDDEN_DIM = 1024
 SEQ_LEN = 7
@@ -99,12 +99,12 @@ def get_best_model_keys(all:dict) -> list[(float, str)]:
 if __name__ == '__main__':
 
 	LEARNING_RATE=2e-5
-	LAMBDA_REG = 0
+	LAMBDA_REG = 0.001
 	USE_KL = False
 
 	LATENT_DIM = 4
 	CODE_DEPTH = 16
-	CDODEBOOK_SIZE = 128
+	CDODEBOOK_SIZE = 64
 
 	file_name = f'lstmc_{HIDDEN_DIM}_{LATENT_DIM}_{CODE_DEPTH}_{CDODEBOOK_SIZE}_{USE_KL}_{LEARNING_RATE}_{LAMBDA_REG}'
 	
@@ -114,6 +114,6 @@ if __name__ == '__main__':
 	for i, name in enumerate(sorted_keys):
 		print(f"{i}: {name}")
 	plot_history(h[file_name], title=file_name)
-	h = filter_parameter(h, kl=[False, True], codebook_sizes=[64])
+	h = filter_parameter(h, kl=[False, True], codebook_sizes=[64, 128])
 	plot_metric_across_runs(h, metric="acc", set="vl")
 
