@@ -14,8 +14,8 @@ from time import time
 
 VAE_TO_TEST = [(4, 16, 128), (4, 16, 64)] # latent, code_depth, codebook_size
 NUM_EPOCS=100 # this is (if there is no early stopping around 1 our per model)
-LEARNING_RATES=[1e-5, 2e-5]
-LAMBDA_REGS = [0, 5e-4, 1e-3]
+LEARNING_RATES=[5e-6, 1e-5, 2e-5]
+LAMBDA_REGS = [5e-4, 1e-3]
 
 HIDDEN_DIM = 1024
 SEQ_LEN = 23
@@ -46,12 +46,12 @@ def make_lstm(lr:float, wd:float, hd:int, tr, vl, min_err) -> tuple[dict, float]
 
 	history = {
 		'tr':{
-			'ce':[],
+			'qmse':[],
 			'mse':[],
 			'acc':[]
 		},
 		'vl':{
-			'ce':[],
+			'qmse':[],
 			'mse':[],
 			'acc':[]
 		},
@@ -63,15 +63,15 @@ def make_lstm(lr:float, wd:float, hd:int, tr, vl, min_err) -> tuple[dict, float]
 		err_tr = lstm.train_rwm_style(tr, optim, init_len=INIT_LEN, err_decay=0.99)
 		err_vl = lstm.eval_rwm_style(vl, init_len=INIT_LEN, err_decay=0.99)
 
-		history['tr']['ce'].append(err_tr['ce'])
+		history['tr']['qmse'].append(err_tr['qmse'])
 		history['tr']['mse'].append(err_tr['mse'])
 		history['tr']['acc'].append(err_tr['acc'])
-		history['vl']['ce'].append(err_vl['ce'])
+		history['vl']['qmse'].append(err_vl['qmse'])
 		history['vl']['mse'].append(err_vl['mse'])
 		history['vl']['acc'].append(err_vl['acc'])
 
-		if err_vl['ce'] < curr_best:
-			curr_best = err_vl['ce']
+		if err_vl['qmse'] < curr_best:
+			curr_best = err_vl['qmse']
 			no_imporvemets = 0
 			if curr_best < min_err:
 				save_lstm_quantized(CURRENT_ENV, lstm, cl=False)
@@ -95,7 +95,7 @@ if __name__ == '__main__':
 	i = 0
 	for ld, cd, cs in VAE_TO_TEST:
 		vq = load_vq_vae(CURRENT_ENV, cs, cd, ld, True, dev)
-		tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, SEQ_LEN, 0.1, 64, 1000000000)
+		tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, SEQ_LEN, 0.1, 64, 100)
 		min_err = float('inf')
 		for lr in LEARNING_RATES:
 			for wd in LAMBDA_REGS:

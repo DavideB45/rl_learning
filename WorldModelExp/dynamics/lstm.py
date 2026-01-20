@@ -226,7 +226,7 @@ class LSTMQuantized(nn.Module):
 			_, _, h = self.forward(latent[:, 0:init_len, :, :, :], action[:, 0:init_len :])
 			output, q_output, _ = self.ar_forward(latent[:, init_len:init_len+1, :, :, :], action[:, init_len:, :], h)
 			#loss = weighted_mse(latent[:, init_len + 1:, :, :, :], output, err_decay)
-			loss = change_mse(latent[:, init_len + 1:, :, :, :], q_output)
+			loss = change_mse(latent[:, init_len + 1:, :, :, :], output)
 			with torch.no_grad():
 				#q_loss = weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay)
 				q_loss = change_mse(latent[:, init_len + 1:, :, :, :], q_output)
@@ -258,7 +258,7 @@ class LSTMQuantized(nn.Module):
 			q_loss = change_mse(latent[:, init_len + 1:, :, :, :], q_output)
 			total_q_loss += q_loss.item()
 			#loss = weighted_mse(latent[:, init_len + 1:, :, :, :], output, err_decay)
-			loss = change_mse(latent[:, init_len + 1:, :, :, :], q_output)
+			loss = change_mse(latent[:, init_len + 1:, :, :, :], output)
 			total_loss += loss.item()
 			target = self.compute_classification_target(latent[:, init_len + 1:, :, :, :]).detach()
 			pred = self.compute_classification_target(q_output).detach()
