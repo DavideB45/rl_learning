@@ -1,1 +1,25 @@
 nohup: ignoring input
+Loading vq_4_16_128_True.pth
+Creating sequence dataloader using data from data/pusher/
+Encoding dataset from data/pusher/ using VQ-VAE...
+Creating sequences of length 23...
+Trained (1/16) LSTMC lstmc_1024_4_16_128_False_1e-05_0 in 30.38 minutes.
+Current min found for 128 = 1.572987679249602
+Trained (2/16) LSTMC lstmc_1024_4_16_128_False_1e-05_0.001 in 89.58 minutes.
+Current min found for 128 = 1.5070195950445582
+Trained (3/16) LSTMC lstmc_1024_4_16_128_False_2e-05_0 in 23.50 minutes.
+Current min found for 128 = 1.5070195950445582
+Trained (4/16) LSTMC lstmc_1024_4_16_128_False_2e-05_0.001 in 63.37 minutes.
+Current min found for 128 = 1.4781902761407237
+Loading vq_4_16_64_True.pth
+Creating sequence dataloader using data from data/pusher/
+Encoding dataset from data/pusher/ using VQ-VAE...
+Creating sequences of length 23...
+Trained (5/16) LSTMC lstmc_1024_4_16_64_False_1e-05_0 in 31.40 minutes.
+Current min found for 64 = 1.1595276276596258
+Trained (6/16) LSTMC lstmc_1024_4_16_64_False_1e-05_0.001 in 88.03 minutes.
+Current min found for 64 = 1.1157458763304955
+Trained (7/16) LSTMC lstmc_1024_4_16_64_False_2e-05_0 in 22.48 minutes.
+Current min found for 64 = 1.1157458763304955
+Trained (8/16) LSTMC lstmc_1024_4_16_64_False_2e-05_0.001 in 54.69 minutes.
+Current min found for 64 = 1.1067412138962356
