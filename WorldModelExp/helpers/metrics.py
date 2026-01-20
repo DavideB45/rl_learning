@@ -118,3 +118,21 @@ def pred_accuracy(pred:torch.Tensor, target:torch.Tensor, w_h:int, classes:int) 
 		accuracy = correct.mean()
 		
 		return accuracy
+
+def change_mse(pred:torch.Tensor, target:torch.Tensor) -> torch.Tensor:
+	'''
+	Special loss used to compute MSE error that is weighted based on the change of the 
+	value from one time stamp  to the next, more changes means the error will be valued more
+
+	:param pred: the generated sequence (Batch, Seq_len, Width*Height*Classes)
+	:param target: the original sequence (Batch, Seq_len, Width*Height*Classes)
+	:return: the computed error based on input change
+	'''
+	err_weight = target[:, 1:, :] - target[:, :-1, :]
+	first_weight = torch.ones_like(target[:, 0:1, :])
+	err_weight = torch.cat([first_weight, err_weight], dim=1)
+	err_weight = 
+	mse_per_timestep = ((x - y) ** 2).mean(dim=(2,3,4))
+	weights = error_decay ** torch.arange(1, mse_per_timestep.size(1) + 1, device=y.device)
+	loss = (mse_per_timestep * weights).mean()
+	return loss

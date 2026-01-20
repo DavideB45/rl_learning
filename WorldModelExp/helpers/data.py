@@ -163,6 +163,6 @@ def make_sequence_dataloaders(path:str, vq:VQVAE ,seq_len:int=10, test_split:flo
 	return train_loader, test_loader
 	generator = torch.Generator().manual_seed(42)
 	train_dataset, test_dataset = random_split(dataset, [train_size, test_size], generator=generator)
-	train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=2)
-	test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=2)
+	train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
+	test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=4)
 	return train_loader, test_loader

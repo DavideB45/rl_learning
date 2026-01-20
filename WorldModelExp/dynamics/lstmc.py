@@ -36,7 +36,7 @@ class LSTMQClass(nn.Module):
 		)
 		self.merge_fc = nn.Sequential(
 			#nn.Linear(self.hidden_dim*2, hidden_dim),
-			nn.Linear(self.hidden_dim*2, hidden_dim),
+			nn.Linear(self.hidden_dim, hidden_dim),
 			nn.LeakyReLU(),
 			nn.LayerNorm(hidden_dim),
 			nn.Linear(self.hidden_dim, self.hidden_dim),
