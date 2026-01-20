@@ -93,7 +93,7 @@ def save_vq_vae(env:dict, model:VQVAE) -> str:
 	torch.save(model.state_dict(), model_path)
 	return model_path
 
-def save_lstm_quantized(env:dict, model:LSTMQuantized, tf:bool=False, cl:bool=False, kl:bool=False) -> str:
+def save_lstm_quantized(env:dict, model:LSTMQuantized | LSTMQClass, tf:bool=False, cl:bool=False, kl:bool=False) -> str:
 	d = model.d
 	w_h = model.w_h
 	s = model.quantizer.codebook_size
