@@ -12,18 +12,18 @@ from global_var import CURRENT_ENV
 from torch import no_grad
 from time import time
 
-SEQ_LEN = 6
-INIT_LEN = 2
+SEQ_LEN = 23
+INIT_LEN = 18
 
 if __name__ == '__main__':
 	dev = best_device()
 	vq = load_vq_vae(CURRENT_ENV, 64, 16, 4, True, dev)
-	lstm = load_lstm_quantized(CURRENT_ENV, vq, dev, 1024, False, True, False)
+	lstm = load_lstm_quantized(CURRENT_ENV, vq, dev, 1024, False, False, False)
 	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, 100, 0.5, 32, 200000)
-	print(f'Number of parameter in LSTM: {lstm.param_count()}')
+	#print(f'Number of parameter in LSTM: {lstm.param_count()}')
 	print(f'Number of parameter in VQAE: {vq.param_count()}')
-	print(f'Total number of parameter = {lstm.param_count() + vq.param_count()}')
-	print(lstm.eval_epoch(vl))
+	#print(f'Total number of parameter = {lstm.param_count() + vq.param_count()}')
+	print(lstm.eval_rwm_style(vl, INIT_LEN))
 
 	best_q_mse = 10000
 	begin = time()
@@ -57,10 +57,10 @@ if __name__ == '__main__':
 		generated2 = []
 		initializer = latent[:, 0:INIT_LEN, :, :, :]
 		for_forward = latent[:, INIT_LEN:INIT_LEN+1, :, :, :]
-		for i in range(action.shape[1] -2):
+		for i in range(action.shape[1] - INIT_LEN):
 			_, _, h = lstm.forward(initializer, action[:, i:INIT_LEN+i, :])
 			initializer = torch.cat([initializer, for_forward], dim=1)[:, 1:, :, :, :]
-			_, for_forward, _ = lstm.ar_forward(for_forward, action[:, INIT_LEN+i:INIT_LEN+i+1, :], h)
+			_, for_forward, _ = lstm.forward(for_forward, action[:, INIT_LEN+i:INIT_LEN+i+1, :], h)
 			generated2.append(for_forward)
 	generated2 = torch.cat(generated2, dim=1)
 	end = time()

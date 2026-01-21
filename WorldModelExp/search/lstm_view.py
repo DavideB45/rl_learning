@@ -111,5 +111,5 @@ if __name__ == '__main__':
 		print(f"{i}: {name}")
 	plot_history(h[file_name], title=file_name)
 	h = filter_parameter(h, codebook_sizes=[128])
-	plot_metric_across_runs(h, metric="mse", set="tr")
+	plot_metric_across_runs(h, metric="acc", set="vl")
 
