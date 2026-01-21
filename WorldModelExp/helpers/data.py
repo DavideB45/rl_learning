@@ -145,8 +145,8 @@ class TrasitionDataset(Dataset):
 	
 	def __getitem__(self, idx):
 		return {
-			'latent': self.representation[idx],
-			'action': torch.tensor(self.actions[idx], dtype=torch.float32)
+			'latent': self.representation[idx].detach(),
+			'action': torch.tensor(self.actions[idx], dtype=torch.float32).detach()
 		}
 
 def make_sequence_dataloaders(path:str, vq:VQVAE ,seq_len:int=10, test_split:float=0.2, batch_size:int=64, max_ep:int=9999999) -> tuple[DataLoader, DataLoader]:
