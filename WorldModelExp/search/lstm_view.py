@@ -7,16 +7,14 @@ sys.path.insert(1, os.path.join(sys.path[0], '../'))
 
 from global_var import CURRENT_ENV
 
-
 VAE_TO_TEST = [(4, 16, 128), (4, 16, 64)] # latent, code_depth, codebook_size
-NUM_EPOCS=65 # this is (if there is no early stopping around 1 our per model)
-LEARNING_RATES=[1e-5, 2e-5]
-LAMBDA_REGS = [0, 1e-3, 2e-3]
-USE_KL = [True]
+NUM_EPOCS=100 # this is (if there is no early stopping around 1 our per model)
+LEARNING_RATES=[5e-6, 1e-5, 2e-5]
+LAMBDA_REGS = [5e-4, 1e-3]
 
 HIDDEN_DIM = 1024
-SEQ_LEN = 7
-INIT_LEN = 2
+SEQ_LEN = 23
+INIT_LEN = 18
 
 
 def load_history(path, version):
@@ -35,10 +33,10 @@ def plot_history(history: dict, title=None):
 	
 	fig, axs = plt.subplots(1, 3, figsize=(15, 4))
 
-	# CE
-	axs[0].plot(history["tr"]["ce"], label="train")
-	axs[0].plot(history["vl"]["ce"], label="val")
-	axs[0].set_title("Cross-Entropy")
+	# MSEQ
+	axs[0].plot(history["tr"]["qmse"], label="train")
+	axs[0].plot(history["vl"]["qmse"], label="val")
+	axs[0].set_title("MSE-q")
 	axs[0].legend()
 
 	# MSE
@@ -59,7 +57,7 @@ def plot_history(history: dict, title=None):
 	plt.tight_layout()
 	plt.savefig(f"images/fig_{title}.png")
 	
-def plot_metric_across_runs(histories: dict, set="tr", metric="ce"):
+def plot_metric_across_runs(histories: dict, set="tr", metric="mseq"):
 
 	plt.figure(figsize=(7, 4))
 	for name, hist in histories.items():
@@ -72,16 +70,15 @@ def plot_metric_across_runs(histories: dict, set="tr", metric="ce"):
 	plt.tight_layout()
 	plt.savefig(f"images/all_{set}_{metric}")
 
-def filter_parameter(all:dict, codebook_sizes=[128, 64], kl=[True, False], lr=[1e-5, 2e-5], wd=[0, 1e-3, 2e-3]) -> dict:
+def filter_parameter(all:dict, codebook_sizes=[128, 64], lr=LEARNING_RATES, wd=LAMBDA_REGS) -> dict:
 	interest_files = {}
 	for name, hist in all.items():
 		if isinstance(name, str):
-			model, size, ld, cd, cs, klc, lrc, wdc = tuple(name.split("_"))
+			model, size, ld, cd, cs, lrc, wdc = tuple(name.split("_"))
 			cs = int(cs)
-			klc= True if klc == "True" else False
 			lrc=float(lrc)
 			wdc=float(wdc)
-			if cs in codebook_sizes and klc in kl and lrc in lr and wdc in wd:
+			if cs in codebook_sizes and lrc in lr and wdc in wd:
 				interest_files[name] = hist
 		else:
 			raise RuntimeError("Keys must be strings")
@@ -100,20 +97,19 @@ if __name__ == '__main__':
 
 	LEARNING_RATE=2e-5
 	LAMBDA_REG = 0.001
-	USE_KL = False
 
 	LATENT_DIM = 4
 	CODE_DEPTH = 16
 	CDODEBOOK_SIZE = 64
 
-	file_name = f'lstmc_{HIDDEN_DIM}_{LATENT_DIM}_{CODE_DEPTH}_{CDODEBOOK_SIZE}_{USE_KL}_{LEARNING_RATE}_{LAMBDA_REG}'
-	
+	file_name = f'lstm_{HIDDEN_DIM}_{LATENT_DIM}_{CODE_DEPTH}_{CDODEBOOK_SIZE}_{LEARNING_RATE}_{LAMBDA_REG}'
+
 	h = load_all_histories(CURRENT_ENV['data_dir'] + "histories/")
 	sorted_keys = get_best_model_keys(h)
 	print(" --- --- [MODELS FOUNDED] --- --- ")
 	for i, name in enumerate(sorted_keys):
 		print(f"{i}: {name}")
 	plot_history(h[file_name], title=file_name)
-	h = filter_parameter(h, kl=[False, True], codebook_sizes=[64, 128])
-	plot_metric_across_runs(h, metric="acc", set="vl")
+	h = filter_parameter(h, codebook_sizes=[128])
+	plot_metric_across_runs(h, metric="mse", set="tr")
 
