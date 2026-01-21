@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+from torch.utils.data import DataLoader
+from torch.optim import Optimizer
 import warnings
 
 import os
@@ -101,3 +102,50 @@ class TransformerArc(nn.Module):
 		quantiz_last = self.vq.quantizer.quantize_fixed_space(decoded_last)
 		warnings.warn('quantize fixed space')
 		return decoded_last, quantiz_last, last
+
+	def train_epoch(self, loader:DataLoader, optim:Optimizer) -> dict:
+		'''
+		There is not much to say about this funciton, it is used to train the model 
+		in an autoregressive way, using the special loss funciton
+		
+		:param loader: A dataloader for the data
+		:param optim: The optimizer to use in training
+		:return: Measurements about the errors in a dictionary (mse, qmse and acc)
+		'''
+		self.train()
+		total_loss = 0
+		total_q_loss = 0
+		accuracy = 0
+		for batch in loader:
+			latent = batch['latent'].to(self.device).detach()
+			action = batch['action'].to(self.device).detach()
+			optim.zero_grad()
+			output, q_output, _ = self.forward(latent[:, :-1, :, :, :], action)
+			#loss = weighted_mse(latent[:, init_len + 1:, :, :, :], output, err_decay)
+			loss = change_mse(output, latent[:, -1:, :, :, :], latent[:, -2:-1, :, :, :])
+			loss.backward()
+			optim.step()
+			total_loss += loss.item()
+		return {
+			'mse': total_loss/len(loader),
+			'qmse': total_q_loss/len(loader),
+			'acc': accuracy*100/len(loader),
+		}
+
+def change_mse(pred:torch.Tensor, target:torch.Tensor, prev_target:torch.Tensor) -> torch.Tensor:
+	'''
+	Special loss used to compute MSE error that is weighted based on the change of the 
+	value from one time stamp  to the next, more changes means the error will be valued more
+
+	:param pred: the generated sequence (Batch, 1, Width*Height*Classes)
+	:param target: the original sequence (Batch, 1, Width*Height*Classes)
+	:param prev_target: the original sequence (Batch, 1, Width*Height*Classes)
+	:return: the computed error based on input change
+	'''
+	err_weight = target - prev_target
+	err_weight = torch.abs(err_weight)
+	max_e = torch.max(err_weight)
+	max_e = max(max_e, 1)
+	err_weight = ((err_weight/max_e)*9 + 1).detach()
+	loss = (((pred - target) ** 2)*err_weight).mean()
+	return loss

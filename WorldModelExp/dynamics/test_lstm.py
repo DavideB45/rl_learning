@@ -19,18 +19,21 @@ if __name__ == '__main__':
 	dev = best_device()
 	vq = load_vq_vae(CURRENT_ENV, 64, 16, 4, True, dev)
 	lstm = load_lstm_quantized(CURRENT_ENV, vq, dev, 1024, False, False, False)
-	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, 100, 0.5, 32, 200000)
+	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, SEQ_LEN, 0.5, 32, 200000)
 	#print(f'Number of parameter in LSTM: {lstm.param_count()}')
 	print(f'Number of parameter in VQAE: {vq.param_count()}')
 	#print(f'Total number of parameter = {lstm.param_count() + vq.param_count()}')
 	print(lstm.eval_rwm_style(vl, INIT_LEN))
+
+	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, 100, 0.2, 32, 200000)
+	
 
 	best_q_mse = 10000
 	begin = time()
 
 	with no_grad():
 		lstm.eval()
-		sequence = next(iter(tr))
+		sequence = next(iter(vl))
 		latent = sequence['latent'].to(dev)
 		action = sequence['action'].to(dev)
 		print(f'generating sequence given: {latent[:, 0:INIT_LEN, :, :, :].shape}')
