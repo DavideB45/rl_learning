@@ -70,8 +70,8 @@ def make_lstm(lr:float, wd:float, hd:int, tr, vl, min_err) -> tuple[dict, float]
 		history['vl']['mse'].append(err_vl['mse'])
 		history['vl']['acc'].append(err_vl['acc'])
 
-		if err_vl['qmse'] < curr_best:
-			curr_best = err_vl['qmse']
+		if err_vl['mse'] < curr_best:
+			curr_best = err_vl['mse']
 			no_imporvemets = 0
 			if curr_best < min_err:
 				save_lstm_quantized(CURRENT_ENV, lstm, cl=False)

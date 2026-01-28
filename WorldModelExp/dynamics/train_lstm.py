@@ -15,7 +15,7 @@ from torch import no_grad
 from time import time
 
 LEARNING_RATE=1e-5
-LAMBDA_REG = 0e-3
+LAMBDA_REG = 1e-3
 
 CDODEBOOK_SIZE = 128
 CODE_DEPTH = 16
@@ -23,19 +23,7 @@ LATENT_DIM = 4
 
 HIDDEN_DIM = 1024
 SEQ_LEN = 7
-INIT_LEN = 2
-
-def max_error(loader:DataLoader) -> float:
-	total_dist = 0
-	with no_grad():
-		for batch in loader:
-			latent = batch['latent']
-			dist = F.mse_loss(latent[:, 1:, :, :, :], latent[:, :-1, :, :, :], reduction='mean')# / output.size(0)
-			total_dist += dist.item()
-	return total_dist/len(loader)
-
-def _perc(amount:float, maxim:float) -> float:
-	return (amount/maxim)*100
+INIT_LEN = 4
 
 if __name__ == '__main__':
 
@@ -47,26 +35,23 @@ if __name__ == '__main__':
 	dev = best_device()
 	vq = load_vq_vae(CURRENT_ENV, CDODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM, True, dev)
 	lstm = LSTMQuantized(vq, dev, CURRENT_ENV['a_size'], HIDDEN_DIM)
-	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, SEQ_LEN, 0.5, 2, 20)
+	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, SEQ_LEN, 0.1, 64, 3000)
 
 	optim = Adam(lstm.parameters(), lr=LEARNING_RATE, weight_decay=LAMBDA_REG)
 	best_q_mse = 10000
 	begin = time()
-	max_tr_err = max_error(tr)
-	max_vl_err = max_error(vl)
 	no_imporvemets = 0
 	for i in range(200):
 		err_vl = lstm.eval_rwm_style(vl, init_len=INIT_LEN, err_decay=0.99)
 		err_tr = lstm.train_rwm_style(tr, optim, init_len=INIT_LEN, err_decay=0.99)
 		errors_str = f"{i}: mse:{err_tr['mse']:.4f} qmse:{err_tr['qmse']:.4f} || mse:{err_vl['mse']:.4f} qmse:{err_vl['qmse']:.4f}"
-		if err_vl['qmse'] < best_q_mse:
+		if err_vl['mse'] < best_q_mse:
 			print('\033[94m' + errors_str + '\033[0m')
 			perc_err = f'tr: {err_tr["acc"]:.1f}% || vl: {err_vl["acc"]:.1f}%'
 			print('\033[95m' + perc_err + '\033[0m')
 			save_lstm_quantized(CURRENT_ENV, lstm)
-			best_q_mse = err_vl['qmse']
+			best_q_mse = err_vl['mse']
 			no_imporvemets = 0
-			exit()
 		else:
 			no_imporvemets += 1
 			print(errors_str, end='\n')
