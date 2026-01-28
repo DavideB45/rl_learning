@@ -42,8 +42,8 @@ class LSTMQuantized(nn.Module):
 		)
 		self.lstm = LSTM(hidden_dim, hidden_dim, batch_first=True, num_layers=1)
 		self.out_fc = nn.Sequential(
-			nn.LayerNorm(hidden_dim),
-			nn.Linear(hidden_dim, hidden_dim),
+			nn.LayerNorm(hidden_dim + action_dim),
+			nn.Linear(hidden_dim + + action_dim, hidden_dim),
 			nn.LeakyReLU(),
 			nn.LayerNorm(hidden_dim),
 			nn.Linear(hidden_dim, hidden_dim),
@@ -114,6 +114,7 @@ class LSTMQuantized(nn.Module):
 		output, h = self.lstm(skip_output, h)
 
 		output = output + skip_output #(B, Seq_len, Hidden_dim)
+		output = torch.cat([output, action], dim=-1)
 		output = self.out_fc(output) #(B, Seq_len, Height*Width*Depth)
 		output = output + input
 		output = self.unflatten_rep(output, input.size(1)) # (B, Seq_len, Depth, Height, Width)
