@@ -14,14 +14,14 @@ import torch.nn.functional as F
 from torch import no_grad
 from time import time
 
-LEARNING_RATE=1e-5
+LEARNING_RATE=1e-6
 LAMBDA_REG = 1e-3
 
-CDODEBOOK_SIZE = 128
+CDODEBOOK_SIZE = 64
 CODE_DEPTH = 16
 LATENT_DIM = 4
 
-HIDDEN_DIM = 1024
+HIDDEN_DIM = 2048
 SEQ_LEN = 7
 INIT_LEN = 4
 
@@ -42,8 +42,8 @@ if __name__ == '__main__':
 	begin = time()
 	no_imporvemets = 0
 	for i in range(200):
-		err_vl = lstm.eval_rwm_style(vl, init_len=INIT_LEN, err_decay=0.99)
 		err_tr = lstm.train_rwm_style(tr, optim, init_len=INIT_LEN, err_decay=0.99)
+		err_vl = lstm.eval_rwm_style(vl, init_len=INIT_LEN, err_decay=0.99)
 		errors_str = f"{i}: mse:{err_tr['mse']:.4f} qmse:{err_tr['qmse']:.4f} || mse:{err_vl['mse']:.4f} qmse:{err_vl['qmse']:.4f}"
 		if err_vl['mse'] < best_q_mse:
 			print('\033[94m' + errors_str + '\033[0m')
@@ -55,7 +55,7 @@ if __name__ == '__main__':
 		else:
 			no_imporvemets += 1
 			print(errors_str, end='\n')
-			if no_imporvemets >= 5:
+			if no_imporvemets >= 10:
 				print('Early stopping for no improvements')
 				break
 	end = time()

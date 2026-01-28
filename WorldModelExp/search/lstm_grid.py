@@ -13,14 +13,15 @@ from torch.optim import Adam
 from time import time
 
 VAE_TO_TEST = [(4, 16, 128), (4, 16, 64)] # latent, code_depth, codebook_size
-NUM_EPOCS=100 # this is (if there is no early stopping around 1 our per model)
-LEARNING_RATES=[5e-6, 1e-5, 2e-5]
-LAMBDA_REGS = [5e-4, 1e-3]
+NUM_EPOCS=200 # this is (if there is no early stopping around 1 our per model)
+LEARNING_RATES=[1e-6, 5e-6, 1e-5, 2e-5]
+LAMBDA_REGS = [0, 1e-4, 5e-4, 1e-3]
 
-HIDDEN_DIM = 1024
+HIDDEN_DIM = 2048
 SEQ_LEN = 23
 INIT_LEN = 18
 
+TOT = len(VAE_TO_TEST)*len(LEARNING_RATES)*len(LAMBDA_REGS)
 dev = best_device()
 
 def make_lstm(lr:float, wd:float, hd:int, tr, vl, min_err) -> tuple[dict, float]:
@@ -70,15 +71,15 @@ def make_lstm(lr:float, wd:float, hd:int, tr, vl, min_err) -> tuple[dict, float]
 		history['vl']['mse'].append(err_vl['mse'])
 		history['vl']['acc'].append(err_vl['acc'])
 
-		if err_vl['mse'] < curr_best:
-			curr_best = err_vl['mse']
+		if err_vl['qmse'] < curr_best:
+			curr_best = err_vl['qmse']
 			no_imporvemets = 0
 			if curr_best < min_err:
 				save_lstm_quantized(CURRENT_ENV, lstm, cl=False)
 				min_err = curr_best
 		else:
 			no_imporvemets += 1
-			if no_imporvemets >= 5:
+			if no_imporvemets >= 10:
 				break
 	return history, min_err
 
@@ -110,5 +111,5 @@ if __name__ == '__main__':
 					json.dump(history, f, indent=4)
 				end = time()
 				i += 1
-				print(f"Trained ({i}/16) LSTMC {version} in {(end - start)/60:.2f} minutes.")
+				print(f"Trained ({i}/{TOT}) LSTMC {version} in {(end - start)/60:.2f} minutes.")
 				print(f"Current min found for {cs} = {min_err}")

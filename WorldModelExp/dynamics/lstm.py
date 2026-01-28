@@ -43,7 +43,7 @@ class LSTMQuantized(nn.Module):
 		self.lstm = LSTM(hidden_dim, hidden_dim, batch_first=True, num_layers=1)
 		self.out_fc = nn.Sequential(
 			nn.LayerNorm(hidden_dim + action_dim),
-			nn.Linear(hidden_dim + + action_dim, hidden_dim),
+			nn.Linear(hidden_dim + action_dim, hidden_dim),
 			nn.LeakyReLU(),
 			nn.LayerNorm(hidden_dim),
 			nn.Linear(hidden_dim, hidden_dim),
@@ -104,8 +104,8 @@ class LSTMQuantized(nn.Module):
 		'''
 		input = self.flatten_rep(input)
 		new_rep = self.rep_fc(input)
-		action = self.act_fc(action)
-		output = torch.cat([new_rep, action], dim=-1)
+		action2 = self.act_fc(action)
+		output = torch.cat([new_rep, action2], dim=-1)
 		skip_output = self.merge_fc(output) #(B, Seq_len, Hidden_dim)
 
 		if h is None:
@@ -114,7 +114,11 @@ class LSTMQuantized(nn.Module):
 		output, h = self.lstm(skip_output, h)
 
 		output = output + skip_output #(B, Seq_len, Hidden_dim)
+		#print(output.shape)
+		#print(action.shape)
 		output = torch.cat([output, action], dim=-1)
+		#print(output.shape)
+		#exit()
 		output = self.out_fc(output) #(B, Seq_len, Height*Width*Depth)
 		output = output + input
 		output = self.unflatten_rep(output, input.size(1)) # (B, Seq_len, Depth, Height, Width)
@@ -227,14 +231,14 @@ class LSTMQuantized(nn.Module):
 			_, _, h = self.forward(latent[:, 0:init_len, :, :, :], action[:, 0:init_len :])
 			output, q_output, _ = self.ar_forward(latent[:, init_len:init_len+1, :, :, :], action[:, init_len:, :], h)
 			#loss = weighted_mse(latent[:, init_len + 1:, :, :, :], output, err_decay)
-			loss = change_mse(output, latent[:, init_len + 1:, :, :, :])
+			q_loss = change_mse(q_output, latent[:, init_len:, :, :, :])
 			with torch.no_grad():
 				#q_loss = weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay)
-				q_loss = change_mse(q_output, latent[:, init_len + 1:, :, :, :])
+				loss = change_mse(output, latent[:, init_len:, :, :, :])
 				target = self.compute_classification_target(latent[:, init_len + 1:, :, :, :])
 				pred = self.compute_classification_target(q_output)
 				accuracy += (target.argmax(dim=-1) == pred.argmax(dim=-1)).float().mean().item()
-			loss.backward()
+			q_loss.backward()
 			optim.step()
 			total_q_loss += q_loss.item()
 			total_loss += loss.item()
@@ -256,10 +260,10 @@ class LSTMQuantized(nn.Module):
 			_, _, h = self.forward(latent[:, 0:init_len, :, :, :],action[:, 0:init_len, :])
 			output, q_output, _ = self.ar_forward(latent[:, init_len:init_len + 1, :, :, :],action[:, init_len:, :], h)
 			#q_loss = weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay)
-			q_loss = change_mse(q_output, latent[:, init_len + 1:, :, :, :])
+			q_loss = change_mse(q_output, latent[:, init_len:, :, :, :])
 			total_q_loss += q_loss.item()
 			#loss = weighted_mse(latent[:, init_len + 1:, :, :, :], output, err_decay)
-			loss = change_mse(output, latent[:, init_len + 1:, :, :, :])
+			loss = change_mse(output, latent[:, init_len:, :, :, :])
 			total_loss += loss.item()
 			target = self.compute_classification_target(latent[:, init_len + 1:, :, :, :])
 			pred = self.compute_classification_target(q_output)
