@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torch.optim import Optimizer
 import warnings
@@ -42,6 +43,7 @@ class TransformerArc(nn.Module):
 		self.vq = vq
 		self.w_h = vq.latent_dim
 		self.cd = vq.code_depth
+		self.cs = vq.codebook_size
 		in_size = self.w_h*self.w_h*self.cd + act_size
 
 		self.encode = TransformerEncoder(
@@ -57,11 +59,12 @@ class TransformerArc(nn.Module):
 
 		self.decode = TransformerDecoderRD(
 			in_size=emb_size,
-			out_size=in_size
+			out_size=in_size - act_size
 		)
 
 		self.guess_token = nn.Parameter(torch.randn(1, 1, in_size))
 
+		self.device = device
 		self.to(device)
 
 	def flatten_rep(self, input:torch.Tensor) -> torch.Tensor:
@@ -82,6 +85,24 @@ class TransformerArc(nn.Module):
 		input = input.permute(0, 1, 4, 2, 3).contiguous()
 		return input
 	
+	def compute_classification_target(self, target:torch.Tensor) -> torch.Tensor:
+		'''
+		Takes as input the unflattened target and encodes it into a one hot encoding vector
+
+		Args:
+			target (torc.Tensor): Input tensor shape (Batch, Seq_len, Depth, Width, Height)
+		Returns:
+			torch.Tensor: the flattened input (Batch, Seq_len, Width, Height, Classes)
+		'''
+		b = target.size(0)
+		s = target.size(1)
+
+		target = target.contiguous().view(b*s, self.cd, self.w_h, self.w_h) # (B*S, D, W, H)
+		target = self.vq.quantizer.get_index_probabilities(target)
+		target = target.view(b, s, self.cs, self.w_h, self.w_h).contiguous() # (B, S, C, W, H)
+		target = target.permute(0, 1, 3, 4, 2) # (B, S, W, H, C)
+		return target
+	
 	def forward(self, sequence:torch.Tensor, action:torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
 		'''
 		Do a forward pass generating a single token
@@ -98,9 +119,13 @@ class TransformerArc(nn.Module):
 		sequence = torch.cat([sequence, guess_token], dim=1)
 		sequence = self.transform(self.encode(sequence))
 		last = sequence[:, -2:-1, :] # hopefully (B,1,E)
-		decoded_last = self.decode(last)
+		decoded_last = self.decode.forward(last)
+		decoded_last = self.unflatten_rep(decoded_last, 1)
+		decoded_last = decoded_last.squeeze()
 		quantiz_last = self.vq.quantizer.quantize_fixed_space(decoded_last)
 		warnings.warn('quantize fixed space')
+		decoded_last = decoded_last.unsqueeze(1)
+		quantiz_last = quantiz_last.unsqueeze(1)
 		return decoded_last, quantiz_last, last
 
 	def train_epoch(self, loader:DataLoader, optim:Optimizer) -> dict:
@@ -121,8 +146,12 @@ class TransformerArc(nn.Module):
 			action = batch['action'].to(self.device).detach()
 			optim.zero_grad()
 			output, q_output, _ = self.forward(latent[:, :-1, :, :, :], action)
-			#loss = weighted_mse(latent[:, init_len + 1:, :, :, :], output, err_decay)
 			loss = change_mse(output, latent[:, -1:, :, :, :], latent[:, -2:-1, :, :, :])
+			with torch.no_grad():
+				total_q_loss += F.mse_loss(latent[:, -1:, :, :, :], output, reduction='mean')
+				target = self.compute_classification_target(latent[:, -1:, :, :, :])
+				pred = self.compute_classification_target(q_output)
+				accuracy += (target.argmax(dim=-1) == pred.argmax(dim=-1)).float().mean().item()
 			loss.backward()
 			optim.step()
 			total_loss += loss.item()
@@ -137,9 +166,9 @@ def change_mse(pred:torch.Tensor, target:torch.Tensor, prev_target:torch.Tensor)
 	Special loss used to compute MSE error that is weighted based on the change of the 
 	value from one time stamp  to the next, more changes means the error will be valued more
 
-	:param pred: the generated sequence (Batch, 1, Width*Height*Classes)
-	:param target: the original sequence (Batch, 1, Width*Height*Classes)
-	:param prev_target: the original sequence (Batch, 1, Width*Height*Classes)
+	:param pred: the generated element (Batch, 1, Width,Height,Classes)
+	:param target: the original element (Batch, 1, Width,Height,Classes)
+	:param prev_target: the element before the predicted one (Batch, 1, Width,HeightClasses)
 	:return: the computed error based on input change
 	'''
 	err_weight = target - prev_target

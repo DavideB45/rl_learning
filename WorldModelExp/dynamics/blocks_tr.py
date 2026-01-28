@@ -181,14 +181,11 @@ class TransformerEncoder(nn.Module):
 		super().__init__()
 
 		self.transform = nn.Sequential(
-			nn.Linear(in_features=in_size, out_features=in_size*2),
+			nn.Linear(in_features=in_size, out_features=out_size),
 			nn.GELU(),
-			nn.LayerNorm(in_size*2),
-			nn.Linear(in_features=in_size*2, out_features=in_size),
-			nn.GELU(),
-			nn.LayerNorm(in_size),
+			nn.LayerNorm(out_size),
 		)
-		self.project = nn.Linear(in_features=in_size, out_features=out_size)
+		self.project = nn.Linear(in_features=out_size, out_features=out_size)
 		self.positional_encode = PositionalEncoding(out_size, dropout, max_len, batch_first)
 
 	def forward(self, sequence:torch.Tensor) -> torch.Tensor:
@@ -200,7 +197,7 @@ class TransformerEncoder(nn.Module):
 		:return: the encoded sequence
 		:rtype: Tensor
 		'''
-		out = self.transform(sequence) + sequence
+		out = self.transform(sequence)
 		out = self.project(out)
 		return self.positional_encode(out)
 
@@ -241,7 +238,7 @@ class TransformerDecoderRD(TransformerDecoder):
 	'''
 
 	def __init__(self, in_size:int, out_size:int):
-		super().__init__()
+		super().__init__(in_size, out_size)
 		self.decode = nn.Sequential(
 			nn.LayerNorm(in_size),
 			nn.Linear(in_features=in_size, out_features=out_size),
