@@ -92,6 +92,7 @@ if __name__ == "__main__":
 										val_loss = float(line.strip().split(',')[2])
 										if val_loss < best_val_loss:
 											best_val_loss = val_loss
+									print(f'Found existing log file: {log_filename}')
 									print(f'Model already trained. Best val_loss: {best_val_loss:.4f}')
 									if best_val_loss < best_error:
 										best_error = best_val_loss
