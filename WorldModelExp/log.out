@@ -77,3 +77,80 @@ Parameters: cs 64, cd 16, ld 8, ema True, lr 0.0001, wd 0
 [96m  New best model saved![0m
   Train total_loss: 2.2355, Val total_loss: 2.3163
 ------------------------- 26/50 -------------------------
+[91m  No improvement for 1 epochs.[0m
+  Train total_loss: 2.2126, Val total_loss: 2.3420
+------------------------- 27/50 -------------------------
+[96m  New best model saved![0m
+  Train total_loss: 2.1909, Val total_loss: 2.2715
+------------------------- 28/50 -------------------------
+[91m  No improvement for 1 epochs.[0m
+  Train total_loss: 2.1723, Val total_loss: 2.3006
+------------------------- 29/50 -------------------------
+[96m  New best model saved![0m
+  Train total_loss: 2.1550, Val total_loss: 2.2361
+------------------------- 30/50 -------------------------
+[96m  New best model saved![0m
+  Train total_loss: 2.1384, Val total_loss: 2.2196
+------------------------- 31/50 -------------------------
+[96m  New best model saved![0m
+  Train total_loss: 2.1222, Val total_loss: 2.2107
+------------------------- 32/50 -------------------------
+[91m  No improvement for 1 epochs.[0m
+  Train total_loss: 2.1082, Val total_loss: 2.2322
+------------------------- 33/50 -------------------------
+[91m  No improvement for 2 epochs.[0m
+  Train total_loss: 2.0949, Val total_loss: 2.2227
+------------------------- 34/50 -------------------------
+[96m  New best model saved![0m
+  Train total_loss: 2.0830, Val total_loss: 2.1919
+------------------------- 35/50 -------------------------
+[96m  New best model saved![0m
+  Train total_loss: 2.0694, Val total_loss: 2.1670
+------------------------- 36/50 -------------------------
+[96m  New best model saved![0m
+  Train total_loss: 2.0597, Val total_loss: 2.1300
+------------------------- 37/50 -------------------------
+[91m  No improvement for 1 epochs.[0m
+  Train total_loss: 2.0497, Val total_loss: 2.1501
+------------------------- 38/50 -------------------------
+[91m  No improvement for 2 epochs.[0m
+  Train total_loss: 2.0391, Val total_loss: 2.1426
+------------------------- 39/50 -------------------------
+[96m  New best model saved![0m
+  Train total_loss: 2.0298, Val total_loss: 2.1031
+------------------------- 40/50 -------------------------
+[96m  New best model saved![0m
+  Train total_loss: 2.0192, Val total_loss: 2.1012
+------------------------- 41/50 -------------------------
+[91m  No improvement for 1 epochs.[0m
+  Train total_loss: 2.0104, Val total_loss: 2.1526
+------------------------- 42/50 -------------------------
+[91m  No improvement for 2 epochs.[0m
+  Train total_loss: 2.0019, Val total_loss: 2.1144
+------------------------- 43/50 -------------------------
+[96m  New best model saved![0m
+  Train total_loss: 1.9937, Val total_loss: 2.0941
+------------------------- 44/50 -------------------------
+[91m  No improvement for 1 epochs.[0m
+  Train total_loss: 1.9855, Val total_loss: 2.1129
+------------------------- 45/50 -------------------------
+[91m  No improvement for 2 epochs.[0m
+  Train total_loss: 1.9795, Val total_loss: 2.0960
+------------------------- 46/50 -------------------------
+[96m  New best model saved![0m
+  Train total_loss: 1.9714, Val total_loss: 2.0841
+------------------------- 47/50 -------------------------
+[96m  New best model saved![0m
+  Train total_loss: 1.9662, Val total_loss: 2.0579
+------------------------- 48/50 -------------------------
+[91m  No improvement for 1 epochs.[0m
+  Train total_loss: 1.9574, Val total_loss: 2.0695
+------------------------- 49/50 -------------------------
+[91m  No improvement for 2 epochs.[0m
+  Train total_loss: 1.9523, Val total_loss: 2.0749
+------------------------- 50/50 -------------------------
+[91m  No improvement for 3 epochs.[0m
+  Train total_loss: 1.9456, Val total_loss: 2.0783
+Creating dataloader from data/pusher/imgs/
+Parameters: cs 64, cd 16, ld 8, ema True, lr 0.0001, wd 0.001
+------------------------- 01/50 -------------------------
