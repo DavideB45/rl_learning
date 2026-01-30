@@ -56,9 +56,9 @@ def trainOne(cs, cd, ld, ema, lr, wd, best_error):
 		if val_loss['total_loss'] < best_val_loss:
 			no_improvement_epochs = 0
 			best_val_loss = val_loss['total_loss']
-			save_vq_vae(CURRENT_ENV, vae)
-			print(f"{colors[-1]}  New best model saved!{reset}")
 			if best_val_loss < best_error:
+				print(f"{colors[-1]}  New best model saved!{reset}")
+				save_vq_vae(CURRENT_ENV, vae)
 				best_error = best_val_loss
 		else:
 			no_improvement_epochs += 1
@@ -79,6 +79,26 @@ if __name__ == "__main__":
 	for cs, cd, ld in product(CODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM_VQ):
 				best_error = float('inf')
 				for ema, lr, wd in product(EMA_MODE, LEARNING_RATE, WEIGTH_DECAY):
+					log_filename = f'{CURRENT_ENV["data_dir"]}histories/vq/losses_cs{cs}_cd{cd}_ld{ld}_ema{ema}_lr{lr}_wd{wd}.txt'
+					
+					# Check if model has already been trained
+					if os.path.exists(log_filename):
+						try:
+							with open(log_filename, 'r') as f:
+								lines = f.readlines()
+								if len(lines) > 1:  # Has header + at least one epoch
+									best_val_loss = float('inf')
+									for line in lines[1:]:  # Skip header
+										val_loss = float(line.strip().split(',')[2])
+										if val_loss < best_val_loss:
+											best_val_loss = val_loss
+									print(f'Model already trained. Best val_loss: {best_val_loss:.4f}')
+									if best_val_loss < best_error:
+										best_error = best_val_loss
+									continue
+						except (IndexError, ValueError):
+							pass  # If file is corrupted, retrain
+					
 					best_error = trainOne(cs, cd, ld, ema, lr, wd, best_error)
 	elapsed_time = time.time() - time_start
 	hours, remainder = divmod(elapsed_time, 3600)
