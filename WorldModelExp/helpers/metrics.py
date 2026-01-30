@@ -124,13 +124,15 @@ def change_mse(pred:torch.Tensor, target:torch.Tensor) -> torch.Tensor:
 	Special loss used to compute MSE error that is weighted based on the change of the 
 	value from one time stamp  to the next, more changes means the error will be valued more
 
-	:param pred: the generated sequence (Batch, Seq_len, Width*Height*Classes)
-	:param target: the original sequence (Batch, Seq_len + 1, Width*Height*Classes)
+	:param pred: the generated sequence (Batch, Seq_len, Width, Height, Classes)
+	:param target: the original sequence (Batch, Seq_len + 1, Width, Height, Classes)
 	:return: the computed error based on input change
 	'''
 	err_weight = ((target[:, 1:, :] - target[:, :-1, :]) ** 2).mean(dim=(2, 3, 4))
-	err_weight = torch.abs(err_weight)
-	max_e = torch.max(err_weight)
-	err_weight = ((err_weight/max_e)*9 + 1).detach()
-	loss = (((pred - target[:, 1:, :]) ** 2).mean(dim=(2, 3, 4))*err_weight).mean()
+	err_weight = torch.abs(err_weight + 1)
+	#max_e = torch.max(err_weight)
+	#err_weight = ((err_weight/max_e)*9 + 1).detach()
+	#err_weight = (err_weight/max_e).detach()
+	err_weight = F.softmax(err_weight, dim=-1)
+	loss = (((pred - target[:, 1:, :]) ** 2).mean(dim=(2, 3, 4))).mean()
 	return loss

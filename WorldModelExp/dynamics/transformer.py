@@ -114,12 +114,12 @@ class TransformerArc(nn.Module):
 		:return: The prediction, the prediction quantized, the last `embedding`
 		'''
 		sequence = self.flatten_rep(sequence.detach())
-		sequence = torch.cat([sequence, action], dim=-1)
-		guess_token = self.guess_token.expand(sequence.size(0), -1, -1)
-		sequence = torch.cat([sequence, guess_token], dim=1)
-		sequence = self.transform(self.encode(sequence))
-		last = sequence[:, -2:-1, :] # hopefully (B,1,E)
-		decoded_last = self.decode.forward(last)
+		sequence_ = torch.cat([sequence, action], dim=-1)
+		guess_token = self.guess_token.expand(sequence_.size(0), -1, -1)
+		sequence_ = torch.cat([sequence_, guess_token], dim=1)
+		sequence_ = self.transform(self.encode(sequence_))
+		last = sequence_[:, -1:, :] # hopefully (B,1,E)
+		decoded_last = self.decode.forward(last) + sequence[:, -1:, :]
 		decoded_last = self.unflatten_rep(decoded_last, 1)
 		decoded_last = decoded_last.squeeze()
 		quantiz_last = self.vq.quantizer.quantize_fixed_space(decoded_last)
@@ -176,5 +176,6 @@ def change_mse(pred:torch.Tensor, target:torch.Tensor, prev_target:torch.Tensor)
 	max_e = torch.max(err_weight)
 	max_e = max(max_e, 1)
 	err_weight = ((err_weight/max_e)*9 + 1).detach()
-	loss = (((pred - target) ** 2)*err_weight).mean()
+	#loss = (((pred - target) ** 2)*err_weight).mean()
+	loss = (((pred - target) ** 2)).mean()
 	return loss

@@ -15,14 +15,14 @@ from torch import no_grad
 from time import time
 
 LEARNING_RATE=1e-5
-LAMBDA_REG = 1e-3
+LAMBDA_REG = 0e-3
 
-CDODEBOOK_SIZE = 128
+CDODEBOOK_SIZE = 64
 CODE_DEPTH = 16
 LATENT_DIM = 4
 
-HIDDEN_DIM = 512
-NUM_HEADS = 4
+HIDDEN_DIM = 12
+NUM_HEADS = 1
 NUM_TRANSFORMERS = 1
 
 SEQ_LEN = 7
@@ -38,7 +38,7 @@ if __name__ == '__main__':
 	dev = best_device()
 	vq = load_vq_vae(CURRENT_ENV, CDODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM, True, dev)
 	model = TransformerArc(CURRENT_ENV['a_size'], vq, HIDDEN_DIM, SEQ_LEN+1, NUM_HEADS, NUM_TRANSFORMERS, 0.1, dev)
-	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, SEQ_LEN, 0.1, 64, 30)
+	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, SEQ_LEN, 0.1, 64, 300)
 
 	optim = Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=LAMBDA_REG)
 	best_mse = 10000
