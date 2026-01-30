@@ -119,7 +119,7 @@ class VQVAE(AbstractVAE):
 	def reconstruction_loss(self, x, recon_x):
 		return F.mse_loss(recon_x, x, reduction='sum') / x.size(0)
 	
-	def train_epoch(self, loader:DataLoader, optim:torch.optim.Optimizer, reg:float) -> dict:
+	def train_epoch(self, loader:DataLoader, optim:torch.optim.Optimizer, reg:float = 0) -> dict:
 		'''
 		Trains the VQVAE for one epoch.
 		Args:
@@ -153,7 +153,7 @@ class VQVAE(AbstractVAE):
 		losses["codes_usage"] = len(used_codes) / self.codebook_size
 		return losses
 	
-	def eval_epoch(self, loader, reg):
+	def eval_epoch(self, loader, reg=0):
 		'''
 		Evaluates the VQVAE for one epoch.
 		Args:

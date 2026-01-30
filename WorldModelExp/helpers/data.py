@@ -41,7 +41,7 @@ class PNGDataset(Dataset):
 			img = self.transform(img)
 			return img
 		
-def make_img_dataloader(data_dir=None, images=None, batch_size=64, test_split=0.2):
+def make_img_dataloader(data_dir=None, images=None, batch_size=64, test_split=0.2) -> tuple[DataLoader, DataLoader]:
 	'''
 	Create PyTorch dataloader for a dataset of images
 	data_dir: directory containing the dataset images

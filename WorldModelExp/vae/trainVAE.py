@@ -18,7 +18,8 @@ LATENT_DIM = 32
 REG_STRENGTH = 0.5
 
 NUM_EPOCHS = 50
-LEARNING_RATE = 5e-4
+LEARNING_RATE = 1e-4
+WEIGTH_DECAY = 0.001
 
 LATENT_DIM_VQ = 4
 CODE_DEPTH = 16
@@ -47,11 +48,12 @@ if __name__ == "__main__":
 	print(f"Training on {len(train_loader.dataset)} images, validating on {len(val_loader.dataset)} images.")
 	reg_strength = 0.0
 	best_val_loss = float('inf')
+	optim = torch.optim.Adam(vae.parameters(), lr=LEARNING_RATE, weight_decay=WEIGTH_DECAY)
 	for epoch in range(NUM_EPOCHS):
 		reg_strength = REG_STRENGTH * min(1.0, (epoch + 1) / 40.0)
 		print("-" * 25 + f" {(epoch + 1):02}/{NUM_EPOCHS} " + "-" * 25)
 		vae.train()
-		tr_loss = vae.train_epoch(train_loader, torch.optim.Adam(vae.parameters(), lr=LEARNING_RATE), reg_strength)
+		tr_loss = vae.train_epoch(train_loader, optim, reg_strength)
 		vae.eval()
 		val_loss = vae.eval_epoch(val_loader, REG_STRENGTH)
 		colors = ['\033[91m', '\033[95m', '\033[92m', '\033[93m', '\033[96m']
