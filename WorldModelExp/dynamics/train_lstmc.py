@@ -11,13 +11,13 @@ from global_var import CURRENT_ENV
 from torch.optim import Adam
 from time import time
 
-LEARNING_RATE=2e-5
-LAMBDA_REG = 0.001
-USE_KL = False
+LEARNING_RATE=1e-5
+LAMBDA_REG = 0.00
+USE_KL = True
 
 CDODEBOOK_SIZE = 64
 CODE_DEPTH = 16
-LATENT_DIM = 4
+LATENT_DIM = 8
 
 HIDDEN_DIM = 1024
 SEQ_LEN = 23
@@ -34,7 +34,7 @@ if __name__ == '__main__':
 	dev = best_device()
 	vq = load_vq_vae(CURRENT_ENV, CDODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM, True, dev)
 	lstm = LSTMQClass(vq, dev, CURRENT_ENV['a_size'], HIDDEN_DIM)
-	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, SEQ_LEN, 0.1, 64, 1000000)
+	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, SEQ_LEN, 0.1, 64, 30)
 
 	optim = Adam(lstm.parameters(), lr=LEARNING_RATE, weight_decay=LAMBDA_REG)
 	best_ce = 10000

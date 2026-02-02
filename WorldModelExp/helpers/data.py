@@ -111,6 +111,7 @@ class TrasitionDataset(Dataset):
 	def __init__(self, path:str, seq_len:int=10, vq:VQVAE=None, max_ep:int=1000000):
 		super().__init__()
 		act = json.load(open(path + "/action_reward_data.json", 'r'))["actions"]
+		prop = json.load(open(path + "/action_reward_data.json", 'r'))["proprioception"]
 		latents = []
 		to_tensor_ = torchvision.transforms.ToTensor()
 		self.max_ep = max_ep
@@ -129,16 +130,19 @@ class TrasitionDataset(Dataset):
 
 		self.representation = []
 		self.actions = []
+		self.proprioception = []
 		print(f"Creating sequences of length {seq_len}...")
 		for episode in tqdm(range(min(len(act), max_ep)), 'Defining Dataset'):
 		#for episode in range(min(len(act), max_ep)):
 			for i in range(0, len(act[episode]) - seq_len + 1, 1):
 				l = []
 				for j in range(seq_len+1):
-					l.append(latents[episode][i+j].clone())
+					l.append(latents[episode][i+j].clone())# this because we have a list of tensors
 				lat = torch.stack(l)
 				self.representation.append(lat)
 				self.actions.append(act[episode][i:i+seq_len])
+				self.proprioception.append(prop[episode][i:i+seq_len+1])
+				
 
 	def __len__(self):
 		return min(len(self.actions), self.max_ep)
@@ -146,7 +150,8 @@ class TrasitionDataset(Dataset):
 	def __getitem__(self, idx):
 		return {
 			'latent': self.representation[idx].detach(),
-			'action': torch.tensor(self.actions[idx], dtype=torch.float32).detach()
+			'action': torch.tensor(self.actions[idx], dtype=torch.float32).detach(),
+			'proprioception': torch.tensor(self.proprioception[idx], dtype=torch.float32).detach()
 		}
 
 def make_sequence_dataloaders(path:str, vq:VQVAE ,seq_len:int=10, test_split:float=0.2, batch_size:int=64, max_ep:int=9999999) -> tuple[DataLoader, DataLoader]:
