@@ -17,11 +17,29 @@ USE_KL = True
 
 CDODEBOOK_SIZE = 64
 CODE_DEPTH = 16
-LATENT_DIM = 8
+LATENT_DIM = 4
 
 HIDDEN_DIM = 1024
 SEQ_LEN = 23
 INIT_LEN = 18
+
+PURPLE = "\033[95m"
+YELLOW = "\033[93m"
+BLUE   = "\033[94m"
+RESET  = "\033[0m"
+
+COL1, COL2, COL3 = 15, 12, 12
+WIDTH = COL1 + COL2 + COL3 + 6
+
+def row(c1, c2="", c3="", color=RESET):
+    print(
+        color
+        + f"| {c1:<{COL1}} | {c2:>{COL2}} | {c3:>{COL3}} |"
+        + RESET
+    )
+
+def sep(color=RESET):
+    print(color + "+" + "-"*(WIDTH+2) + "+" + RESET)
 
 if __name__ == '__main__':
 	
@@ -33,7 +51,7 @@ if __name__ == '__main__':
 
 	dev = best_device()
 	vq = load_vq_vae(CURRENT_ENV, CDODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM, True, dev)
-	lstm = LSTMQClass(vq, dev, CURRENT_ENV['a_size'], HIDDEN_DIM)
+	lstm = LSTMQClass(vq, dev, CURRENT_ENV['a_size'], 17, HIDDEN_DIM)
 	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, SEQ_LEN, 0.1, 64, 30)
 
 	optim = Adam(lstm.parameters(), lr=LEARNING_RATE, weight_decay=LAMBDA_REG)
@@ -45,11 +63,21 @@ if __name__ == '__main__':
 	for i in range(200):
 		err_tr = lstm.train_rwm_style(tr, optim, init_len=INIT_LEN, err_decay=0.99, useKL=USE_KL)
 		err_vl = lstm.eval_rwm_style(vl, init_len=INIT_LEN, err_decay=0.99, useKL=USE_KL)
-		errors_str = f"{i}: ce:{err_tr['ce']:.4f} mse:{err_tr['mse']:.4f} || ce:{err_vl['ce']:.4f} mse:{err_vl['mse']:.4f}"
+		errors_str = f"{i}: ce:{err_tr['ce']:.4f} p mse:{err_tr['prop_mse']:.4f} || ce:{err_vl['ce']:.4f} p mse:{err_vl['prop_mse']:.4f}"
 		if err_vl['ce'] < best_ce:
-			print('\033[94m' + errors_str + '\033[0m')
-			perc_err = f'tr acc: {(err_tr["acc"]*100):.1f}% || vl acc: {(err_vl["acc"]*100):.1f}%'
-			print('\033[95m' + perc_err + '\033[0m')
+						
+			sep(PURPLE)
+			row(f"Epoch {i}", "Train", "Val", YELLOW)
+			sep(PURPLE)
+
+			row("CE",        f"{err_tr['ce']:.4f}",        f"{err_vl['ce']:.4f}",        BLUE)
+			row("Prop MSE",  f"{err_tr['prop_mse']:.4f}",  f"{err_vl['prop_mse']:.4f}",  BLUE)
+			row("Accuracy",  f"{err_tr['acc']*100:.1f}%",  f"{err_vl['acc']*100:.1f}%",  PURPLE)
+			row("MSE",       f"{err_tr['mse']:.4f}",       f"{err_vl['mse']:.4f}",       PURPLE)
+			row("First Acc", f"{err_tr['first_acc']*100:.1f}%",
+							f"{err_vl['first_acc']*100:.1f}%", PURPLE)
+
+			sep(PURPLE)
 			save_lstm_quantized(CURRENT_ENV, lstm, cl=True, kl=USE_KL)
 			best_ce = err_vl['ce']
 			no_imporvemets = 0

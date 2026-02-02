@@ -12,7 +12,7 @@ from vae.vqVae import VQVAE
 from helpers.metrics import weighted_mse, weighted_ce, weighted_categorical_kl, pred_accuracy
 
 class LSTMQClass(nn.Module):
-	def __init__(self, quantizer:VQVAE, device:torch.device, action_dim:int, hidden_dim:int=512):
+	def __init__(self, quantizer:VQVAE, device:torch.device, action_dim:int, prop_dim:int, hidden_dim:int=512):
 		super(LSTMQClass, self).__init__()
 		self.w_h = quantizer.latent_dim
 		self.d = quantizer.code_depth
@@ -26,6 +26,14 @@ class LSTMQClass(nn.Module):
 			nn.Linear(self.latent_dim, hidden_dim),
 			nn.LeakyReLU()
 		)
+		self.pro_fc = nn.Sequential(
+			nn.Linear(prop_dim, self.latent_dim),
+			nn.LeakyReLU(),
+			nn.LayerNorm(self.latent_dim),
+			nn.Linear(self.latent_dim, hidden_dim),
+			nn.LeakyReLU(),
+			nn.LayerNorm(hidden_dim)
+		)
 		self.act_fc = nn.Sequential(
 			nn.Linear(action_dim, self.latent_dim),
 			nn.LeakyReLU(),
@@ -35,7 +43,7 @@ class LSTMQClass(nn.Module):
 			nn.LayerNorm(hidden_dim)
 		)
 		self.merge_fc = nn.Sequential(
-			nn.Linear(self.hidden_dim*2, hidden_dim),
+			nn.Linear(self.hidden_dim*3, hidden_dim),
 			#nn.Linear(self.hidden_dim, hidden_dim),
 			nn.LeakyReLU(),
 			nn.LayerNorm(hidden_dim),
@@ -43,7 +51,7 @@ class LSTMQClass(nn.Module):
 			nn.LeakyReLU()
 		)
 		self.lstm = LSTM(hidden_dim, hidden_dim, batch_first=True, num_layers=1)
-		self.out_fc = nn.Sequential(
+		self.out_emb_fc = nn.Sequential(
 			nn.LayerNorm(hidden_dim),
 			nn.Linear(hidden_dim, hidden_dim),
 			nn.LeakyReLU(),
@@ -52,6 +60,13 @@ class LSTMQClass(nn.Module):
 			nn.LeakyReLU(),
 			nn.Linear(hidden_dim, self.classes*self.w_h*self.w_h),
 			#nn.Sigmoid()
+		)
+		self.out_prop_fc = nn.Sequential(
+			nn.LayerNorm(hidden_dim),
+			nn.Linear(hidden_dim, hidden_dim),
+			nn.LeakyReLU(),
+			nn.LayerNorm(hidden_dim),
+			nn.Linear(hidden_dim, prop_dim),
 		)
 
 		self.device = device
@@ -123,7 +138,7 @@ class LSTMQClass(nn.Module):
 		target = target.permute(0, 1, 3, 4, 2) # (B, S, W, H, C)
 		return target
 
-	def forward(self, input:torch.Tensor, action:torch.Tensor, h=None) -> tuple[torch.Tensor, torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
+	def forward(self, input:torch.Tensor, action:torch.Tensor, prop:torch.Tensor, h=None) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
 		'''
 		Do the forward pass in an LSTM architecture
 		
@@ -131,15 +146,17 @@ class LSTMQClass(nn.Module):
 		:type input: torch.Tensor
 		:param action: a tensor representing the robot action
 		:type action: torch.Tensor
+		:param prop: a tensor representing the robot proprioception
+		:type prop: torch.Tensor
 		:param h: initial hidden state (optional)
 		:return: the predicted sequence as categorical distribution (Batch, Seq_len, Classes*Width*Height) | the hidden state of the LSTM
-		:rtype: tuple[Tensor, Tensor, tuple[Tensor, Tensor]]
+		:rtype: tuple[Tensor, Tensor, Tensor, tuple[Tensor, Tensor]]
 		'''
 		input = self.flatten_rep(input.detach())
 		new_rep = self.rep_fc(input.detach())
+		prop = self.pro_fc(prop)
 		action = self.act_fc(action)
-		output = torch.cat([new_rep, action], dim=-1)
-		#output = new_rep
+		output = torch.cat([new_rep, action, prop], dim=-1)
 		skip_output = self.merge_fc(output) #(B, Seq_len, Hidden_dim)
 
 		if h is None:
@@ -148,12 +165,13 @@ class LSTMQClass(nn.Module):
 		output, h = self.lstm(skip_output, h)
 
 		output = output + skip_output #(B, Seq_len, Hidden_dim)
-		output = self.out_fc(output) #(B, Seq_len, Width*Height*Classes)
-		output_q = self.unflatten_rep(output, input.size(1)) # Batch, Seq_len, Depth, Width, Height
+		latent = self.out_emb_fc(output) #(B, Seq_len, Width*Height*Classes)
+		latent_q = self.unflatten_rep(latent, input.size(1)) # Batch, Seq_len, Depth, Width, Height
+		prop_out = self.out_prop_fc(output) #(B, Seq_len, Prop_dim)
 		
-		return output, output_q, h
+		return latent, latent_q, prop_out, h
 	
-	def ar_forward(self, input:torch.Tensor, action:torch.Tensor, h=None) -> tuple[torch.Tensor, torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
+	def ar_forward(self, input:torch.Tensor, action:torch.Tensor, prop:torch.Tensor, h=None) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
 		'''
 		Do the forward pass in an LSTM architecture in an autoregressive fashion
 		
@@ -161,27 +179,33 @@ class LSTMQClass(nn.Module):
 		:type input: torch.Tensor
 		:param action: a tensor representing the robot action (Batch, Seq_len, Act_size)
 		:type action: torch.Tensor
+		:param prop: a tensor representing the robot proprioception (Batch, 1, Prop_size)
+		:type prop: torch.Tensor
 		:param h: initial hidden state (optional)
 		:return: the predicted sequence before quantization | the predicted sequence quantized (Batch, Seq_len, Depth, Width, Height) | the hidden state of the LSTM
-		:rtype: tuple[Tensor, Tensor, tuple[Tensor, Tensor]]
+		:rtype: tuple[Tensor, Tensor, Tensor, tuple[Tensor, Tensor]]
 		'''
 		batch, len, _ = action.shape
 		preds_q = []
 		preds = []
+		preds_prop = []
 
 		if h is None:
 			h = (torch.zeros(1, batch, self.hidden_dim).to(self.device),
 				 torch.zeros(1, batch, self.hidden_dim).to(self.device))
 		x = input.detach()
 		for t in range(len):
-			out, q_out, h = self.forward(x, action[:, t:t+1, :], h)
+			out, q_out, p_out, h = self.forward(x, action[:, t:t+1, :], prop, h)
+			preds_prop.append(p_out)
 			preds_q.append(q_out)
 			preds.append(out)
 			x = q_out
+			prop = p_out
 			
 		preds_q = torch.cat(preds_q, dim=1)
 		preds = torch.cat(preds, dim=1)
-		return preds, preds_q, h
+		preds_prop = torch.cat(preds_prop, dim=1)
+		return preds, preds_q, preds_prop, h
 	
 	def compute_ce(self, pred:torch.Tensor, target:torch.Tensor) -> torch.Tensor:
 		'''
@@ -204,104 +228,77 @@ class LSTMQClass(nn.Module):
 		#target = target.view(b*s*w*h, c)
 		target_indices = torch.argmax(target, dim=-1).view(b * s * w * h)
 		return F.cross_entropy(pred, target_indices, reduction='mean')
-
-	def train_epoch(self, loader:DataLoader, optim:Optimizer) -> dict:
-		self.train()
-		total_loss = 0
-		accuracy = 0
-		total_q_loss = 0
-		for batch in loader:
-			latent = batch['latent'].to(self.device)
-			action = batch['action'].to(self.device)
-			optim.zero_grad()
-			output, q_output, _ = self.forward(input=latent[:, :-1, :, :, :], action=action)
-			target = self.compute_classification_target(latent[:, 1:, :, :, :])
-			loss = self.compute_ce(output, target)
-			with torch.no_grad():
-				accuracy += pred_accuracy(output, target, self.w_h, self.classes)
-				total_q_loss += F.mse_loss(latent[:, 1:, :, :, :], q_output, reduction='mean').item()
-			loss.backward()
-			optim.step()
-			total_loss += loss.item()
-		return {
-			'ce': total_loss/len(loader),
-			'acc': accuracy/len(loader),
-			'mse': total_q_loss/len(loader),
-		}
 	
-	@torch.no_grad()
-	def eval_epoch(self, loader:DataLoader) -> dict:
-		self.eval()
-		total_loss = 0
-		total_q_loss = 0
-		accuracy = 0
-		for batch in loader:
-			latent = batch['latent'].to(self.device)
-			action = batch['action'].to(self.device)
-
-			output, q_output, _ = self.forward(input=latent[:, :-1, :, :, :], action=action)
-			target = self.compute_classification_target(latent[:, 1:, :, :, :])
-			total_loss += self.compute_ce(output, target).item()
-			accuracy += pred_accuracy(output, target, self.w_h, self.classes)
-			total_q_loss += F.mse_loss(latent[:, 1:, :, :, :], q_output, reduction='mean').item()
-			
-		return {
-			'ce': total_loss/len(loader),
-			'acc': accuracy/len(loader),
-			'mse': total_q_loss/len(loader),
-		}
-
 	def train_rwm_style(self, loader:DataLoader, optim:Optimizer, init_len:int=3, err_decay:float=0.9, useKL:bool=False) -> dict:
 		self.train()
 		total_ce = 0
 		total_q_loss = 0
+		total_prop_loss = 0
 		accuracy = 0
+		first_accuracy = 0
 		for batch in loader:
 			latent = batch['latent'].to(self.device)
 			action = batch['action'].to(self.device)
+			proprioception = batch['proprioception'].to(self.device)
 			optim.zero_grad()
-			_, _, h = self.forward(latent[:, 0:init_len, :, :, :], action[:, 0:init_len :])
-			output, q_output, _ = self.ar_forward(latent[:, init_len:init_len+1, :, :, :], action[:, init_len:, :], h)
+			
+			_, _, _, h = self.forward(latent[:, 0:init_len, :, :, :], action[:, 0:init_len :], proprioception[:, 0:init_len, :])
+			output, q_output, prop_out, _ = self.ar_forward(latent[:, init_len:init_len+1, :, :, :], action[:, init_len:, :], proprioception[:, init_len:init_len+1, :], h)
 			
 			target = self.compute_classification_target(latent[:, init_len + 1:, :, :, :]).detach()
 			if useKL:
-				loss = weighted_categorical_kl(output, target, self.w_h, self.classes, err_decay)
+				class_loss = weighted_categorical_kl(output, target, self.w_h, self.classes, err_decay)
 			else:
-				loss = weighted_ce(output, target, self.w_h, self.classes, err_decay)
+				class_loss = weighted_ce(output, target, self.w_h, self.classes, err_decay)
+			total_prop_loss += weighted_mse(proprioception[:, init_len + 1:, :], prop_out, err_decay)
+
 			with torch.no_grad():
 				total_q_loss += weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay).item()
 				accuracy += pred_accuracy(output, target, self.w_h, self.classes).item()
+				first_accuracy += pred_accuracy(output[:, 0:1, :], target[:, 0:1, :], self.w_h, self.classes).item()
+			loss = class_loss + total_prop_loss
 			loss.backward()
 			optim.step()
-			total_ce += loss.item()
+			total_ce += class_loss.item()
+			total_prop_loss += total_prop_loss.item()
 		return {
 			'ce': total_ce/len(loader),
 			'acc': accuracy/len(loader),
 			'mse': total_q_loss/len(loader),
+			'prop_mse': total_prop_loss/len(loader),
+			'first_acc': first_accuracy/len(loader)
 		}
 
 	@torch.no_grad()
 	def eval_rwm_style(self, loader: DataLoader, init_len: int = 3, err_decay:float=0.9, useKL:bool=False) -> dict:
 		self.eval()
-		total_ce = 0.0
-		total_q_loss = 0.0
+		total_ce = 0
+		total_q_loss = 0
+		total_prop_loss = 0
 		accuracy = 0
+		first_accuracy = 0
 		for batch in loader:
 			latent = batch['latent'].to(self.device)
 			action = batch['action'].to(self.device)
-			_, _, h = self.forward(latent[:, 0:init_len, :, :, :],action[:, 0:init_len, :])
-			output, q_output, _ = self.ar_forward(latent[:, init_len:init_len + 1, :, :, :],action[:, init_len:, :], h)
+			proprioception = batch['proprioception'].to(self.device)
+
+			_, _, _, h = self.forward(latent[:, 0:init_len, :, :, :],action[:, 0:init_len, :], proprioception[:, 0:init_len, :])
+			output, q_output, prop_output, _ = self.ar_forward(latent[:, init_len:init_len + 1, :, :, :],action[:, init_len:, :], proprioception[:, init_len:init_len + 1, :], h)
 
 			target = self.compute_classification_target(latent[:, init_len + 1:, :, :, :])
+			total_prop_loss += weighted_mse(proprioception[:, init_len + 1:, :], prop_output, err_decay).item()
 			if useKL:
 				total_ce += weighted_categorical_kl(output, target, self.w_h, self.classes, err_decay).item()
 			else:
 				total_ce += weighted_ce(output, target, self.w_h, self.classes, err_decay).item()
 			total_q_loss += weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay).item()
 			accuracy += pred_accuracy(output, target, self.w_h, self.classes).item()
+			first_accuracy += pred_accuracy(output[:, 0:1, :], target[:, 0:1, :], self.w_h, self.classes).item()
 			
 		return {
 			'ce': total_ce/len(loader),
 			'acc': accuracy/len(loader),
 			'mse': total_q_loss/len(loader),
+			'prop_mse': total_prop_loss/len(loader),
+			'first_acc': first_accuracy/len(loader)
 		}

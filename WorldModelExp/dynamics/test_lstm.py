@@ -12,13 +12,13 @@ from global_var import CURRENT_ENV
 from torch import no_grad
 from time import time
 
-SEQ_LEN = 23
+SEQ_LEN = 20
 INIT_LEN = 18
 
 if __name__ == '__main__':
 	dev = best_device()
-	vq = load_vq_vae(CURRENT_ENV, 64, 16, 4, True, dev)
-	lstm = load_lstm_quantized(CURRENT_ENV, vq, dev, 1024, False, False, False)
+	vq = load_vq_vae(CURRENT_ENV, 64, 16, 8, True, dev)
+	lstm = load_lstm_quantized(CURRENT_ENV, vq, dev, 1024, False, True, True)
 	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, SEQ_LEN, 0.5, 32, 200000)
 	#print(f'Number of parameter in LSTM: {lstm.param_count()}')
 	print(f'Number of parameter in VQAE: {vq.param_count()}')

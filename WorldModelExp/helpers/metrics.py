@@ -21,7 +21,7 @@ def weighted_mse(x:Tensor, y:Tensor, error_decay:float=0.9) -> Tensor:
 		:return: the computed error
 		:rtype: Tensor
 		'''
-		mse_per_timestep = ((x - y) ** 2).mean(dim=(2,3,4))
+		mse_per_timestep = ((x - y) ** 2).mean(dim=tuple(range(2, x.ndim)))
 		weights = error_decay ** torch.arange(1, mse_per_timestep.size(1) + 1, device=y.device)
 		loss = (mse_per_timestep * weights).mean()
 		return loss
@@ -110,8 +110,8 @@ def pred_accuracy(pred:torch.Tensor, target:torch.Tensor, w_h:int, classes:int) 
 		b = target.size(0)
 		s = target.size(1) # length of the sequence
 		
-		pred = pred.view(b*s*w_h*w_h, classes)
-		target_indices = torch.argmax(target, dim=-1).view(b * s * w_h * w_h)
+		pred = pred.reshape(b*s*w_h*w_h, classes)
+		target_indices = torch.argmax(target, dim=-1).reshape(b * s * w_h * w_h)
 		pred_indices = torch.argmax(pred, dim=-1)
 		
 		correct = (pred_indices == target_indices).float()
