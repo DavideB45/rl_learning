@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 LATENT_DIM = 32
 KL_WEIGHT = 0.5
 
-LATENT_DIM_VQ = 4
+LATENT_DIM_VQ = 8
 CODE_DEPTH = 16
 CODEBOOK_SIZE = 64
 EMA_MODE = True
@@ -37,7 +37,7 @@ if __name__ == "__main__":
 		ema_mode=EMA_MODE,
 	).to(device)
 	print(f"Testing {CURRENT_ENV['env_name']} VAE model")
-	vq_vae = load_vq_vae(CURRENT_ENV, CODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM_VQ, EMA_MODE, device)
+	vq_vae = load_vq_vae(CURRENT_ENV, 128, CODE_DEPTH, 4, EMA_MODE, device)
 	vq_vae2 = load_vq_vae(CURRENT_ENV, 128, CODE_DEPTH, LATENT_DIM_VQ, EMA_MODE, device)
 	#base_vae = load_base_vae(CURRENT_ENV, LATENT_DIM, KL_WEIGHT, device)	
 	vq_vae.eval()
@@ -84,19 +84,18 @@ if __name__ == "__main__":
 		plt.imshow(recon_images[i].permute(1, 2, 0).numpy())
 		plt.axis('off')
 		if i == 0:
-			plt.title('Codebook 128 Reconstructed Images')
+			plt.title('Second VQ Reconstructed Images')
 
 		# VQ reconstructed image
 		plt.subplot(3, num_images, i + 1 + 2 * num_images)
 		plt.imshow(vq_images[i].permute(1, 2, 0).numpy())
 		plt.axis('off')
 		if i == 0:
-			plt.title('Codebook 64 Reconstructed Images')
+			plt.title('First VQ Reconstructed Images')
 	
 	plt.savefig('reconstructed_images.png', dpi=600)
 	#plt.show()
 
-	exit(0)
 	indexes_array = [0 for _ in range(vq_vae.codebook_size)]
 	avg_error = 0.0
 	for batch in tqdm(test_loader):
@@ -114,11 +113,11 @@ if __name__ == "__main__":
 		used += 1 if count > 0 else 0
 	print(f"percentage: {used / len(indexes_array) * 100:.4f}%")
 	# Plot codebook usage histogram
+	sorted_indexes = sorted(indexes_array, reverse=True)
 	plt.figure(figsize=(12, 6))
-	plt.bar(range(len(indexes_array)), indexes_array)
-	plt.xlabel('Codebook Index')
+	plt.bar(range(len(sorted_indexes)), sorted_indexes)
+	plt.xlabel('Codebook Index (sorted)')
 	plt.ylabel('Frequency')
 	plt.title('Codebook Usage Frequencies')
 	plt.savefig('codebook_usage.png', dpi=600)
 	#plt.show()
-			
