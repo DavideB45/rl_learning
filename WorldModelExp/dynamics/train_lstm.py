@@ -14,7 +14,7 @@ from torch.optim import Adam
 from time import time
 
 LEARNING_RATE=1e-5
-LAMBDA_REG = 1e-3
+LAMBDA_REG = 0e-3
 NUM_EPOCS = 200
 
 CDODEBOOK_SIZE = 128
@@ -22,8 +22,8 @@ CODE_DEPTH = 32
 LATENT_DIM = 8
 
 HIDDEN_DIM = 1024
-SEQ_LEN = 7
-INIT_LEN = 2
+SEQ_LEN = 30
+INIT_LEN = 4
 
 if __name__ == '__main__':
 
