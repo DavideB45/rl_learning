@@ -21,7 +21,7 @@ def get_img(renderer, size=(64, 64)) -> Image.Image:
 	Returns:
 		Image.Image: resized image
 	'''
-	img = renderer.render(render_mode='rgb_array')
+	img = renderer.render()
 	img = Image.fromarray(img)
 	img = img.resize(size)
 	return img
@@ -74,7 +74,7 @@ if __name__ == "__main__":
 	
 	# Example of creating a dataset of transitions
 	print("Creating transition dataset for CarRacing-v3 environment")
-	actions, rewards, proprioception = gather_data(n_samples=1000, size=(64, 64))
+	actions, rewards, proprioception = gather_data(n_samples=100000, size=(64, 64))
 	print(f"Generated {len(actions)} actions, and {len(rewards)} rewards.")
 
 
