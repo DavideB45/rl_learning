@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 LATENT_DIM = 32
 KL_WEIGHT = 0.5
 
-LATENT_DIM_VQ = 8
+LATENT_DIM_VQ = 4
 CODE_DEPTH = 16
 CODEBOOK_SIZE = 64
 EMA_MODE = True
@@ -37,8 +37,8 @@ if __name__ == "__main__":
 		ema_mode=EMA_MODE,
 	).to(device)
 	print(f"Testing {CURRENT_ENV['env_name']} VAE model")
-	vq_vae = load_vq_vae(CURRENT_ENV, 128, CODE_DEPTH, 4, EMA_MODE, device)
-	vq_vae2 = load_vq_vae(CURRENT_ENV, 128, CODE_DEPTH, LATENT_DIM_VQ, EMA_MODE, device)
+	vq_vae = load_vq_vae(CURRENT_ENV, 64, CODE_DEPTH, 4, EMA_MODE, device)
+	vq_vae2 = load_vq_vae(CURRENT_ENV, 64, CODE_DEPTH, LATENT_DIM_VQ, EMA_MODE, device)
 	#base_vae = load_base_vae(CURRENT_ENV, LATENT_DIM, KL_WEIGHT, device)	
 	vq_vae.eval()
 	#base_vae.eval()
@@ -119,5 +119,5 @@ if __name__ == "__main__":
 	plt.xlabel('Codebook Index (sorted)')
 	plt.ylabel('Frequency')
 	plt.title('Codebook Usage Frequencies')
-	plt.savefig('codebook_usage.png', dpi=600)
+	plt.savefig('codebook_usage_.png', dpi=600)
 	#plt.show()

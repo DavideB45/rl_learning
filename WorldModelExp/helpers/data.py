@@ -139,7 +139,7 @@ class TrasitionDataset(Dataset):
 				p = []
 				for j in range(seq_len+1):
 					l.append(latents[episode][i+j].clone())# this because we have a list of tensors
-					p.append(prop[episode][i+j][0:17]) # only take the first 17 proprioception values other are target positions
+					p.append(prop[episode][i+j][0:1]) # only take the first 17 proprioception values other are target positions
 				lat = torch.stack(l)
 				self.representation.append(lat)
 				self.actions.append(act[episode][i:i+seq_len])

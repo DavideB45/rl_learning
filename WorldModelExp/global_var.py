@@ -48,4 +48,4 @@ CAR_RACING = {
 	"special_call": no_render_indicators
 }
 
-CURRENT_ENV = PUSHER
+CURRENT_ENV = CAR_RACING
