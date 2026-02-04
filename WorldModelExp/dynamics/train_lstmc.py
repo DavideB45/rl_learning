@@ -11,15 +11,15 @@ from global_var import CURRENT_ENV
 from torch.optim import Adam
 from time import time
 
-LEARNING_RATE=1e-5
+LEARNING_RATE=1e-05
 LAMBDA_REG = 0.00
 USE_KL = True
 
 CDODEBOOK_SIZE = 64
-CODE_DEPTH = 16
+CODE_DEPTH = 32
 LATENT_DIM = 4
 
-HIDDEN_DIM = 1024
+HIDDEN_DIM = 1048
 SEQ_LEN = 23
 INIT_LEN = 18
 
@@ -52,7 +52,7 @@ if __name__ == '__main__':
 	dev = best_device()
 	vq = load_vq_vae(CURRENT_ENV, CDODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM, True, dev)
 	lstm = LSTMQClass(vq, dev, CURRENT_ENV['a_size'], 17, HIDDEN_DIM)
-	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, SEQ_LEN, 0.1, 64, 30)
+	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, SEQ_LEN, 0.1, 64, 300)
 
 	optim = Adam(lstm.parameters(), lr=LEARNING_RATE, weight_decay=LAMBDA_REG)
 	best_ce = 10000
@@ -89,36 +89,3 @@ if __name__ == '__main__':
 				break
 	end = time()
 	print(f'Time elapsed {end - begin}')
-
-##########################
-# 1024 4 8 256:
-#
-# 101: ce:0.0042 mse:0.0009 || ce:0.0139 mse:0.0299
-# tr acc: 100.0% || vl acc: 99.8%
-# tempo di allenamento mi pare uguale, lo ho fermato dopo circa un'oretta
-# non mi sembra abbia senso andare oltre con il training
-# questa è decisamente superiore alla versione che usa MSE
-
-# 1024 4 4 128:
-#
-# Allenato usando la KL scritta forse in modo non eccellente (vedere se esistono implementazioni migliori)
-# Il training è comparabile con quello del modello sopra tuttavia sono
-# basati su VQVAE divresi quindi un confronto non può essere fatto
-# 107: ce:0.7786 mse:1.1551 || ce:0.8166 mse:1.2540
-# tr acc: 87.9% || vl acc: 87.4%
-# stava ancora migliorando ma ero un po' stufo e volevo vedere come andava la ce
-
-# 1024 4 4 128:
-#
-# Allenato usando la CE
-#37: ce:0.4557 mse:1.6589 || ce:0.4789 mse:1.8746
-# tr acc: 87.5% || vl acc: 86.6%
-# 38: ce:0.4187 mse:1.4733 || ce:0.4388 mse:1.6487
-# tr acc: 89.0% || vl acc: 88.2%
-#
-# 58: ce:0.0544 mse:0.1049 || ce:0.0721 mse:0.1980
-# tr acc: 99.3% || vl acc: 98.8%
-#
-# 70: ce:0.0222 mse:0.0315 || ce:0.0351 mse:0.0938
-# tr acc: 99.8% || vl acc: 99.4%
-# l'ho stoppato perché dovevo andare a fare shopping e non penso possa milgiorare di molto...
