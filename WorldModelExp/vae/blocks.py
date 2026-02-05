@@ -118,8 +118,8 @@ class VectorQuantizer(nn.Module):
 			if self.ema:
 				# Cluster size update
 				one_hot = F.one_hot(encoding_indices.squeeze(), self.codebook_size).float()
-				cluster_size = one_hot.sum(0)
-				self.ema_cluster_size = self.gamma * self.ema_cluster_size.to(self.embedding.weight.device) + (1 - self.gamma) * cluster_size
+				cluster_size = one_hot.sum(0) # in each position, how many vectors assigned to each codebook entry
+				self.ema_cluster_size = self.gamma * self.ema_cluster_size.to(self.embedding.weight.device) + (1 - self.gamma) * cluster_size # N_i*gamma + (1-gamma)*n_i
 				# Laplace smoothing (avoid empty clusters)
 				n = self.ema_cluster_size.sum()
 				self.ema_cluster_size = (self.ema_cluster_size + self.epsilon) / (n + self.codebook_size * self.epsilon) * n
@@ -163,7 +163,7 @@ class VectorQuantizer(nn.Module):
 		x = x.permute(0, 2, 3, 1).contiguous()  # (B, H, W, D)
 		input_shape = x.shape
 		flat_x = x.view(-1, 1, self.embedding_dim)  # (B*H*W, 1, D)
-		distances = (flat_x - self.embedding.weight.unsqueeze(0)).pow(2).mean(2)  # (B*H*W, K)
+		distances = (flat_x - self.embedding.weight.unsqueeze(0).detach()).pow(2).mean(2)  # (B*H*W, K)
 		# Convert distances to probabilities
 		probabilities = F.softmax(-distances, dim=1)  # (B*H*W, K)
 		return probabilities.view(input_shape[0], input_shape[1], input_shape[2], self.codebook_size).permute(0, 3, 1, 2).contiguous()  # (B, K, H, W)

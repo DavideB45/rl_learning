@@ -22,8 +22,8 @@ LEARNING_RATE = 1e-4
 WEIGTH_DECAY = 0.001
 
 LATENT_DIM_VQ = 4
-CODE_DEPTH = 16
-CODEBOOK_SIZE = 64
+CODE_DEPTH = 8
+CODEBOOK_SIZE = 16
 EMA_MODE = True
 
 DATA_PATH = CURRENT_ENV['img_dir']
@@ -44,7 +44,7 @@ if __name__ == "__main__":
 	#print(vae)
 	num_params = sum(p.numel() for p in vae.parameters() if p.requires_grad)
 	print(f"Number of trainable parameters: {num_params}")
-	train_loader, val_loader = make_img_dataloader(data_dir=DATA_PATH, batch_size=64, test_split=0.2)
+	train_loader, val_loader = make_img_dataloader(data_dir=DATA_PATH, batch_size=256, test_split=0.2)
 	print(f"Training on {len(train_loader.dataset)} images, validating on {len(val_loader.dataset)} images.")
 	reg_strength = 0.0
 	best_val_loss = float('inf')

@@ -120,6 +120,18 @@ class TrasitionDataset(Dataset):
 			for episode in tqdm(range(min(len(act), max_ep)), 'Encoding Dataset'):
 			#for episode in range(min(len(act), max_ep)):
 				latents.append([])
+				# for i in range(0, len(act[episode]) + 1, 64): # to save memory process 16 images at a time
+				# 	batch_imgs = []
+				# 	for j in range(i, min(i + 64, len(act[episode]) + 1)):
+				# 		im_path = path + f"imgs/img_{episode}_{j}.png"
+				# 		img = Image.open(im_path).convert('RGB')
+				# 		img = to_tensor_(img).unsqueeze(0).to(vq.device)
+				# 		batch_imgs.append(img)
+				# 	batch_tensor = torch.cat(batch_imgs, dim=0)
+				# 	_, lat_batch, _ = vq.quantize(vq.encode(batch_tensor))
+				# 	lat_batch = lat_batch.detach().cpu()
+				# 	for k in range(lat_batch.shape[0]):
+				# 		latents[-1].append(lat_batch[k].clone())
 				for i in range(len(act[episode]) + 1):
 					im_path = path + f"imgs/img_{episode}_{i}.png"
 					img = Image.open(im_path).convert('RGB')
@@ -139,7 +151,7 @@ class TrasitionDataset(Dataset):
 				p = []
 				for j in range(seq_len+1):
 					l.append(latents[episode][i+j].clone())# this because we have a list of tensors
-					p.append(prop[episode][i+j][0:1]) # only take the first 17 proprioception values other are target positions
+					p.append(prop[episode][i+j][0:17]) # only take the first 17 proprioception values other are target positions
 				lat = torch.stack(l)
 				self.representation.append(lat)
 				self.actions.append(act[episode][i:i+seq_len])
@@ -162,7 +174,7 @@ def make_sequence_dataloaders(path:str, vq:VQVAE ,seq_len:int=10, test_split:flo
 	n_total = len(dataset)
 	train_size = n_total - int(n_total * test_split)
 	train_indices = list(range(0, train_size))
-	test_indices = list(range(train_size, n_total))
+	test_indices = list(range(train_size + seq_len, n_total))
 	train_dataset = Subset(dataset, train_indices)
 	test_dataset = Subset(dataset, test_indices)
 	train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=2)
