@@ -128,8 +128,10 @@ class VQVAE(AbstractVAE):
 			loss (torch.Tensor): Scalar tensor representing the flatness loss.
 		'''
 		avg_probs = usage_probs.mean(dim=(0, 2, 3))  # Average over batch and spatial dimensions -> (codebook_size,)
-		uniform_dist = torch.full_like(avg_probs, 1.0 / self.codebook_size)
-		loss = F.kl_div(avg_probs.log(), uniform_dist, reduction='batchmean')
+		# find the zeroes
+		#print(avg_probs)
+		#exit()
+		loss = -torch.sum(avg_probs * torch.log(avg_probs + 1e-10))  # Negative log likelihood
 		return loss
 	
 	def train_epoch(self, loader:DataLoader, optim:torch.optim.Optimizer, reg:float = 0) -> dict:
