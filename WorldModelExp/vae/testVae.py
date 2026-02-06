@@ -18,7 +18,7 @@ LATENT_DIM = 32
 KL_WEIGHT = 0.5
 
 LATENT_DIM_VQ = 4
-CODE_DEPTH = 32
+CODE_DEPTH = 16
 CODEBOOK_SIZE = 64
 EMA_MODE = True
 # file to test VAE training

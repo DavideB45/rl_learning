@@ -131,7 +131,7 @@ class VQVAE(AbstractVAE):
 		# find the zeroes
 		#print(avg_probs)
 		#exit()
-		loss = torch.sum(avg_probs * torch.log(avg_probs + 1e-10))
+		loss = torch.sum(avg_probs * torch.log((avg_probs + 1e-10)*self.codebook_size))
 		return loss
 	
 	def train_epoch(self, loader:DataLoader, optim:torch.optim.Optimizer, reg:float = 0) -> dict:
@@ -163,7 +163,7 @@ class VQVAE(AbstractVAE):
 			recon_batch = self.decode(quantized)
 
 			rec_loss = self.reconstruction_loss(data, recon_batch)
-			loss = 0.1*rec_loss + emb_loss +  flatness_loss
+			loss = rec_loss + emb_loss + 0*flatness_loss
 			loss.backward()
 			optim.step()
 			used_codes.update(indexes.view(-1).cpu().numpy().tolist())
@@ -203,7 +203,7 @@ class VQVAE(AbstractVAE):
 				emb_loss, quantized, indexes = self.quantize(z)
 				recon_batch = self.decode(quantized)
 				rec_loss = self.reconstruction_loss(data, recon_batch)
-				loss = rec_loss + emb_loss + 0.1 * flatness_loss
+				loss = rec_loss + emb_loss + 0*flatness_loss
 				losses["total_loss"] += loss.item()
 				losses["recon_loss"] += rec_loss.item()
 				losses["commit_loss"] += emb_loss.item()
