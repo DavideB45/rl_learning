@@ -52,8 +52,8 @@ class LSTMQClass(nn.Module):
 		)
 		self.lstm = LSTM(hidden_dim, hidden_dim, batch_first=True, num_layers=1)
 		self.out_emb_fc = nn.Sequential(
-			nn.LayerNorm(hidden_dim*2),
-			nn.Linear(hidden_dim*2, hidden_dim),
+			nn.LayerNorm(hidden_dim),
+			nn.Linear(hidden_dim, hidden_dim),
 			nn.LeakyReLU(),
 			nn.LayerNorm(hidden_dim),
 			nn.Linear(hidden_dim, hidden_dim),
@@ -62,8 +62,8 @@ class LSTMQClass(nn.Module):
 			#nn.Sigmoid()
 		)
 		self.out_prop_fc = nn.Sequential(
-			nn.LayerNorm(hidden_dim*2),
-			nn.Linear(hidden_dim*2, hidden_dim),
+			nn.LayerNorm(hidden_dim),
+			nn.Linear(hidden_dim, hidden_dim),
 			nn.LeakyReLU(),
 			nn.LayerNorm(hidden_dim),
 			nn.Linear(hidden_dim, prop_dim),
@@ -167,7 +167,7 @@ class LSTMQClass(nn.Module):
 		output, h = self.lstm(skip_output, h)
 		
 		output = output + skip_output #(B, Seq_len, Hidden_dim)
-		output = torch.cat([output, action], dim=-1) #(B, Seq_len, Hidden_dim + Action_dim)
+		#output = torch.cat([output, action], dim=-1) #(B, Seq_len, Hidden_dim + Action_dim)
 		latent = self.out_emb_fc(output) #(B, Seq_len, Width*Height*Classes)
 		latent_q = self.unflatten_rep(latent, input.size(1)) # Batch, Seq_len, Depth, Width, Height
 		prop_out = self.out_prop_fc(output) #(B, Seq_len, Prop_dim)

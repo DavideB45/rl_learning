@@ -163,7 +163,7 @@ class VQVAE(AbstractVAE):
 			recon_batch = self.decode(quantized)
 
 			rec_loss = self.reconstruction_loss(data, recon_batch)
-			loss = rec_loss + emb_loss + 0*flatness_loss
+			loss = rec_loss + emb_loss + flatness_loss*reg
 			loss.backward()
 			optim.step()
 			used_codes.update(indexes.view(-1).cpu().numpy().tolist())
@@ -203,7 +203,7 @@ class VQVAE(AbstractVAE):
 				emb_loss, quantized, indexes = self.quantize(z)
 				recon_batch = self.decode(quantized)
 				rec_loss = self.reconstruction_loss(data, recon_batch)
-				loss = rec_loss + emb_loss + 0*flatness_loss
+				loss = rec_loss + emb_loss + flatness_loss*reg
 				losses["total_loss"] += loss.item()
 				losses["recon_loss"] += rec_loss.item()
 				losses["commit_loss"] += emb_loss.item()

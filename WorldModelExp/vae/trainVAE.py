@@ -41,6 +41,7 @@ if __name__ == "__main__":
 				device=DEVICE,
 				ema_mode=EMA_MODE
 				)
+		print(f"VQ-VAE with codebook size {CODEBOOK_SIZE}, code depth {CODE_DEPTH}, latent dim {LATENT_DIM_VQ}, commitment cost 0.25, EMA mode {EMA_MODE}")
 	#print(vae)
 	num_params = sum(p.numel() for p in vae.parameters() if p.requires_grad)
 	print(f"Number of trainable parameters: {num_params}")

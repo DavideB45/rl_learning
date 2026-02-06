@@ -11,9 +11,9 @@ from global_var import CURRENT_ENV
 from torch.optim import Adam
 from time import time
 
-LEARNING_RATE=1e-05
+LEARNING_RATE=2e-05
 LAMBDA_REG = 0.000
-USE_KL = True
+USE_KL = False
 
 CDODEBOOK_SIZE = 64
 CODE_DEPTH = 16
