@@ -1,1 +1,0 @@
-Epoch,Train_total_loss,Val_total_loss,Train_commit_loss,Val_commit_loss,Train_codes_usage,Val_codes_usage,Train_recon_loss,Val_recon_loss,Train_flatness_loss,Val_flatness_loss
