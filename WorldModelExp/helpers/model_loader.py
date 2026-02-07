@@ -21,7 +21,7 @@ def load_base_vae(env:dict, latent_dim:int, kl_b:float, device) -> CVAE:
 	model.eval()
 	return model
 
-def load_vq_vae(env:dict, codebook_size:int, code_depth:int, latent_dim:int, ema_mode:bool, device) -> VQVAE:
+def load_vq_vae(env:dict, codebook_size:int, code_depth:int, latent_dim:int, ema_mode:bool, smooth:bool, device) -> VQVAE:
 	model = VQVAE(
 		codebook_size=codebook_size,
 		code_depth=code_depth,
@@ -30,8 +30,8 @@ def load_vq_vae(env:dict, codebook_size:int, code_depth:int, latent_dim:int, ema
 		ema_mode=ema_mode,
 		device=device
 	)
-	model_path = env['models'] + f"vq_{latent_dim}_{code_depth}_{codebook_size}_{ema_mode}.pth"
-	print(f'Loading {f"vq_{latent_dim}_{code_depth}_{codebook_size}_{ema_mode}.pth"}')
+	model_path = env['models'] + f"vq_{latent_dim}_{code_depth}_{codebook_size}_{ema_mode}_smooth{smooth}.pth"
+	print(f'Loading {f"vq_{latent_dim}_{code_depth}_{codebook_size}_{ema_mode}_smooth{smooth}.pth"}')
 	model.load_state_dict(torch.load(model_path, map_location=device))
 	model.eval()
 	return model
@@ -88,8 +88,8 @@ def save_base_vae(env:dict, model:CVAE, kl_b:float) -> str:
 	torch.save(model.state_dict(), model_path)
 	return model_path
 
-def save_vq_vae(env:dict, model:VQVAE) -> str:
-	model_path = env['models'] + f"vq_{model.latent_dim}_{model.code_depth}_{model.codebook_size}_{model.ema_mode}.pth"
+def save_vq_vae(env:dict, model:VQVAE, smooth:bool) -> str:
+	model_path = env['models'] + f"vq_{model.latent_dim}_{model.code_depth}_{model.codebook_size}_{model.ema_mode}_smooth{smooth}.pth"
 	torch.save(model.state_dict(), model_path)
 	return model_path
 
