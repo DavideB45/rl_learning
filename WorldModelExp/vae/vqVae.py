@@ -119,6 +119,21 @@ class VQVAE(AbstractVAE):
 	def reconstruction_loss(self, x, recon_x):
 		return F.mse_loss(recon_x, x, reduction='sum') / x.size(0)
 	
+	def flat_loss(self, usage_probs: torch.Tensor) -> torch.Tensor:
+		'''
+		Computes a loss to encourage the use of all codebook vectors.
+		Args:
+			usage_probs (torch.Tensor): Tensor of shape (batch, codebook_size, latent_dim, latent_dim)
+		Returns:
+			loss (torch.Tensor): Scalar tensor representing the flatness loss.
+		'''
+		avg_probs = usage_probs.mean(dim=(0, 2, 3))  # Average over batch and spatial dimensions -> (codebook_size,)
+		# find the zeroes
+		#print(avg_probs)
+		#exit()
+		loss = torch.sum(avg_probs * torch.log((avg_probs + 1e-10)*self.codebook_size))
+		return loss
+	
 	def train_epoch(self, loader:DataLoader, optim:torch.optim.Optimizer, reg:float = 0) -> dict:
 		'''
 		Trains the VQVAE for one epoch.
@@ -133,21 +148,29 @@ class VQVAE(AbstractVAE):
 			"total_loss": 0.0,
 			"recon_loss": 0.0,
 			"commit_loss": 0.0,
-			"codes_usage": 0.0
+			"codes_usage": 0.0,
+			"flatness_loss": 0.0
 		}
 		used_codes = set()
 		for data in loader:
 			data = data.to(self.device)
 			optim.zero_grad()
-			recon_batch, emb_loss, indexes = self(data)
+
+			z = self.encode(data)
+			usage = self.quantizer.get_index_probabilities(z)
+			flatness_loss = self.flat_loss(usage)
+			emb_loss, quantized, indexes = self.quantize(z)
+			recon_batch = self.decode(quantized)
+
 			rec_loss = self.reconstruction_loss(data, recon_batch)
-			loss = rec_loss + emb_loss
+			loss = rec_loss + emb_loss + flatness_loss*reg
 			loss.backward()
 			optim.step()
 			used_codes.update(indexes.view(-1).cpu().numpy().tolist())
 			losses["total_loss"] += loss.item()
 			losses["recon_loss"] += rec_loss.item()
 			losses["commit_loss"] += emb_loss.item()
+			losses["flatness_loss"] += flatness_loss.item()
 		for key in losses:
 			losses[key] /= len(loader)
 		losses["codes_usage"] = len(used_codes) / self.codebook_size
@@ -166,18 +189,25 @@ class VQVAE(AbstractVAE):
 			"total_loss": 0.0,
 			"recon_loss": 0.0,
 			"commit_loss": 0.0,
-			"codes_usage": 0.0
+			"codes_usage": 0.0,
+			"flatness_loss": 0.0
+			
 		}
 		used_codes = set()
 		with torch.no_grad():
 			for data in loader:
 				data = data.to(self.device)
-				recon_batch, emb_loss, indexes = self(data)
+				z = self.encode(data)
+				usage = self.quantizer.get_index_probabilities(z)
+				flatness_loss = self.flat_loss(usage)
+				emb_loss, quantized, indexes = self.quantize(z)
+				recon_batch = self.decode(quantized)
 				rec_loss = self.reconstruction_loss(data, recon_batch)
-				loss = rec_loss + emb_loss
+				loss = rec_loss + emb_loss + flatness_loss*reg
 				losses["total_loss"] += loss.item()
 				losses["recon_loss"] += rec_loss.item()
 				losses["commit_loss"] += emb_loss.item()
+				losses["flatness_loss"] += flatness_loss.item()
 				used_codes.update(indexes.view(-1).cpu().numpy().tolist())
 			for key in losses:
 				losses[key] /= len(loader)

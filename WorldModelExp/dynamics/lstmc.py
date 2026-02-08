@@ -25,7 +25,6 @@ class LSTMQClass(nn.Module):
 		self.rep_fc = nn.Sequential(
 			nn.Linear(self.latent_dim, hidden_dim),
 			nn.LeakyReLU(),
-			nn.Dropout(0.1)
 		)
 		self.pro_fc = nn.Sequential(
 			nn.Linear(prop_dim, self.latent_dim),
@@ -53,8 +52,8 @@ class LSTMQClass(nn.Module):
 		)
 		self.lstm = LSTM(hidden_dim, hidden_dim, batch_first=True, num_layers=1)
 		self.out_emb_fc = nn.Sequential(
-			nn.LayerNorm(hidden_dim*2),
-			nn.Linear(hidden_dim*2, hidden_dim),
+			nn.LayerNorm(hidden_dim),
+			nn.Linear(hidden_dim, hidden_dim),
 			nn.LeakyReLU(),
 			nn.LayerNorm(hidden_dim),
 			nn.Linear(hidden_dim, hidden_dim),
@@ -63,11 +62,11 @@ class LSTMQClass(nn.Module):
 			#nn.Sigmoid()
 		)
 		self.out_prop_fc = nn.Sequential(
-			nn.LayerNorm(hidden_dim*2),
+			nn.LayerNorm(hidden_dim),
 			nn.Linear(hidden_dim, hidden_dim),
 			nn.LeakyReLU(),
 			nn.LayerNorm(hidden_dim),
-			nn.Linear(hidden_dim*2, prop_dim),
+			nn.Linear(hidden_dim, prop_dim),
 		)
 
 		self.device = device
@@ -157,17 +156,18 @@ class LSTMQClass(nn.Module):
 		new_rep = self.rep_fc(input.detach())
 		prop = self.pro_fc(prop)
 		action = self.act_fc(action)
-		output = torch.cat([new_rep, prop], dim=-1)
+		output = torch.cat([new_rep, action], dim=-1)
 		#output = new_rep
+		#skip_output = output
 		skip_output = self.merge_fc(output) #(B, Seq_len, Hidden_dim)
 
 		if h is None:
 			h = (torch.zeros(1, input.size(0), self.hidden_dim).to(input.device),
 				 torch.zeros(1, input.size(0), self.hidden_dim).to(input.device))
 		output, h = self.lstm(skip_output, h)
-
+		
 		output = output + skip_output #(B, Seq_len, Hidden_dim)
-		output = torch.cat([output, action], dim=-1) #(B, Seq_len, Hidden_dim + Action_dim)
+		#output = torch.cat([output, action], dim=-1) #(B, Seq_len, Hidden_dim + Action_dim)
 		latent = self.out_emb_fc(output) #(B, Seq_len, Width*Height*Classes)
 		latent_q = self.unflatten_rep(latent, input.size(1)) # Batch, Seq_len, Depth, Width, Height
 		prop_out = self.out_prop_fc(output) #(B, Seq_len, Prop_dim)
@@ -259,7 +259,7 @@ class LSTMQClass(nn.Module):
 				total_q_loss += weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay).item()
 				accuracy += pred_accuracy(output, target, self.w_h, self.classes).item()
 				first_accuracy += pred_accuracy(output[:, 0:1, :], target[:, 0:1, :], self.w_h, self.classes).item()
-			loss = class_loss + 0.001*total_prop_loss
+			loss = class_loss + 0.00*total_prop_loss
 			loss.backward()
 			optim.step()
 			total_ce += class_loss.item()

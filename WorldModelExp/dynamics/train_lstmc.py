@@ -11,17 +11,17 @@ from global_var import CURRENT_ENV
 from torch.optim import Adam
 from time import time
 
-LEARNING_RATE=1e-05
-LAMBDA_REG = 0.00
-USE_KL = True
+LEARNING_RATE=2e-05
+LAMBDA_REG = 0.000
+USE_KL = False
 
 CDODEBOOK_SIZE = 64
-CODE_DEPTH = 32
+CODE_DEPTH = 16
 LATENT_DIM = 4
 
-HIDDEN_DIM = 1048
-SEQ_LEN = 23
-INIT_LEN = 18
+HIDDEN_DIM = 1024
+SEQ_LEN = 30
+INIT_LEN = 25
 
 PURPLE = "\033[95m"
 YELLOW = "\033[93m"
@@ -52,7 +52,7 @@ if __name__ == '__main__':
 	dev = best_device()
 	vq = load_vq_vae(CURRENT_ENV, CDODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM, True, dev)
 	lstm = LSTMQClass(vq, dev, CURRENT_ENV['a_size'], 17, HIDDEN_DIM)
-	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, SEQ_LEN, 0.1, 64, 300)
+	tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, SEQ_LEN, 0.1, 128, 3000)
 
 	optim = Adam(lstm.parameters(), lr=LEARNING_RATE, weight_decay=LAMBDA_REG)
 	best_ce = 10000

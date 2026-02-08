@@ -17,10 +17,11 @@ import matplotlib.pyplot as plt
 LATENT_DIM = 32
 KL_WEIGHT = 0.5
 
-LATENT_DIM_VQ = 8
+LATENT_DIM_VQ = 4
 CODE_DEPTH = 16
 CODEBOOK_SIZE = 64
 EMA_MODE = True
+
 # file to test VAE training
 # shows a couple of reconstructed images after training
 if __name__ == "__main__":
@@ -37,8 +38,8 @@ if __name__ == "__main__":
 		ema_mode=EMA_MODE,
 	).to(device)
 	print(f"Testing {CURRENT_ENV['env_name']} VAE model")
-	vq_vae = load_vq_vae(CURRENT_ENV, 128, CODE_DEPTH, 4, EMA_MODE, device)
-	vq_vae2 = load_vq_vae(CURRENT_ENV, 128, CODE_DEPTH, LATENT_DIM_VQ, EMA_MODE, device)
+	vq_vae2 = load_vq_vae(CURRENT_ENV, CODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM_VQ, EMA_MODE, False, device)
+	vq_vae = load_vq_vae(CURRENT_ENV, CODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM_VQ, EMA_MODE, True, device)
 	#base_vae = load_base_vae(CURRENT_ENV, LATENT_DIM, KL_WEIGHT, device)	
 	vq_vae.eval()
 	#base_vae.eval()
@@ -63,7 +64,7 @@ if __name__ == "__main__":
 	images = images.cpu()
 
 	# pick a random image and show the sum of all pixel values
-	random_idx = torch.randint(0, images.size(0), (1,)).item()
+	random_idx = int(torch.randint(0, images.size(0), (1,)).item())
 	print(f"Sum of pixel values for random original image {random_idx}: {images[random_idx].sum().item():.4f}")
 	print(f"Sum of pixel values for random vq reconstructed image {random_idx}: {vq_images[random_idx].sum().item():.4f}")
 	print(f"Sum of pixel values for random base reconstructed image {random_idx}: {recon_images[random_idx].sum().item():.4f}")
@@ -84,14 +85,14 @@ if __name__ == "__main__":
 		plt.imshow(recon_images[i].permute(1, 2, 0).numpy())
 		plt.axis('off')
 		if i == 0:
-			plt.title('Second VQ Reconstructed Images')
+			plt.title('Non reg VQ Reconstructed Images')
 
 		# VQ reconstructed image
 		plt.subplot(3, num_images, i + 1 + 2 * num_images)
 		plt.imshow(vq_images[i].permute(1, 2, 0).numpy())
 		plt.axis('off')
 		if i == 0:
-			plt.title('First VQ Reconstructed Images')
+			plt.title('Flatten VQ Reconstructed Images')
 	
 	plt.savefig('reconstructed_images.png', dpi=600)
 	#plt.show()
@@ -119,5 +120,5 @@ if __name__ == "__main__":
 	plt.xlabel('Codebook Index (sorted)')
 	plt.ylabel('Frequency')
 	plt.title('Codebook Usage Frequencies')
-	plt.savefig('codebook_usage.png', dpi=600)
+	plt.savefig('codebook_usage_.png', dpi=600)
 	#plt.show()
