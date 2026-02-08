@@ -15,11 +15,11 @@ from helpers.model_loader import save_base_vae, save_vq_vae
 from global_var import CURRENT_ENV
 
 LATENT_DIM = 32
-REG_STRENGTH = 0.5
+REG_STRENGTH = 2
 
 NUM_EPOCHS = 50
-LEARNING_RATE = 1e-4
-WEIGTH_DECAY = 0.00
+LEARNING_RATE = 1e-3
+WEIGTH_DECAY = 0.001
 
 LATENT_DIM_VQ = 4
 CODE_DEPTH = 16
@@ -47,16 +47,16 @@ if __name__ == "__main__":
 	print(f"Number of trainable parameters: {num_params}")
 	train_loader, val_loader = make_img_dataloader(data_dir=DATA_PATH, batch_size=256, test_split=0.2)
 	print(f"Training on {len(train_loader.dataset)} images, validating on {len(val_loader.dataset)} images.")
-	reg_strength = 0.0
+	reg_strength = REG_STRENGTH
 	best_val_loss = float('inf')
 	optim = torch.optim.Adam(vae.parameters(), lr=LEARNING_RATE, weight_decay=WEIGTH_DECAY)
 	for epoch in range(NUM_EPOCHS):
-		reg_strength = REG_STRENGTH * min(1.0, (epoch + 1) / 40.0)
+		#reg_strength = REG_STRENGTH * min(1.0, (epoch + 1) / 40.0)
 		print("-" * 25 + f" {(epoch + 1):02}/{NUM_EPOCHS} " + "-" * 25)
 		vae.train()
 		tr_loss = vae.train_epoch(train_loader, optim, reg_strength)
 		vae.eval()
-		val_loss = vae.eval_epoch(val_loader, REG_STRENGTH)
+		val_loss = vae.eval_epoch(val_loader, reg_strength)
 		colors = ['\033[91m', '\033[95m', '\033[92m', '\033[93m', '\033[96m']
 		reset = '\033[0m'
 		if val_loss['total_loss'] < best_val_loss:
@@ -65,7 +65,7 @@ if __name__ == "__main__":
 			if basic:
 				save_base_vae(CURRENT_ENV, vae, REG_STRENGTH)
 			else:
-				save_vq_vae(CURRENT_ENV, vae)
+				save_vq_vae(CURRENT_ENV, vae, smooth=True if REG_STRENGTH > 0 else False)
 			print(f"{colors[-1]}  New best model saved!{reset}")
 		for i, key in enumerate(tr_loss):
 			color = colors[i % len(colors)]

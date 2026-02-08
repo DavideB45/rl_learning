@@ -10,3 +10,6 @@ in many ci sono tet generici in cui lo smoothing è messo sempre ad 1 o 0
 in smooth_criminal ci sono test fatti per vedere come l'aumento del peso della regolarizzazzione
 (smoothing) influisce sulla loss finale. Questo perché nei test precedenti ho notato che
 con l'aggiunta della penalizzazione la ricostruzione migliorava
+
+Risultato: la smoothness sembra non avere effetti negativi neanche se la facciamo pesare 10
+Il che è molto interessante, devo rifare il vq vincente per fare un confronto di ricostruzione

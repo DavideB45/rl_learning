@@ -46,7 +46,7 @@ def plot_metric_across_runs(histories: dict, set="Train", metric="total_loss", b
 if __name__ == '__main__':
 
 
-	h = load_all_histories(CURRENT_ENV['data_dir'] + "histories/vq")
+	h = load_all_histories(CURRENT_ENV['data_dir'] + "histories/vq/smooth_criminal/")
 	#h = load_all_histories(CURRENT_ENV['data_dir'] + "histories/vq/many")
 	#h = load_all_histories(CURRENT_ENV['data_dir'] + "histories/vq/no_smoothing/")
 	sorted_keys = get_best_model_keys(h)
@@ -60,6 +60,8 @@ if __name__ == '__main__':
 		prefix = name.split('ema')[0]
 		suffix = name.split('sm')[1]
 		prefix = prefix + "sm" + suffix
+		# if 'lr0.001' in name:
+		# 	continue
 		if prefix not in best_each or best_each[prefix][0] > best:
 			best_each[prefix] = (best, name)
 	for prefix, (best, name) in best_each.items():
