@@ -7,6 +7,6 @@ investimento di risorse sensato
 
 in many ci sono tet generici in cui lo smoothing è messo sempre ad 1 o 0
 
-in smoothing ci sono test fatti per vedere come làaumento del peso della regolarizzazzione
+in smooth_criminal ci sono test fatti per vedere come l'aumento del peso della regolarizzazzione
 (smoothing) influisce sulla loss finale. Questo perché nei test precedenti ho notato che
 con l'aggiunta della penalizzazione la ricostruzione migliorava

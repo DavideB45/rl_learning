@@ -35,8 +35,8 @@ def plot_metric_across_runs(histories: dict, set="Train", metric="total_loss", b
 	plt.xlabel("Epoch")
 	plt.ylabel(metric)
 	plt.legend()
-	max_y = 6
-	plt.ylim(2, max_y)
+	#max_y = 6
+	#plt.ylim(2, max_y)
 	if bool_log:
 		plt.yscale('log')
 	plt.tight_layout()
@@ -46,7 +46,8 @@ def plot_metric_across_runs(histories: dict, set="Train", metric="total_loss", b
 if __name__ == '__main__':
 
 
-	h = load_all_histories(CURRENT_ENV['data_dir'] + "histories/vq/many")
+	h = load_all_histories(CURRENT_ENV['data_dir'] + "histories/vq")
+	#h = load_all_histories(CURRENT_ENV['data_dir'] + "histories/vq/many")
 	#h = load_all_histories(CURRENT_ENV['data_dir'] + "histories/vq/no_smoothing/")
 	sorted_keys = get_best_model_keys(h)
 	print(" --- --- [MODELS FOUNDED] --- --- ")
@@ -67,4 +68,4 @@ if __name__ == '__main__':
 	to_plot = {name: h[name] for _, name in best_each.values()}
 
 	# flatness_loss, recon_loss, total_loss
-	plot_metric_across_runs(to_plot, metric="recon_loss", set="Val", bool_log=True)
+	plot_metric_across_runs(to_plot, metric="flatness_loss", set="Val", bool_log=True)
