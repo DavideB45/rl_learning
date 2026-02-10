@@ -2,14 +2,16 @@ import json
 import os
 import sys
 import matplotlib.pyplot as plt
+import torch
 
 sys.path.insert(1, os.path.join(sys.path[0], '../'))
 
 from global_var import CURRENT_ENV
+from helpers.model_loader import load_vq_vae
+from helpers.general import best_device
+from torch import cdist, triu
 
-
-VAE_TO_TEST = [(4, 16, 128), (4, 16, 64)] # latent, code_depth, codebook_size
-NUM_EPOCS=65 # this is (if there is no early stopping around 1 our per model)
+VAE_TO_TEST = [(4, 16, 64)] # latent, code_depth, codebook_size (4, 16, 128), 
 LEARNING_RATES=[1e-5, 2e-5]
 LAMBDA_REGS = [0, 1e-3, 2e-3]
 USE_KL = [True]
@@ -76,7 +78,7 @@ def filter_parameter(all:dict, codebook_sizes=[128, 64], kl=[True, False], lr=[1
 	interest_files = {}
 	for name, hist in all.items():
 		if isinstance(name, str):
-			model, size, ld, cd, cs, klc, lrc, wdc = tuple(name.split("_"))
+			model, size, ld, cd, cs, klc, lrc, wdc, fl = tuple(name.split("_"))
 			cs = int(cs)
 			klc= True if klc == "True" else False
 			lrc=float(lrc)
@@ -95,25 +97,60 @@ def get_best_model_keys(all:dict) -> list[tuple[float, str]]:
 	sorted_keys = sorted(sorted_keys, reverse=True)
 	return sorted_keys
 
+def get_best_for_each(all:dict, metric:str) -> list[tuple[float, str]]:
+	best_each = {}
+	for name, hist in all.items():
+		model, size, ld, cd, cs, kl, lr, wdc, fl = tuple(name.split("_"))
+		prefix = f'{size}_{ld}_{cd}_{cs}_{kl}_{fl}'
+		if metric == 'mse':
+			best = min(hist['vl'][metric])
+		elif metric =='acc':
+			best = max(hist['vl'][metric])
+		if prefix not in best_each or best_each[prefix][0] > best:
+			best_each[prefix] = (best, name)
+	print(f" --- --- [BEST MODELS ({metric})] --- --- ")
+	for prefix, (best, name) in best_each.items():
+		print(f"Model: {name} | Best Val Loss: {best}")
+	return best_each
+
 
 if __name__ == '__main__':
 
-	LEARNING_RATE=2e-5
-	LAMBDA_REG = 0.001
+	LEARNING_RATE=1e-5
+	LAMBDA_REG = 0
 	USE_KL = False
 
 	LATENT_DIM = 4
 	CODE_DEPTH = 16
 	CDODEBOOK_SIZE = 64
+	FLATTENED = True
 
-	file_name = f'lstmc_{HIDDEN_DIM}_{LATENT_DIM}_{CODE_DEPTH}_{CDODEBOOK_SIZE}_{USE_KL}_{LEARNING_RATE}_{LAMBDA_REG}'
+	vq_f = load_vq_vae(CURRENT_ENV, CDODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM, True, True, best_device())
+	vq = load_vq_vae(CURRENT_ENV, CDODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM, True, False, best_device())
+	pairwise_distances = cdist(vq_f.quantizer.embedding.weight, vq_f.quantizer.embedding.weight, p=2)
+	upper_triangle_mask = triu(torch.ones_like(pairwise_distances), diagonal=1).bool()
+	distances = pairwise_distances[upper_triangle_mask]
+	avg_distance = distances.mean()
+	print('Quantizer with flat loss - Average pairwise distance:', avg_distance.item())
 	
-	h = load_all_histories(CURRENT_ENV['data_dir'] + "histories/")
+	pairwise_distances = cdist(vq.quantizer.embedding.weight, vq.quantizer.embedding.weight, p=2)
+	upper_triangle_mask = triu(torch.ones_like(pairwise_distances), diagonal=1).bool()
+	distances = pairwise_distances[upper_triangle_mask]
+	avg_distance = distances.mean()
+	print('Quantizer without flat loss - Average pairwise distance:', avg_distance.item())
+
+	file_name = f'lstmc_{HIDDEN_DIM}_{LATENT_DIM}_{CODE_DEPTH}_{CDODEBOOK_SIZE}_{USE_KL}_{LEARNING_RATE}_{LAMBDA_REG}_{FLATTENED}'
+	
+	h = load_all_histories(CURRENT_ENV['data_dir'] + "histories/2318_smooth/")
 	sorted_keys = get_best_model_keys(h)
 	print(" --- --- [MODELS FOUNDED] --- --- ")
 	for i, name in enumerate(sorted_keys):
 		print(f"{i}: {name}")
+	bests = get_best_for_each(h, metric='acc')
+	to_plot = {}
+	for pr in bests:
+		to_plot[bests[pr][1]] = h[bests[pr][1]]
 	plot_history(h[file_name], title=file_name)
-	h = filter_parameter(h, kl=[False, True], codebook_sizes=[64, 128])
-	plot_metric_across_runs(h, metric="acc", set="vl")
+	h = filter_parameter(h, kl=[False], codebook_sizes=[64])
+	plot_metric_across_runs(to_plot, metric="mse", set="vl")
 

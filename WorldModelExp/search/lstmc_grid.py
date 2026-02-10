@@ -12,11 +12,11 @@ from global_var import CURRENT_ENV
 from torch.optim import Adam
 from time import time
 
-VAE_TO_TEST = [(4, 16, 128), (4, 16, 64)] # latent, code_depth, codebook_size
+VAE_TO_TEST = [(4, 16, 64)] # latent, code_depth, codebook_size (4, 16, 128),
 NUM_EPOCS=65 # this is (if there is no early stopping around 1 our per model)
-LEARNING_RATES=[1e-5, 2e-5]
-LAMBDA_REGS = [0, 1e-3]
-USE_KL = [False]
+LEARNING_RATES=[1e-5, 2e-5, 5e-5]
+LAMBDA_REGS = [0, 5e-4, 1e-3]
+USE_KL = [False, True]
 
 HIDDEN_DIM = 1024
 SEQ_LEN = 23
@@ -44,7 +44,7 @@ def make_lstm(lr:float, wd:float, kl:bool, hd:int, tr, vl, min_err) -> tuple[dic
 	:return: History dictionary and minimum error achieved
 	:rtype: tuple[dict, float]
 	'''
-	lstm = LSTMQClass(vq, dev, CURRENT_ENV['a_size'], hd)
+	lstm = LSTMQClass(quantizer=vq, device=dev, action_dim=CURRENT_ENV['a_size'], prop_dim=17, hidden_dim=hd)
 	optim = Adam(lstm.parameters(), lr=lr, weight_decay=wd)
 
 	history = {
@@ -77,7 +77,7 @@ def make_lstm(lr:float, wd:float, kl:bool, hd:int, tr, vl, min_err) -> tuple[dic
 			curr_best = err_vl['ce']
 			no_imporvemets = 0
 			if curr_best < min_err:
-				save_lstm_quantized(CURRENT_ENV, lstm, cl=True, kl=kl)
+				#save_lstm_quantized(CURRENT_ENV, lstm, cl=True, kl=kl)
 				min_err = curr_best
 		else:
 			no_imporvemets += 1
@@ -91,22 +91,23 @@ if __name__ == '__main__':
 	# for vae in vae needs to be a tuple so it's easier to optimize (we will test only 2 probably)
 	i = 0
 	for ld, cd, cs in VAE_TO_TEST:
-		vq = load_vq_vae(CURRENT_ENV, cs, cd, ld, True, dev)
-		tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, SEQ_LEN, 0.1, 64, 1000000000)
-		for kl in USE_KL:
-			min_err = float('inf')
-			for lr in LEARNING_RATES:
-				for wd in LAMBDA_REGS:
-					start = time()
-					history, min_err = make_lstm(lr=lr, wd=wd, kl=kl, hd=HIDDEN_DIM, tr=tr, vl=vl, min_err=min_err)
-					# save the model history for future reference
-					path = f"{CURRENT_ENV['data_dir']}histories/"
-					if not os.path.exists(path):
-						os.makedirs(path)
-					version = f'lstmc_{HIDDEN_DIM}_{ld}_{cd}_{cs}_{kl}_{lr}_{wd}'
-					with open(f"{path}{version}.json", "w") as f:
-						json.dump(history, f, indent=4)
-					end = time()
-					i += 1
-					print(f"Trained ({i}/16) LSTMC {version} in {(end - start)/60:.2f} minutes.")
-					print(f"Current min found for {cs} = {min_err}")
+		for smoothing in [False, True]:
+			vq = load_vq_vae(CURRENT_ENV, cs, cd, ld, ema_mode=True, smooth=smoothing, device=dev)
+			tr, vl = make_sequence_dataloaders(CURRENT_ENV['data_dir'], vq, SEQ_LEN, 0.1, 64, 1000000000)
+			for kl in USE_KL:
+				min_err = float('inf')
+				for lr in LEARNING_RATES:
+					for wd in LAMBDA_REGS:
+						start = time()
+						history, min_err = make_lstm(lr=lr, wd=wd, kl=kl, hd=HIDDEN_DIM, tr=tr, vl=vl, min_err=min_err)
+						# save the model history for future reference
+						path = f"{CURRENT_ENV['data_dir']}histories/"
+						if not os.path.exists(path):
+							os.makedirs(path)
+						version = f'lstmc_{HIDDEN_DIM}_{ld}_{cd}_{cs}_{kl}_{lr}_{wd}_{smoothing}'
+						with open(f"{path}{version}.json", "w") as f:
+							json.dump(history, f, indent=4)
+						end = time()
+						i += 1
+						print(f"Trained ({i}/36) LSTMC {version} in {(end - start)/60:.2f} minutes.")
+						print(f"Current min found for {cs} = {min_err}")
