@@ -13,19 +13,24 @@ from global_var import CURRENT_ENV
 from torch.optim import Adam
 from time import time
 
-LEARNING_RATE=1e-5
-LAMBDA_REG = 0e-3
+LEARNING_RATE=5e-5
+LAMBDA_REG = 1e-3
 NUM_EPOCS = 200
 
-CDODEBOOK_SIZE = 128
-CODE_DEPTH = 32
-LATENT_DIM = 8
+CDODEBOOK_SIZE = 64
+CODE_DEPTH = 16
+LATENT_DIM = 4
+SMOOTHING = True
 
 HIDDEN_DIM = 1024
-SEQ_LEN = 30
-INIT_LEN = 4
+SEQ_LEN = 23
+INIT_LEN = 18
 
 if __name__ == '__main__':
+
+	#torch.manual_seed(76)
+	torch.manual_seed(7)
+	torch.manual_seed(9)
 
 	print(
 		f"LR={LEARNING_RATE}, LREG={LAMBDA_REG}\n"
@@ -60,47 +65,3 @@ if __name__ == '__main__':
 				break
 	end = time()
 	print(f'Time elapsed {end - begin}')
-
-
-##### SOME PRELIMINARY RESULTS ####
-# 512 4 4 128 -> 14.3% | 0.75 | 0.59
-
-# 1024 4 8 256:
-# 
-# training is very slow, but it can make sense to have an early stop after 5/7 epochs of no improvement
-# although the training keeps imporving also after 150 epocs and can be valuable
-# lr was set to be 2e-5 which is quite low indeed, but in previous experiments high lr was a problem
-# maybe when we will use more data batch size can be increased and so can lr
-# 
-# trained with 40 steps, initialised with 5-6 error decay 0.99
-# usual tr val split with 20% validation
-#
-# errors:
-#	tr	|	vl	|
-#	.33	|	.30	|
-# 10.4% |  8.2% |
-#
-# 6867 sec () 1:54:27
-# 4 seconds of sleep each epoch
-
-# 1024 4 4 256:
-# 
-# Early stopping was not really stopping, same parameter as above
-# Consideration: the paper that uses transformer world model uses a
-# vector dimention for quantization of 512 obtaining a representation that is
-# 4x4x512 which is something...
-# 
-# trained with 40 steps, initialised with 5-6 error decay 0.99
-# usual tr val split with 20% validation
-#
-# errors:
-#	tr	|	vl	|
-#	.28	|	.30	|
-#  7.9% |  8.4% |
-#
-# ---- sec () -:--:--
-# mi sono disconnesso dal hbp-vulcano prima del termine
-# i miglioramenti sembravano fermi dopo 140 epoche
-
-# Note: the input (also when generated) is detached this can 
-# stop additional gradient to flow through the LSTM

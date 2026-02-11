@@ -14,8 +14,8 @@ from time import time
 
 VAE_TO_TEST = [(4, 16, 64)] # latent, code_depth, codebook_size (4, 16, 128), 
 NUM_EPOCS=200 # this is (if there is no early stopping around 1 our per model)
-LEARNING_RATES=[1e-5, 2e-5, 5e-5]
-LAMBDA_REGS = [0, 5e-4, 1e-3]
+LEARNING_RATES=[5e-5] # 1e-5, 2e-5, 
+LAMBDA_REGS = [1e-3] # 0, 5e-4, 
 
 HIDDEN_DIM = 1024
 SEQ_LEN = 23
@@ -74,8 +74,9 @@ def make_lstm(lr:float, wd:float, hd:int, tr, vl, min_err) -> tuple[dict, float]
 		if err_vl['qmse'] < curr_best:
 			curr_best = err_vl['qmse']
 			no_imporvemets = 0
+			print(err_vl)
 			if curr_best < min_err:
-				# save_lstm_quantized(CURRENT_ENV, lstm, cl=False)
+				save_lstm_quantized(CURRENT_ENV, lstm, cl=False)
 				min_err = curr_best
 		else:
 			no_imporvemets += 1
