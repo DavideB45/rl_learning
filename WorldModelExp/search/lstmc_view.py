@@ -12,8 +12,8 @@ from helpers.general import best_device
 from torch import cdist, triu
 
 VAE_TO_TEST = [(4, 16, 64)] # latent, code_depth, codebook_size (4, 16, 128), 
-LEARNING_RATES=[1e-5, 2e-5]
-LAMBDA_REGS = [0, 1e-3, 2e-3]
+LEARNING_RATES=[1e-5, 2e-5, 5e-5]
+LAMBDA_REGS = [0, 5e-4, 1e-3]
 USE_KL = [True]
 
 HIDDEN_DIM = 1024
@@ -104,10 +104,12 @@ def get_best_for_each(all:dict, metric:str) -> list[tuple[float, str]]:
 		prefix = f'{size}_{ld}_{cd}_{cs}_{kl}_{fl}'
 		if metric == 'mse':
 			best = min(hist['vl'][metric])
+			if prefix not in best_each or best_each[prefix][0] > best:
+				best_each[prefix] = (best, name)
 		elif metric =='acc':
 			best = max(hist['vl'][metric])
-		if prefix not in best_each or best_each[prefix][0] > best:
-			best_each[prefix] = (best, name)
+			if prefix not in best_each or best_each[prefix][0] < best:
+				best_each[prefix] = (best, name)
 	print(f" --- --- [BEST MODELS ({metric})] --- --- ")
 	for prefix, (best, name) in best_each.items():
 		print(f"Model: {name} | Best Val Loss: {best}")
@@ -146,6 +148,7 @@ if __name__ == '__main__':
 	print(" --- --- [MODELS FOUNDED] --- --- ")
 	for i, name in enumerate(sorted_keys):
 		print(f"{i}: {name}")
+	get_best_for_each(h, metric='mse')
 	bests = get_best_for_each(h, metric='acc')
 	to_plot = {}
 	for pr in bests:

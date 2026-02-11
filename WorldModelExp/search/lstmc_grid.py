@@ -13,7 +13,7 @@ from torch.optim import Adam
 from time import time
 
 VAE_TO_TEST = [(4, 16, 64)] # latent, code_depth, codebook_size (4, 16, 128),
-NUM_EPOCS=65 # this is (if there is no early stopping around 1 our per model)
+NUM_EPOCS=200 # this is (if there is no early stopping around 1 our per model) (fake but there is early stopping)
 LEARNING_RATES=[1e-5, 2e-5, 5e-5]
 LAMBDA_REGS = [0, 5e-4, 1e-3]
 USE_KL = [False, True]
