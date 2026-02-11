@@ -69,8 +69,8 @@ class PusherDreamEnv(gym.Env):
 		with torch.no_grad():
 			_, pred, h = self.lstm.forward(init_data['latent'][:-1, :].unsqueeze(0).to(self.vq.device), init_data['action'].unsqueeze(0).to(self.vq.device), None)
 		self.hidden_state = h
-		self.current_latent = pred
-		representation = torch.cat([self.current_latent.flatten(), self.hidden_state[0].flatten()], dim=-1).numpy()
+		self.current_latent = pred[:, -1, :, :, :]
+		representation = torch.cat([self.current_latent.flatten(), self.hidden_state[0].flatten()], dim=-1).cpu().numpy()
 		self.step_count = 0
 		return representation, {}
 
@@ -83,11 +83,12 @@ class PusherDreamEnv(gym.Env):
 		print('[DANGER] The reward is still not implemented so...')
 		with torch.no_grad():
 			action_tensor = torch.tensor(action, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
-			_, pred, h = self.lstm.forward(self.current_latent, action_tensor, self.hidden_state)
+			_, pred, h = self.lstm.forward(self.current_latent.unsqueeze(0).to(self.vq.device), action_tensor.to(self.vq.device), self.hidden_state)
 		self.step_count += 1
 		self.hidden_state = h
-		self.current_latent = pred
-		representation = torch.cat([self.current_latent.flatten(), self.hidden_state[0].flatten()], dim=-1).numpy()
+		self.current_latent = pred[:, -1, :, :, :]
+		print(f'Shape of current predicition {pred.shape}')
+		representation = torch.cat([self.current_latent.flatten(), self.hidden_state[0].flatten()], dim=-1).cpu().numpy()
 		terminated = self.step_count >= self.max_len
 		return (
 			representation, # based on world model
@@ -99,7 +100,7 @@ class PusherDreamEnv(gym.Env):
 	
 	def render(self):
 		with torch.no_grad():
-			img = self.vq.decode(self.current_latent.unsqueeze(0)).squeeze(0).permute(1, 2, 0).numpy()
+			img = self.vq.decode(self.current_latent).squeeze(0).permute(1, 2, 0).cpu().numpy()
 			img = (img * 255).astype(np.uint8)
 			image = Image.fromarray(img)
 			image_resized = image.resize((256, 256))
@@ -114,7 +115,7 @@ class PusherDreamEnv(gym.Env):
 if __name__ == "__main__":
 	vq = load_vq_vae(PUSHER, 64, 16, 4, True, True, best_device())
 	lstm = load_lstm_quantized(PUSHER, vq, best_device(), 1024, False, False, False)
-	env = PusherDreamEnv(vq, lstm, 10, 30)
+	env = PusherDreamEnv(vq, lstm, 18, 3)
 	env.reset()
 	env.render()
 	done = False
@@ -123,8 +124,7 @@ if __name__ == "__main__":
 	while not done:
 		action = env.action_space.sample()  # random action
 		observation, reward, terminated, truncated, info = env.step(action)
-		real_observation, real_reward, real_terminated, real_truncated, real_info = real_env.step(action)
-		print(f"Step {step_count} Reward: {reward}, Real Reward: {real_reward}")
+		print(f"Step {step_count} Reward: {reward}")
 		env.render()
 		done = terminated or truncated
 		total_reward += reward
