@@ -67,7 +67,7 @@ class PusherDreamEnv(gym.Env):
 			print("[WARNING] I haven't implemented seed it's always random")
 		init_data = self.data.dataset[np.random.randint(len(self.data.dataset))]
 		with torch.no_grad():
-			_, pred, prop, h = self.lstm.forward(init_data['latent'][:-1, :].unsqueeze(0).to(self.vq.device), init_data['action'].unsqueeze(0).to(self.vq.device), init_data['proprioception'].unsqueeze(0).to(self.vq.device), None)
+			_, pred, prop, _, h = self.lstm.forward(init_data['latent'][:-1, :].unsqueeze(0).to(self.vq.device), init_data['action'].unsqueeze(0).to(self.vq.device), init_data['proprioception'].unsqueeze(0).to(self.vq.device), None)
 		self.hidden_state = h
 		self.current_latent = pred[:, -1, :, :, :]
 		self.current_prop = prop[:, -1, :]
@@ -84,7 +84,7 @@ class PusherDreamEnv(gym.Env):
 		print('[DANGER] The reward is still not implemented so...')
 		with torch.no_grad():
 			action_tensor = torch.tensor(action, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
-			_, pred, prop, h = self.lstm.forward(self.current_latent.unsqueeze(0).to(self.vq.device), action_tensor.to(self.vq.device), self.current_prop.unsqueeze(0).to(self.vq.device), self.hidden_state)
+			_, pred, prop, rew, h = self.lstm.forward(self.current_latent.unsqueeze(0).to(self.vq.device), action_tensor.to(self.vq.device), self.current_prop.unsqueeze(0).to(self.vq.device), self.hidden_state)
 		self.step_count += 1
 		self.hidden_state = h
 		self.current_latent = pred[:, -1, :, :, :]
@@ -94,7 +94,7 @@ class PusherDreamEnv(gym.Env):
 		terminated = self.step_count >= self.max_len
 		return (
 			representation, # based on world model
-			10, # from world model
+			rew[:, -1].item(), # from world model
 			terminated, # For now only based on step count
 			False, # Truncated
 			{} # empty dict
