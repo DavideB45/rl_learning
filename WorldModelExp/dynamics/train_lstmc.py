@@ -74,6 +74,7 @@ if __name__ == '__main__':
 
 			row("CE",        f"{err_tr['ce']:.4f}",        f"{err_vl['ce']:.4f}",        BLUE)
 			row("Prop MSE",  f"{err_tr['prop_mse']:.4f}",  f"{err_vl['prop_mse']:.4f}",  BLUE)
+			row("Rew MSE", f"{err_tr['reward_mse']:.4f}",  f"{err_vl['reward_mse']:.4f}",  BLUE)
 			row("Accuracy",  f"{err_tr['acc']*100:.1f}%",  f"{err_vl['acc']*100:.1f}%",  PURPLE)
 			row("MSE",       f"{err_tr['mse']:.4f}",       f"{err_vl['mse']:.4f}",       PURPLE)
 			row("First Acc", f"{err_tr['first_acc']*100:.1f}%",

@@ -51,12 +51,14 @@ def make_lstm(lr:float, wd:float, kl:bool, hd:int, tr, vl, min_err, s) -> tuple[
 		'tr':{
 			'ce':[],
 			'mse':[],
-			'acc':[]
+			'acc':[],
+			'rmse': []
 		},
 		'vl':{
 			'ce':[],
 			'mse':[],
-			'acc':[]
+			'acc':[],
+			'rmse': []
 		},
 	}
 	
@@ -69,9 +71,11 @@ def make_lstm(lr:float, wd:float, kl:bool, hd:int, tr, vl, min_err, s) -> tuple[
 		history['tr']['ce'].append(err_tr['ce'])
 		history['tr']['mse'].append(err_tr['mse'])
 		history['tr']['acc'].append(err_tr['acc'])
+		history['tr']['rmse'].append(err_tr['reward_mse'])
 		history['vl']['ce'].append(err_vl['ce'])
 		history['vl']['mse'].append(err_vl['mse'])
 		history['vl']['acc'].append(err_vl['acc'])
+		history['vl']['rmse'].append(err_vl['reward_mse'])
 
 		if err_vl['ce'] < curr_best:
 			curr_best = err_vl['ce']
