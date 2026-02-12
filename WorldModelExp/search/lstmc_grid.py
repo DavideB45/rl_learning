@@ -14,8 +14,8 @@ from time import time
 
 VAE_TO_TEST = [(4, 16, 64)] # latent, code_depth, codebook_size (4, 16, 128),
 NUM_EPOCS=200 # this is (if there is no early stopping around 1 our per model) (fake but there is early stopping)
-LEARNING_RATES=[1e-5, 2e-5, 5e-5]
-LAMBDA_REGS = [0, 5e-4, 1e-3]
+LEARNING_RATES=[ 5e-5] # 1e-5, 2e-5,
+LAMBDA_REGS = [ 5e-4] # , 1e-3 , 0
 USE_KL = [False, True]
 
 HIDDEN_DIM = 1024
@@ -24,7 +24,7 @@ INIT_LEN = 18
 
 dev = best_device()
 
-def make_lstm(lr:float, wd:float, kl:bool, hd:int, tr, vl, min_err) -> tuple[dict, float]:
+def make_lstm(lr:float, wd:float, kl:bool, hd:int, tr, vl, min_err, s) -> tuple[dict, float]:
 	'''
 	Docstring for make_lstm
 	
@@ -77,7 +77,7 @@ def make_lstm(lr:float, wd:float, kl:bool, hd:int, tr, vl, min_err) -> tuple[dic
 			curr_best = err_vl['ce']
 			no_imporvemets = 0
 			if curr_best < min_err:
-				#save_lstm_quantized(CURRENT_ENV, lstm, cl=True, kl=kl)
+				save_lstm_quantized(CURRENT_ENV, lstm, cl=True, kl=kl, tf=s)
 				min_err = curr_best
 		else:
 			no_imporvemets += 1
@@ -99,7 +99,7 @@ if __name__ == '__main__':
 				for lr in LEARNING_RATES:
 					for wd in LAMBDA_REGS:
 						start = time()
-						history, min_err = make_lstm(lr=lr, wd=wd, kl=kl, hd=HIDDEN_DIM, tr=tr, vl=vl, min_err=min_err)
+						history, min_err = make_lstm(lr=lr, wd=wd, kl=kl, hd=HIDDEN_DIM, tr=tr, vl=vl, min_err=min_err, s=smoothing)
 						# save the model history for future reference
 						path = f"{CURRENT_ENV['data_dir']}histories/"
 						if not os.path.exists(path):

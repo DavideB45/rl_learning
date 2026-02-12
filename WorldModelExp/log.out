@@ -1,48 +1,17 @@
 nohup: ignoring input
-LR=[1e-05, 2e-05, 5e-05], LREG=[0, 0.0005, 0.001]
-VAES=[(4, 16, 64)], HID=1024
-SEQ_LEN=23, INIT_LEN=19, LOSS ON 5 steps
 Loading vq_4_16_64_True_smoothFalse.pth
 Creating sequence dataloader using data from data/pusher/
 Encoding dataset from data/pusher/ using VQ-VAE...
 Creating sequences of length 23...
-Trained (1/18) LSTMC lstm_1024_4_16_64_1e-05_0_False in 46.03 minutes.
-Current min found for 64 = 2.4391075568120986
-Trained (2/18) LSTMC lstm_1024_4_16_64_1e-05_0.0005_False in 49.69 minutes.
-Current min found for 64 = 2.3927668964927964
-Trained (3/18) LSTMC lstm_1024_4_16_64_1e-05_0.001_False in 87.02 minutes.
-Current min found for 64 = 2.3737204970557833
-Trained (4/18) LSTMC lstm_1024_4_16_64_2e-05_0_False in 68.27 minutes.
-Current min found for 64 = 2.3737204970557833
-Trained (5/18) LSTMC lstm_1024_4_16_64_2e-05_0.0005_False in 47.81 minutes.
-Current min found for 64 = 2.3322314994582714
-Trained (6/18) LSTMC lstm_1024_4_16_64_2e-05_0.001_False in 62.15 minutes.
-Current min found for 64 = 2.3152946227235223
-Trained (7/18) LSTMC lstm_1024_4_16_64_5e-05_0_False in 35.33 minutes.
-Current min found for 64 = 2.3152946227235223
-Trained (8/18) LSTMC lstm_1024_4_16_64_5e-05_0.0005_False in 40.88 minutes.
-Current min found for 64 = 2.2646730796235506
-Trained (9/18) LSTMC lstm_1024_4_16_64_5e-05_0.001_False in 47.37 minutes.
-Current min found for 64 = 2.2438071353839395
+Trained (1/36) LSTMC lstmc_1024_4_16_64_False_5e-05_0.0005_False in 25.44 minutes.
+Current min found for 64 = 1.3600763584095272
+Trained (2/36) LSTMC lstmc_1024_4_16_64_True_5e-05_0.0005_False in 27.35 minutes.
+Current min found for 64 = 2.6648203092194644
 Loading vq_4_16_64_True_smoothTrue.pth
 Creating sequence dataloader using data from data/pusher/
 Encoding dataset from data/pusher/ using VQ-VAE...
 Creating sequences of length 23...
-Trained (10/18) LSTMC lstm_1024_4_16_64_1e-05_0_True in 49.20 minutes.
-Current min found for 64 = 5.3516131470112205
-Trained (11/18) LSTMC lstm_1024_4_16_64_1e-05_0.0005_True in 50.15 minutes.
-Current min found for 64 = 5.293919469489426
-Trained (12/18) LSTMC lstm_1024_4_16_64_1e-05_0.001_True in 54.97 minutes.
-Current min found for 64 = 5.257742415360414
-Trained (13/18) LSTMC lstm_1024_4_16_64_2e-05_0_True in 33.04 minutes.
-Current min found for 64 = 5.257742415360414
-Trained (14/18) LSTMC lstm_1024_4_16_64_2e-05_0.0005_True in 35.90 minutes.
-Current min found for 64 = 5.186888775538877
-Trained (15/18) LSTMC lstm_1024_4_16_64_2e-05_0.001_True in 38.04 minutes.
-Current min found for 64 = 5.143652562886639
-Trained (16/18) LSTMC lstm_1024_4_16_64_5e-05_0_True in 25.50 minutes.
-Current min found for 64 = 5.120508492318659
-Trained (17/18) LSTMC lstm_1024_4_16_64_5e-05_0.0005_True in 30.31 minutes.
-Current min found for 64 = 5.002286097391056
-Trained (18/18) LSTMC lstm_1024_4_16_64_5e-05_0.001_True in 29.90 minutes.
-Current min found for 64 = 4.937995441624375
+Trained (3/36) LSTMC lstmc_1024_4_16_64_False_5e-05_0.0005_True in 24.00 minutes.
+Current min found for 64 = 1.3048709992502556
+Trained (4/36) LSTMC lstmc_1024_4_16_64_True_5e-05_0.0005_True in 22.74 minutes.
+Current min found for 64 = 4.6603432085996115
