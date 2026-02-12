@@ -51,7 +51,7 @@ def load_moe_vae(env:dict, latent_dim:int, kl_b:float, concordance_reg:float, de
 
 def load_lstm_quantized(env:dict, vq:VQVAE, device:torch.device, hidden_dim:int, tf:bool=False, cl:bool=False, kl:bool=False) -> LSTMQuantized | LSTMQClass:
 	if cl:
-		model = LSTMQClass(vq, device, env['a_size'], hidden_dim)
+		model = LSTMQClass(vq, device, env['a_size'], 17, hidden_dim)
 	else:
 		model = LSTMQuantized(vq, device, env['a_size'], hidden_dim)
 	d = vq.code_depth

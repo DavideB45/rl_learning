@@ -67,9 +67,10 @@ class PusherDreamEnv(gym.Env):
 			print("[WARNING] I haven't implemented seed it's always random")
 		init_data = self.data.dataset[np.random.randint(len(self.data.dataset))]
 		with torch.no_grad():
-			_, pred, h = self.lstm.forward(init_data['latent'][:-1, :].unsqueeze(0).to(self.vq.device), init_data['action'].unsqueeze(0).to(self.vq.device), None)
+			_, pred, prop, h = self.lstm.forward(init_data['latent'][:-1, :].unsqueeze(0).to(self.vq.device), init_data['action'].unsqueeze(0).to(self.vq.device), init_data['proprioception'].unsqueeze(0).to(self.vq.device), None)
 		self.hidden_state = h
 		self.current_latent = pred[:, -1, :, :, :]
+		self.current_prop = prop[:, -1, :]
 		representation = torch.cat([self.current_latent.flatten(), self.hidden_state[0].flatten()], dim=-1).cpu().numpy()
 		self.step_count = 0
 		return representation, {}
@@ -83,10 +84,11 @@ class PusherDreamEnv(gym.Env):
 		print('[DANGER] The reward is still not implemented so...')
 		with torch.no_grad():
 			action_tensor = torch.tensor(action, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
-			_, pred, h = self.lstm.forward(self.current_latent.unsqueeze(0).to(self.vq.device), action_tensor.to(self.vq.device), self.hidden_state)
+			_, pred, prop, h = self.lstm.forward(self.current_latent.unsqueeze(0).to(self.vq.device), action_tensor.to(self.vq.device), self.current_prop.unsqueeze(0).to(self.vq.device), self.hidden_state)
 		self.step_count += 1
 		self.hidden_state = h
 		self.current_latent = pred[:, -1, :, :, :]
+		self.current_prop = prop[:, -1, :]
 		print(f'Shape of current predicition {pred.shape}')
 		representation = torch.cat([self.current_latent.flatten(), self.hidden_state[0].flatten()], dim=-1).cpu().numpy()
 		terminated = self.step_count >= self.max_len
@@ -113,8 +115,10 @@ class PusherDreamEnv(gym.Env):
 		pass
 
 if __name__ == "__main__":
-	vq = load_vq_vae(PUSHER, 64, 16, 4, True, True, best_device())
-	lstm = load_lstm_quantized(PUSHER, vq, best_device(), 1024, False, False, False)
+	SMOOTH = False
+	KL = False
+	vq = load_vq_vae(PUSHER, 64, 16, 4, True, SMOOTH, best_device())
+	lstm = load_lstm_quantized(PUSHER, vq, best_device(), 1024, SMOOTH, True, KL)
 	env = PusherDreamEnv(vq, lstm, 18, 3)
 	env.reset()
 	env.render()
