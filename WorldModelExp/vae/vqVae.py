@@ -152,6 +152,7 @@ class VQVAE(AbstractVAE):
 			"flatness_loss": 0.0
 		}
 		used_codes = set()
+		self.train()
 		for data in loader:
 			data = data.to(self.device)
 			optim.zero_grad()
@@ -194,6 +195,7 @@ class VQVAE(AbstractVAE):
 			
 		}
 		used_codes = set()
+		self.eval()
 		with torch.no_grad():
 			for data in loader:
 				data = data.to(self.device)

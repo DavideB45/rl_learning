@@ -46,9 +46,7 @@ def tune_vq(model:VQVAE, num_epocs:int=20, lr:float=1e-3, wd:float=1e-3, reg:flo
 	no_improvements = 0
 	for epoch in range(num_epocs):
 		print("-" * 25 + f" {(epoch + 1):02}/{num_epocs} " + "-" * 25)
-		model.train()
 		tr_loss = model.train_epoch(tr, optim, reg)
-		model.eval()
 		val_loss = model.eval_epoch(vl, reg)
 		if val_loss['total_loss'] < best_val_loss:
 			best_val_loss = val_loss['total_loss']
@@ -61,6 +59,8 @@ def tune_vq(model:VQVAE, num_epocs:int=20, lr:float=1e-3, wd:float=1e-3, reg:flo
 		for i, key in enumerate(tr_loss):
 			color = colors[i % len(colors)]
 			print(f"{color}  Train {key}: {tr_loss[key]:.4f}, Val {key}: {val_loss[key]:.4f}{reset}")
+	# this last line is needed: if the loop terminated with early stopping we still use the best model found
+	return load_vq_vae(PUSHER, CODEBOOK_S, CODE_DEPTH, LATENT_DIM, USE_EMA, SMOOTH, best_device())
 	
 
 if __name__ == '__main__':
