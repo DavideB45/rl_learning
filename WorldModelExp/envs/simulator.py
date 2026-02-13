@@ -32,7 +32,7 @@ class PusherDreamEnv(gym.Env):
 	"""
 
 
-	def __init__(self, vq:VQVAE=None, lstm:LSTMQuantized=None, sequence_length=10, max_ep=300):
+	def __init__(self, vq:VQVAE=None, lstm:LSTMQuantized=None, sequence_length=10):
 		super(PusherDreamEnv, self).__init__()
 		self.max_len = 100
 
@@ -73,6 +73,8 @@ class PusherDreamEnv(gym.Env):
 		self.current_prop = prop[:, -1, :]
 		representation = torch.cat([self.current_latent.flatten(), self.hidden_state[0].flatten()], dim=-1).cpu().numpy()
 		self.step_count = 0
+		# print(f'Latent shape: {self.current_latent.shape}')
+		# print(f'Current prop shape: {self.current_prop.shape}')
 		return representation, {}
 
 	def step(self, action,) -> tuple:
@@ -81,7 +83,6 @@ class PusherDreamEnv(gym.Env):
 		action: action to take
 		returns: observation (np.array), reward (float), terminated (bool), truncated (bool), info (dict)
 		'''
-		print('[DANGER] The reward is still not implemented so...')
 		with torch.no_grad():
 			action_tensor = torch.tensor(action, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
 			_, pred, prop, rew, h = self.lstm.forward(self.current_latent.unsqueeze(0).to(self.vq.device), action_tensor.to(self.vq.device), self.current_prop.unsqueeze(0).to(self.vq.device), self.hidden_state)
@@ -89,9 +90,10 @@ class PusherDreamEnv(gym.Env):
 		self.hidden_state = h
 		self.current_latent = pred[:, -1, :, :, :]
 		self.current_prop = prop[:, -1, :]
-		print(f'Shape of current predicition {pred.shape}')
 		representation = torch.cat([self.current_latent.flatten(), self.hidden_state[0].flatten()], dim=-1).cpu().numpy()
 		terminated = self.step_count >= self.max_len
+		# print(f'Latent shape: {self.current_latent.shape}')
+		# print(f'Current prop shape: {self.current_prop.shape}')
 		return (
 			representation, # based on world model
 			rew[:, -1].item(), # from world model

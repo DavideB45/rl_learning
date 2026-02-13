@@ -4,6 +4,7 @@ import gymnasium as gym
 from gymnasium import spaces
 import torch
 import torchvision.transforms as T
+import json
 from PIL import Image
 
 import os
@@ -17,14 +18,7 @@ from helpers.model_loader import load_vq_vae, load_lstm_quantized
 from helpers.general import best_device
 from global_var import PUSHER
 
-# The only thing that changes between PseudoDreamEnv and DreamEnv is that
-# PseudoDreamEnv uses the real environment to get the reward and done signal
-# while DreamEnv uses only the world model to simulate everything
-# so only the step and render functions changes
-# (this could be refactored to avoid code duplication, but for clarity we keep them separate)
-# TODO: a nice idea can be a boolean flag in the init function to switch between the two modes
-
-class PusherDreamEnv(gym.Env):
+class PusherWrapEnv(gym.Env):
 	"""
 	Completely simulated environment using the VAE and MDRNN models
 	The starting state is obtained from the real environment
@@ -32,30 +26,41 @@ class PusherDreamEnv(gym.Env):
 	"""
 
 
-	def __init__(self, vq:VQVAE=None, lstm:LSTMQuantized=None, sequence_length=10, max_ep=300):
-		super(PusherDreamEnv, self).__init__()
-		raise NotImplementedError('Actually this is not implemented sorry')
-		self.max_len = 100
+	def __init__(self, vq:VQVAE=None, lstm:LSTMQuantized=None):
+		super(PusherWrapEnv, self).__init__()
 
 		self.vq = vq
 		self.vq.eval()
 		self.vq_dim = self.vq.latent_dim**2*self.vq.code_depth
 		self.lstm = lstm
 		self.lstm.eval()
-		self.hidden_state = None
 
 		self.env = gym.make('Pusher-v5', 
 			render_mode='rgb_array',
 			default_camera_config=PUSHER['default_camera_config'],
 		)
+		self.renderer = self.env.env.env.env.mujoco_renderer
 		self.action_space = self.env.action_space
 		self.observation_space = spaces.Box(
 			low=-np.inf, high=np.inf, shape=(self.vq_dim + self.lstm.hidden_dim,), dtype=np.float32
 		)
-		self.step_count = 0
+		self.to_tensor_ = T.ToTensor()
 
-		self.data, _ = make_sequence_dataloaders(PUSHER['data_dir'], self.vq, seq_len=sequence_length, test_split=0.2, batch_size=1, max_ep=max_ep)
-
+	def get_img(self) -> Image.Image:
+		'''
+		Renders the current frame of the environment and resizes it.
+		Args:
+			env: gym environment
+			size: desired size of the image
+		Returns:
+			Image.Image: resized image
+		'''
+		self.renderer.camera_id = 2
+		img = self.renderer.render(render_mode='rgb_array')
+		img = Image.fromarray(img)
+		img = img.resize((64, 64))
+		return img
+	
 	def reset(self, seed=None, options=None):
 		'''
 		Reset the environment
@@ -64,16 +69,20 @@ class PusherDreamEnv(gym.Env):
 		returns: initial observation (np.array) obtained encoding the first image and the initial hidden state
 		'''
 		super().reset(seed=seed, options=options)
-		if seed is not None:
-			print("[WARNING] I haven't implemented seed it's always random")
-		init_data = self.data.dataset[np.random.randint(len(self.data.dataset))]
+		prop, _ = self.env.reset(seed=seed)
+		img = self.get_img()
 		with torch.no_grad():
-			_, pred, prop, h = self.lstm.forward(init_data['latent'][:-1, :].unsqueeze(0).to(self.vq.device), init_data['action'].unsqueeze(0).to(self.vq.device), init_data['proprioception'].unsqueeze(0).to(self.vq.device), None)
+			t_img = self.to_tensor_(img).unsqueeze(0).to(vq.device)
+			_, lat, _ = vq.quantize(vq.encode(t_img))
+			h = (torch.zeros(1, 1, self.lstm.hidden_dim).to(vq.device),
+				 torch.zeros(1, 1, self.lstm.hidden_dim).to(vq.device))
 		self.hidden_state = h
-		self.current_latent = pred[:, -1, :, :, :]
-		self.current_prop = prop[:, -1, :]
+		self.current_latent = lat
+		self.current_prop = torch.tensor(prop[:17], dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+		self.current_render = img
 		representation = torch.cat([self.current_latent.flatten(), self.hidden_state[0].flatten()], dim=-1).cpu().numpy()
-		self.step_count = 0
+		# print(f'Latent shape: {self.current_latent.shape}')
+		# print(f'Current prop shape: {self.current_prop.shape}')
 		return representation, {}
 
 	def step(self, action,) -> tuple:
@@ -82,22 +91,26 @@ class PusherDreamEnv(gym.Env):
 		action: action to take
 		returns: observation (np.array), reward (float), terminated (bool), truncated (bool), info (dict)
 		'''
-		print('[DANGER] The reward is still not implemented so...')
+		prop, reward, terminated, truncated, info = self.env.step(action)
+		prop = prop[0:17]
+		img = self.get_img()
 		with torch.no_grad():
+			t_img = self.to_tensor_(img).unsqueeze(0).to(vq.device)
+			_, lat, _ = vq.quantize(vq.encode(t_img))
 			action_tensor = torch.tensor(action, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
-			_, pred, prop, h = self.lstm.forward(self.current_latent.unsqueeze(0).to(self.vq.device), action_tensor.to(self.vq.device), self.current_prop.unsqueeze(0).to(self.vq.device), self.hidden_state)
-		self.step_count += 1
+			_, _, _, _, h = self.lstm.forward(self.current_latent.unsqueeze(0).to(self.vq.device), action_tensor.to(self.vq.device), self.current_prop.unsqueeze(0).to(self.vq.device), self.hidden_state)
 		self.hidden_state = h
-		self.current_latent = pred[:, -1, :, :, :]
-		self.current_prop = prop[:, -1, :]
-		print(f'Shape of current predicition {pred.shape}')
+		self.current_latent = lat
+		self.current_prop = torch.tensor(prop, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+		self.current_render = img
 		representation = torch.cat([self.current_latent.flatten(), self.hidden_state[0].flatten()], dim=-1).cpu().numpy()
-		terminated = self.step_count >= self.max_len
+		# print(f'Latent shape: {self.current_latent.shape}')
+		# print(f'Current prop shape: {self.current_prop.shape}')
 		return (
 			representation, # based on world model
-			10, # from world model
+			reward, # from world model
 			terminated, # For now only based on step count
-			False, # Truncated
+			truncated, # Truncated
 			{} # empty dict
 		)
 	
@@ -115,17 +128,75 @@ class PusherDreamEnv(gym.Env):
 		self.env.close()
 		pass
 
+def generate_data(n_sample=1000, policy=None, training_set=True):
+	base_images_path = 'data/pusher/imgs' + '_tr/' if training_set else '_vl/'
+	action_path = 'data/pusher/action_reward_data' + '_tr.json/' if training_set else '_vl.json/'
+	actions = []
+	rewards = []
+	proprioception = []
+	action_path = 'data/pusher/action_reward_data.json'
+	if os.path.exists(action_path):
+		with open(action_path, "r") as f:
+			f = json.load(f)
+			actions = f['actions']
+			rewards = f['reward']
+			proprioception = f['proprioception']
+	if not os.path.exists(base_images_path):
+		os.makedirs(base_images_path)
+		
+	env = PusherWrapEnv(vq, lstm)
+	obs, _ = env.reset()
+	step = 0
+	episode = len(actions)
+	print(episode)
+	actions.append([])
+	rewards.append([])
+	proprioception.append([env.current_prop.tolist()])
+	env.current_render.save(base_images_path + f'img_{episode}_{step}.png')
+	for i in range(n_sample):
+		step += 1
+		if policy == None:
+			action = env.action_space.sample()
+		else:
+			action, _ = policy.predict(obs, deterministic=False)
+		obs, rew, ter, trunc, _ = env.step(action)
+		proprioception[-1].append(env.current_prop.tolist())
+		actions[-1].append(action.tolist())
+		env.current_render.save(base_images_path + f'img_{episode}_{step}.png')
+		rewards[-1].append(float(rew))
+		if ter or trunc:
+			obs, info = env.reset()
+			if i < n_sample - 1:
+				episode += 1
+				step = 0
+				proprioception.append([env.current_prop.tolist()])
+				env.current_render.save(base_images_path + f'img_{episode}_{step}.png')
+				actions.append([])
+				rewards.append([])
+	with open(action_path, "w") as f:
+		json.dump(
+			{
+				"actions": actions,
+				"reward": rewards,
+				"proprioception": proprioception
+			},
+			f,
+			indent=4
+		)
+
 if __name__ == "__main__":
 	SMOOTH = False
 	KL = False
 	vq = load_vq_vae(PUSHER, 64, 16, 4, True, SMOOTH, best_device())
 	lstm = load_lstm_quantized(PUSHER, vq, best_device(), 1024, SMOOTH, True, KL)
-	env = PusherDreamEnv(vq, lstm, 18, 3)
+	env = PusherWrapEnv(vq, lstm)
 	env.reset()
 	env.render()
 	done = False
 	total_reward = 0
 	step_count = 0
+	generate_data()
+	exit()
 	while not done:
 		action = env.action_space.sample()  # random action
 		observation, reward, terminated, truncated, info = env.step(action)
