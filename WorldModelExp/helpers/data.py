@@ -66,6 +66,12 @@ def make_img_dataloader(data_dir=None, images=None, batch_size=64, test_split=0.
 	val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 	return train_loader, val_loader
 
+def make_image_dataloader_safe(data_dir:str, traininig:bool, batch_size:int=256) -> DataLoader:
+	data_dir = data_dir + '_tr/' if traininig else '_vl/'
+	print(f'Creating dataloaded from {data_dir}')
+	dataset = PNGDataset(path=data_dir)
+	dataloader = DataLoader(dataset, batch_size, shuffle=True, num_workers=4)
+
 class PNGMultiViewDataset(Dataset):
 	'''
 	Custom Dataset for loading multi-view PNG images from a directory
