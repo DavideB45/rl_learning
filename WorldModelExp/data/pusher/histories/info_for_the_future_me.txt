@@ -1,3 +1,5 @@
+Regarding the vq:
+
 in no_smoothings ci sono i test che ho fatto prima di introdurre lo smoothing;
 possono essere considerati vecchi dato che non c'è una componente importante
 in questi test i valori di ricostruzione potrebbero essere migliori perché per qualche 
@@ -13,3 +15,9 @@ con l'aggiunta della penalizzazione la ricostruzione migliorava
 
 Risultato: la smoothness sembra non avere effetti negativi neanche se la facciamo pesare 10
 Il che è molto interessante, devo rifare il vq vincente per fare un confronto di ricostruzione
+
+Regarding the rest:
+72 just not enough up to date to be useful
+2318 same as above
+2318_smooth smoothing on lstmc
+2318_smooth_reg smoothing on regression
