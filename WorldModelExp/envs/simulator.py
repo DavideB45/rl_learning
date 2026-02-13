@@ -17,13 +17,6 @@ from helpers.model_loader import load_vq_vae, load_lstm_quantized
 from helpers.general import best_device
 from global_var import PUSHER
 
-# The only thing that changes between PseudoDreamEnv and DreamEnv is that
-# PseudoDreamEnv uses the real environment to get the reward and done signal
-# while DreamEnv uses only the world model to simulate everything
-# so only the step and render functions changes
-# (this could be refactored to avoid code duplication, but for clarity we keep them separate)
-# TODO: a nice idea can be a boolean flag in the init function to switch between the two modes
-
 class PusherDreamEnv(gym.Env):
 	"""
 	Completely simulated environment using the VAE and MDRNN models
@@ -32,7 +25,7 @@ class PusherDreamEnv(gym.Env):
 	"""
 
 
-	def __init__(self, vq:VQVAE=None, lstm:LSTMQuantized=None, sequence_length=10):
+	def __init__(self, vq:VQVAE=None, lstm:LSTMQuantized=None, sequence_length=10, max_ep=30):
 		super(PusherDreamEnv, self).__init__()
 		self.max_len = 100
 

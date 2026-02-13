@@ -20,9 +20,8 @@ from global_var import PUSHER
 
 class PusherWrapEnv(gym.Env):
 	"""
-	Completely simulated environment using the VAE and MDRNN models
-	The starting state is obtained from the real environment
-	Then the environment is simulated using only the world model
+	This environemt is a wrapper of the real environment used at inference time
+	Since the agent can't do inference directly on the data coming from the environment
 	"""
 
 
@@ -130,11 +129,10 @@ class PusherWrapEnv(gym.Env):
 
 def generate_data(n_sample=1000, policy=None, training_set=True):
 	base_images_path = 'data/pusher/imgs' + '_tr/' if training_set else '_vl/'
-	action_path = 'data/pusher/action_reward_data' + '_tr.json/' if training_set else '_vl.json/'
+	action_path = 'data/pusher/action_reward_data' + '_tr.json' if training_set else '_vl.json'
 	actions = []
 	rewards = []
 	proprioception = []
-	action_path = 'data/pusher/action_reward_data.json'
 	if os.path.exists(action_path):
 		with open(action_path, "r") as f:
 			f = json.load(f)
@@ -151,7 +149,7 @@ def generate_data(n_sample=1000, policy=None, training_set=True):
 	print(episode)
 	actions.append([])
 	rewards.append([])
-	proprioception.append([env.current_prop.tolist()])
+	proprioception.append([env.current_prop.flatten().tolist()])
 	env.current_render.save(base_images_path + f'img_{episode}_{step}.png')
 	for i in range(n_sample):
 		step += 1
@@ -160,7 +158,7 @@ def generate_data(n_sample=1000, policy=None, training_set=True):
 		else:
 			action, _ = policy.predict(obs, deterministic=False)
 		obs, rew, ter, trunc, _ = env.step(action)
-		proprioception[-1].append(env.current_prop.tolist())
+		proprioception[-1].append(env.current_prop.flatten().tolist())
 		actions[-1].append(action.tolist())
 		env.current_render.save(base_images_path + f'img_{episode}_{step}.png')
 		rewards[-1].append(float(rew))
@@ -169,7 +167,7 @@ def generate_data(n_sample=1000, policy=None, training_set=True):
 			if i < n_sample - 1:
 				episode += 1
 				step = 0
-				proprioception.append([env.current_prop.tolist()])
+				proprioception.append([env.current_prop.flatten().tolist()])
 				env.current_render.save(base_images_path + f'img_{episode}_{step}.png')
 				actions.append([])
 				rewards.append([])
@@ -195,8 +193,6 @@ if __name__ == "__main__":
 	done = False
 	total_reward = 0
 	step_count = 0
-	generate_data()
-	exit()
 	while not done:
 		action = env.action_space.sample()  # random action
 		observation, reward, terminated, truncated, info = env.step(action)
