@@ -12,7 +12,7 @@ sys.path.insert(1, os.path.join(sys.path[0], '../'))
 
 from vae.vqVae import VQVAE
 from dynamics.lstm import LSTMQuantized
-from helpers.data import make_sequence_dataloaders
+from helpers.data import make_seq_dataloader_safe
 from helpers.model_loader import load_vq_vae, load_lstm_quantized
 from helpers.general import best_device
 from global_var import PUSHER
@@ -46,7 +46,7 @@ class PusherDreamEnv(gym.Env):
 		)
 		self.step_count = 0
 
-		self.data, _ = make_sequence_dataloaders(PUSHER['data_dir'], self.vq, seq_len=sequence_length, test_split=0.2, batch_size=1, max_ep=max_ep)
+		self.data = make_seq_dataloader_safe(PUSHER['data_dir'], self.vq, seq_len=sequence_length, traininig=False, batch_size=1, max_ep=max_ep)
 
 	def reset(self, seed=None, options=None):
 		'''

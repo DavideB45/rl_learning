@@ -1,6 +1,7 @@
 from torch.optim import Adam
 from stable_baselines3.ppo.policies import MlpPolicy
 from stable_baselines3.ppo import PPO
+from stable_baselines3.common.evaluation import evaluate_policy
 
 import os
 import sys
@@ -30,15 +31,32 @@ SEQ_LEN		= 23
 INIT_LEN	= 18
 # (Smooth is not present becasuse needs to be consistent with the vq)
 
+# PPO RELATED PARAMETERS
+N_ROUNDS	= 10 # number of training iterations to do
+
 colors = ['\033[91m', '\033[95m', '\033[92m', '\033[93m', '\033[96m']
 reset = '\033[0m'
 
 def main():
 	vq = load_vq_vae(PUSHER, CODEBOOK_S, CODE_DEPTH, LATENT_DIM, USE_EMA, SMOOTH, best_device()) # ricaricare ogni volta per tenere il meglio
 	lstm = load_lstm_quantized(PUSHER, vq, best_device(), HIDDEN_DIM, SMOOTH, True, USE_KL) # ricaricare ogni volta per tenere il meglio
-	dream_env = PusherDreamEnv(vq, lstm, 10, 200000) # da cambiare come vengono caricati i dati
-	model = PPO(MlpPolicy, dream_env, verbose=0) # deve essere cambiato ogni volta?
-	tune_vq()
+	wrapper_env = PusherWrapEnv(vq, lstm)
+	dream_env = PusherDreamEnv(vq, lstm, 10, 200000)
+	agent = PPO(MlpPolicy, dream_env, verbose=1) # deve essere cambiato ogni volta?
+	print(evaluate_policy(agent, wrapper_env))
+	agent = tune_agent(agent)
+
+	for round in range(N_ROUNDS):
+		print(f'Training round: {round}')
+		generate_data(20000, policy=agent, training_set=True)
+		generate_data(2000, policy=agent, training_set=False)
+		vq = tune_vq(vq)
+		lstm = tune_lstm(lstm)
+		dream_env = PusherDreamEnv(vq, lstm, 10, 200000)
+		agent = PPO.load(PUSHER['models'] + 'agent', dream_env)
+		agent = tune_agent(agent)
+
+
 
 def tune_vq(model:VQVAE, num_epocs:int=20, lr:float=1e-3, wd:float=1e-3, reg:float=2) -> VQVAE:
 	tr = make_image_dataloader_safe(PUSHER['img_dir'], traininig=True)
@@ -84,7 +102,10 @@ def tune_lstm(model: LSTMQClass, encoder: VQVAE, num_epocs:int=20, lr:float=5e-5
 				break
 	return load_lstm_quantized(PUSHER, encoder, best_device(), HIDDEN_DIM, SMOOTH, True, USE_KL)
 	
-
+def tune_agent(agent:PPO, num_steps:200000) -> PPO:
+	agent.learn(num_steps)
+	agent.save(PUSHER['models'] + 'agent')
+	return agent
 
 
 
