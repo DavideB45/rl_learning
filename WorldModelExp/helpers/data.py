@@ -62,9 +62,6 @@ def make_img_dataloader(data_dir=None, images=None, batch_size=64, test_split=0.
 	train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=2)
 	test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=2)
 	return train_loader, test_loader
-	train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-	val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
-	return train_loader, val_loader
 
 def make_image_dataloader_safe(data_dir:str, traininig:bool, batch_size:int=256) -> DataLoader:
 	data_dir = data_dir + '_tr/' if traininig else '_vl/'
@@ -114,11 +111,13 @@ class TrasitionDataset(Dataset):
 	'''
 	Custom Dataset for loading images-action
 	'''
-	def __init__(self, path:str, seq_len:int=10, vq:VQVAE=None, max_ep:int=1000000):
+	def __init__(self, path:str, seq_len:int=10, vq:VQVAE=None, max_ep:int=1000000, training:bool=True):
 		super().__init__()
-		act = json.load(open(path + "/action_reward_data.json", 'r'))["actions"]
-		prop = json.load(open(path + "/action_reward_data.json", 'r'))["proprioception"]
-		rew = json.load(open(path + "/action_reward_data.json", 'r'))["reward"]
+		apr_path = path + '/action_reward_data' + '_tr.json' if training else '_vl.json'
+		apr_json = json.load(open(apr_path, 'r'))
+		act = apr_json["actions"]
+		prop = apr_json["proprioception"]
+		rew = apr_json["reward"]
 		latents = []
 		to_tensor_ = torchvision.transforms.ToTensor()
 		self.max_ep = max_ep
@@ -140,7 +139,7 @@ class TrasitionDataset(Dataset):
 				# 	for k in range(lat_batch.shape[0]):
 				# 		latents[-1].append(lat_batch[k].clone())
 				for i in range(len(act[episode]) + 1):
-					im_path = path + f"imgs/img_{episode}_{i}.png"
+					im_path = path + f"imgs{'_tr/' if training else '_vl/'}/img_{episode}_{i}.png"
 					img = Image.open(im_path).convert('RGB')
 					img = to_tensor_(img).unsqueeze(0).to(vq.device)
 					_, latent, _ = vq.quantize(vq.encode(img))
@@ -190,8 +189,7 @@ def make_sequence_dataloaders(path:str, vq:VQVAE ,seq_len:int=10, test_split:flo
 	train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=2)
 	test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=2)
 	return train_loader, test_loader
-	generator = torch.Generator().manual_seed(42)
-	train_dataset, test_dataset = random_split(dataset, [train_size, test_size], generator=generator)
-	train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
-	test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=4)
-	return train_loader, test_loader
+
+def make_seq_dataloader_safe(data_dir:str, vq:VQVAE, traininig:bool, seq_len:int=10, batch_size:int=64, max_ep=99999999999) -> DataLoader:
+	dataset = TrasitionDataset(path=data_dir, seq_len=seq_len, vq=vq, max_ep=max_ep, training=traininig)
+	dataloader = DataLoader(dataset, batch_size, shuffle=True, num_workers=4)
