@@ -33,7 +33,8 @@ class PNGDataset(Dataset):
 	
 	def __getitem__(self, idx):
 		if self.from_disk:
-			img = Image.open(self.files[idx]).convert('RGB')
+			with Image.open(self.files[idx]) as im:
+				img = im.convert('RGB')
 			img = self.transform(img)
 			return img
 		else:
@@ -67,7 +68,7 @@ def make_image_dataloader_safe(data_dir:str, traininig:bool, batch_size:int=256)
 	data_dir = data_dir + ('_tr/' if traininig else '_vl/')
 	print(f'Creating dataloaded from {data_dir}')
 	dataset = PNGDataset(path=data_dir)
-	dataloader = DataLoader(dataset, batch_size, shuffle=True, num_workers=4)
+	dataloader = DataLoader(dataset, batch_size, shuffle=True, num_workers=2)
 	return dataloader
 
 class PNGMultiViewDataset(Dataset):
@@ -115,10 +116,11 @@ class TrasitionDataset(Dataset):
 	def __init__(self, path:str, seq_len:int=10, vq:VQVAE=None, max_ep:int=1000000, training:bool=True):
 		super().__init__()
 		apr_path = path + '/action_reward_data' + ('_tr.json' if training else '_vl.json')
-		apr_json = json.load(open(apr_path, 'r'))
-		act = apr_json["actions"]
-		prop = apr_json["proprioception"]
-		rew = apr_json["reward"]
+		with open(apr_path, 'r') as f:
+			apr_json = json.load(f)
+			act = apr_json["actions"]
+			prop = apr_json["proprioception"]
+			rew = apr_json["reward"]
 		latents = []
 		to_tensor_ = torchvision.transforms.ToTensor()
 		self.max_ep = max_ep
@@ -141,7 +143,8 @@ class TrasitionDataset(Dataset):
 				# 		latents[-1].append(lat_batch[k].clone())
 				for i in range(len(act[episode]) + 1):
 					im_path = path + f"imgs{'_tr/' if training else '_vl/'}/img_{episode}_{i}.png"
-					img = Image.open(im_path).convert('RGB')
+					with Image.open(im_path) as im:
+						img = im.convert('RGB')
 					img = to_tensor_(img).unsqueeze(0).to(vq.device)
 					_, latent, _ = vq.quantize(vq.encode(img))
 					latent = latent.detach().squeeze(0).clone().cpu()
@@ -193,5 +196,5 @@ def make_sequence_dataloaders(path:str, vq:VQVAE ,seq_len:int=10, test_split:flo
 
 def make_seq_dataloader_safe(data_dir:str, vq:VQVAE, traininig:bool, seq_len:int=10, batch_size:int=64, max_ep=99999999999) -> DataLoader:
 	dataset = TrasitionDataset(path=data_dir, seq_len=seq_len, vq=vq, max_ep=max_ep, training=traininig)
-	dataloader = DataLoader(dataset, batch_size, shuffle=True, num_workers=4)
+	dataloader = DataLoader(dataset, batch_size, shuffle=True, num_workers=2)
 	return dataloader

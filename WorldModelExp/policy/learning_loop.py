@@ -2,6 +2,7 @@ from torch.optim import Adam
 from stable_baselines3.ppo.policies import MlpPolicy
 from stable_baselines3.ppo import PPO
 from stable_baselines3.common.evaluation import evaluate_policy
+import time
 
 import os
 import sys
@@ -18,7 +19,7 @@ from envs.simulator import PusherDreamEnv
 from envs.wrapper import PusherWrapEnv, generate_data
 
 # VAE RELATED PARAMETERS
-SMOOTH 		= False
+SMOOTH 		= True
 LATENT_DIM	= 4
 CODE_DEPTH	= 16
 CODEBOOK_S	= 64
@@ -38,26 +39,31 @@ colors = ['\033[91m', '\033[95m', '\033[92m', '\033[93m', '\033[96m']
 reset = '\033[0m'
 
 def main():
+
+	start_time = time.time()
 	vq = load_vq_vae(PUSHER, CODEBOOK_S, CODE_DEPTH, LATENT_DIM, USE_EMA, SMOOTH, best_device()) # ricaricare ogni volta per tenere il meglio
 	lstm = load_lstm_quantized(PUSHER, vq, best_device(), HIDDEN_DIM, SMOOTH, True, USE_KL) # ricaricare ogni volta per tenere il meglio
 	generate_data(vq, lstm, 10000, policy=None, training_set=True)
-	generate_data(vq, lstm, 200, policy=None, training_set=False)
+	generate_data(vq, lstm, 1000, policy=None, training_set=False)
 	wrapper_env = PusherWrapEnv(vq, lstm)
-	dream_env = PusherDreamEnv(vq, lstm, 10, 200000)
-	agent = PPO(MlpPolicy, dream_env, verbose=1) # deve essere cambiato ogni volta?
+	dream_env = PusherDreamEnv(vq, lstm, 10, 100000)
+	agent = PPO(MlpPolicy, dream_env, verbose=0) # deve essere cambiato ogni volta?
 	agent = tune_agent(agent)
 	print(evaluate_policy(agent, wrapper_env))
 
+	print(f"\033[1;31m--- {time.strftime('%H:%M:%S', time.gmtime(time.time()-start_time))} ---\033[0m")
 	for round in range(N_ROUNDS):
 		print(f'Training round: {round}')
 		generate_data(vq, lstm, 10000, policy=agent, training_set=True)
-		generate_data(vq, lstm, 200, policy=agent, training_set=False)
-		vq = tune_vq(vq, 20)
-		lstm = tune_lstm(lstm, vq, 20)
-		dream_env = PusherDreamEnv(vq, lstm, 10, 200000)
+		generate_data(vq, lstm, 1000, policy=agent, training_set=False)
+		vq = tune_vq(vq, 5)
+		lstm = tune_lstm(lstm, vq, 5)
+		dream_env = PusherDreamEnv(vq, lstm, 10, 100000)
 		agent = PPO.load(PUSHER['models'] + 'agent', dream_env)
 		agent = tune_agent(agent)
 		print(evaluate_policy(agent, wrapper_env))
+		print(f"\033[1;31m--- {time.strftime('%H:%M:%S', time.gmtime(time.time()-start_time))} ---\033[0m")
+
 
 
 
