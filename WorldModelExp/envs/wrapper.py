@@ -6,6 +6,7 @@ import torch
 import torchvision.transforms as T
 import json
 from PIL import Image
+from stable_baselines3.ppo import PPO
 
 import os
 import sys
@@ -188,13 +189,15 @@ if __name__ == "__main__":
 	vq = load_vq_vae(PUSHER, 64, 16, 4, True, SMOOTH, best_device())
 	lstm = load_lstm_quantized(PUSHER, vq, best_device(), 1024, SMOOTH, True, KL)
 	env = PusherWrapEnv(vq, lstm)
-	env.reset()
+	observation, _ = env.reset()
 	env.render()
 	done = False
 	total_reward = 0
 	step_count = 0
+	agent = PPO.load(PUSHER['models'] + 'agent', env)
 	while not done:
-		action = env.action_space.sample()  # random action
+		#action = env.action_space.sample()  # random action
+		action, _states = agent.predict(observation, deterministic=False)
 		observation, reward, terminated, truncated, info = env.step(action)
 		print(f"Step {step_count} Reward: {reward}")
 		env.render()

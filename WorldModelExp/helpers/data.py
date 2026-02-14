@@ -68,6 +68,7 @@ def make_image_dataloader_safe(data_dir:str, traininig:bool, batch_size:int=256)
 	print(f'Creating dataloaded from {data_dir}')
 	dataset = PNGDataset(path=data_dir)
 	dataloader = DataLoader(dataset, batch_size, shuffle=True, num_workers=4)
+	return dataloader
 
 class PNGMultiViewDataset(Dataset):
 	'''
@@ -193,3 +194,4 @@ def make_sequence_dataloaders(path:str, vq:VQVAE ,seq_len:int=10, test_split:flo
 def make_seq_dataloader_safe(data_dir:str, vq:VQVAE, traininig:bool, seq_len:int=10, batch_size:int=64, max_ep=99999999999) -> DataLoader:
 	dataset = TrasitionDataset(path=data_dir, seq_len=seq_len, vq=vq, max_ep=max_ep, training=traininig)
 	dataloader = DataLoader(dataset, batch_size, shuffle=True, num_workers=4)
+	return dataloader
