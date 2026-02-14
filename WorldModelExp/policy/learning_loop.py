@@ -32,7 +32,7 @@ INIT_LEN	= 18
 # (Smooth is not present becasuse needs to be consistent with the vq)
 
 # PPO RELATED PARAMETERS
-N_ROUNDS	= 10 # number of training iterations to do
+N_ROUNDS	= 20 # number of training iterations to do
 
 colors = ['\033[91m', '\033[95m', '\033[92m', '\033[93m', '\033[96m']
 reset = '\033[0m'
@@ -40,23 +40,24 @@ reset = '\033[0m'
 def main():
 	vq = load_vq_vae(PUSHER, CODEBOOK_S, CODE_DEPTH, LATENT_DIM, USE_EMA, SMOOTH, best_device()) # ricaricare ogni volta per tenere il meglio
 	lstm = load_lstm_quantized(PUSHER, vq, best_device(), HIDDEN_DIM, SMOOTH, True, USE_KL) # ricaricare ogni volta per tenere il meglio
-	generate_data(vq, lstm, 2000, policy=None, training_set=True)
+	generate_data(vq, lstm, 10000, policy=None, training_set=True)
 	generate_data(vq, lstm, 200, policy=None, training_set=False)
 	wrapper_env = PusherWrapEnv(vq, lstm)
 	dream_env = PusherDreamEnv(vq, lstm, 10, 200000)
 	agent = PPO(MlpPolicy, dream_env, verbose=1) # deve essere cambiato ogni volta?
-	print(evaluate_policy(agent, wrapper_env))
 	agent = tune_agent(agent)
+	print(evaluate_policy(agent, wrapper_env))
 
 	for round in range(N_ROUNDS):
 		print(f'Training round: {round}')
-		generate_data(vq, lstm, 2000, policy=agent, training_set=True)
+		generate_data(vq, lstm, 10000, policy=agent, training_set=True)
 		generate_data(vq, lstm, 200, policy=agent, training_set=False)
-		vq = tune_vq(vq, 10)
-		lstm = tune_lstm(lstm, 10)
+		vq = tune_vq(vq, 20)
+		lstm = tune_lstm(lstm, vq, 20)
 		dream_env = PusherDreamEnv(vq, lstm, 10, 200000)
 		agent = PPO.load(PUSHER['models'] + 'agent', dream_env)
 		agent = tune_agent(agent)
+		print(evaluate_policy(agent, wrapper_env))
 
 
 
@@ -92,7 +93,7 @@ def tune_lstm(model: LSTMQClass, encoder: VQVAE, num_epocs:int=20, lr:float=5e-5
 	no_improvements = 0
 	for epoch in range(num_epocs):
 		err_tr = model.train_rwm_style(tr, optim, init_len=INIT_LEN, err_decay=0.99, useKL=USE_KL)
-		err_vl = model.train_rwm_style(vl, init_len=INIT_LEN, err_decay=0.99, useKL=USE_KL)
+		err_vl = model.eval_rwm_style(vl, init_len=INIT_LEN, err_decay=0.99, useKL=USE_KL)
 		if err_vl['ce'] < best_val_loss:
 			print_lstm_analytics(epoch, err_tr, err_vl)
 			best_val_loss = err_vl['ce']
@@ -104,7 +105,7 @@ def tune_lstm(model: LSTMQClass, encoder: VQVAE, num_epocs:int=20, lr:float=5e-5
 				break
 	return load_lstm_quantized(PUSHER, encoder, best_device(), HIDDEN_DIM, SMOOTH, True, USE_KL)
 	
-def tune_agent(agent:PPO, num_steps=200000) -> PPO:
+def tune_agent(agent:PPO, num_steps=20000) -> PPO:
 	agent.learn(num_steps)
 	agent.save(PUSHER['models'] + 'agent')
 	return agent

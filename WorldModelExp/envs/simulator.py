@@ -46,7 +46,7 @@ class PusherDreamEnv(gym.Env):
 		)
 		self.step_count = 0
 
-		self.data = make_seq_dataloader_safe(PUSHER['data_dir'], self.vq, seq_len=sequence_length, traininig=False, batch_size=1, max_ep=max_ep)
+		self.data = make_seq_dataloader_safe(PUSHER['data_dir'], self.vq, seq_len=sequence_length, traininig=True, batch_size=1, max_ep=max_ep)
 
 	def reset(self, seed=None, options=None):
 		'''
