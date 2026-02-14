@@ -6,7 +6,7 @@ import os
 import sys
 sys.path.insert(1, os.path.join(sys.path[0], '../'))
 
-from helpers.data import make_sequence_dataloaders, make_image_dataloader_safe
+from helpers.data import make_image_dataloader_safe, make_seq_dataloader_safe
 from helpers.model_loader import load_vq_vae, load_lstm_quantized, save_vq_vae, save_lstm_quantized
 from helpers.general import best_device
 from global_var import PUSHER
@@ -26,6 +26,8 @@ USE_EMA		= True
 # LSTM RELATED PARAMETERS
 USE_KL 		= False
 HIDDEN_DIM	= 1024
+SEQ_LEN		= 23
+INIT_LEN	= 18
 # (Smooth is not present becasuse needs to be consistent with the vq)
 
 colors = ['\033[91m', '\033[95m', '\033[92m', '\033[93m', '\033[96m']
@@ -61,7 +63,50 @@ def tune_vq(model:VQVAE, num_epocs:int=20, lr:float=1e-3, wd:float=1e-3, reg:flo
 			print(f"{color}  Train {key}: {tr_loss[key]:.4f}, Val {key}: {val_loss[key]:.4f}{reset}")
 	# this last line is needed: if the loop terminated with early stopping we still use the best model found
 	return load_vq_vae(PUSHER, CODEBOOK_S, CODE_DEPTH, LATENT_DIM, USE_EMA, SMOOTH, best_device())
+
+def tune_lstm(model: LSTMQClass, encoder: VQVAE, num_epocs:int=20, lr:float=5e-5, wd=5e-4) -> LSTMQClass:
+	tr = make_seq_dataloader_safe(PUSHER['data_dir'], encoder, True, SEQ_LEN)
+	vl = make_seq_dataloader_safe(PUSHER['data_dir'], encoder, False, SEQ_LEN)
+	optim = Adam(model.parameters(), lr=lr, weight_decay=wd)
+	best_val_loss = float('inf')
+	no_improvements = 0
+	for epoch in range(num_epocs):
+		err_tr = model.train_rwm_style(tr, optim, init_len=INIT_LEN, err_decay=0.99, useKL=USE_KL)
+		err_vl = model.train_rwm_style(vl, init_len=INIT_LEN, err_decay=0.99, useKL=USE_KL)
+		if err_vl['ce'] < best_val_loss:
+			print_lstm_analytics(epoch, err_tr, err_vl)
+			best_val_loss = err_vl['ce']
+			no_improvements = 0
+			save_lstm_quantized(PUSHER, model, cl=True, kl=USE_KL, tf=SMOOTH)
+		else:
+			no_improvements += 1
+			if no_improvements >= 5:
+				break
+	return load_lstm_quantized(PUSHER, encoder, best_device(), HIDDEN_DIM, SMOOTH, True, USE_KL)
 	
+
+
+
+
+PURPLE = "\033[95m"; YELLOW = "\033[93m"; BLUE   = "\033[94m"; RESET  = "\033[0m"
+COL1, COL2, COL3 = 15, 12, 12
+WIDTH = COL1 + COL2 + COL3 + 6
+def row(c1, c2="", c3="", color=RESET):
+    print(color + f"| {c1:<{COL1}} | {c2:>{COL2}} | {c3:>{COL3}} |" + RESET)
+def sep(color=RESET):
+    print(color + "+" + "-"*(WIDTH+2) + "+" + RESET)
+def print_lstm_analytics(epoch, err_tr, err_vl):
+	sep(PURPLE)
+	row(f"Epoch {epoch}", "Train", "Val", YELLOW)
+	sep(PURPLE)
+	row("CE",        f"{err_tr['ce']:.4f}",        f"{err_vl['ce']:.4f}",        BLUE)
+	row("Prop MSE",  f"{err_tr['prop_mse']:.4f}",  f"{err_vl['prop_mse']:.4f}",  BLUE)
+	row("Rew MSE", f"{err_tr['reward_mse']:.4f}",  f"{err_vl['reward_mse']:.4f}",  BLUE)
+	row("Accuracy",  f"{err_tr['acc']*100:.1f}%",  f"{err_vl['acc']*100:.1f}%",  PURPLE)
+	row("MSE",       f"{err_tr['mse']:.4f}",       f"{err_vl['mse']:.4f}",       PURPLE)
+	row("First Acc", f"{err_tr['first_acc']*100:.1f}%",
+					f"{err_vl['first_acc']*100:.1f}%", PURPLE)
+	sep(PURPLE)
 
 if __name__ == '__main__':
 	main()
