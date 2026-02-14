@@ -71,10 +71,10 @@ class PusherWrapEnv(gym.Env):
 		prop, _ = self.env.reset(seed=seed)
 		img = self.get_img()
 		with torch.no_grad():
-			t_img = self.to_tensor_(img).unsqueeze(0).to(vq.device)
-			_, lat, _ = vq.quantize(vq.encode(t_img))
-			h = (torch.zeros(1, 1, self.lstm.hidden_dim).to(vq.device),
-				 torch.zeros(1, 1, self.lstm.hidden_dim).to(vq.device))
+			t_img = self.to_tensor_(img).unsqueeze(0).to(self.vq.device)
+			_, lat, _ = self.vq.quantize(self.vq.encode(t_img))
+			h = (torch.zeros(1, 1, self.lstm.hidden_dim).to(self.vq.device),
+				 torch.zeros(1, 1, self.lstm.hidden_dim).to(self.vq.device))
 		self.hidden_state = h
 		self.current_latent = lat
 		self.current_prop = torch.tensor(prop[:17], dtype=torch.float32).unsqueeze(0).unsqueeze(0)
@@ -94,8 +94,8 @@ class PusherWrapEnv(gym.Env):
 		prop = prop[0:17]
 		img = self.get_img()
 		with torch.no_grad():
-			t_img = self.to_tensor_(img).unsqueeze(0).to(vq.device)
-			_, lat, _ = vq.quantize(vq.encode(t_img))
+			t_img = self.to_tensor_(img).unsqueeze(0).to(self.vq.device)
+			_, lat, _ = self.vq.quantize(self.vq.encode(t_img))
 			action_tensor = torch.tensor(action, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
 			_, _, _, _, h = self.lstm.forward(self.current_latent.unsqueeze(0).to(self.vq.device), action_tensor.to(self.vq.device), self.current_prop.unsqueeze(0).to(self.vq.device), self.hidden_state)
 		self.hidden_state = h
@@ -127,9 +127,9 @@ class PusherWrapEnv(gym.Env):
 		self.env.close()
 		pass
 
-def generate_data(n_sample=1000, policy=None, training_set=True):
-	base_images_path = 'data/pusher/imgs' + '_tr/' if training_set else '_vl/'
-	action_path = 'data/pusher/action_reward_data' + '_tr.json' if training_set else '_vl.json'
+def generate_data(vq, lstm, n_sample=1000, policy=None, training_set=True):
+	base_images_path = 'data/pusher/imgs' + ('_tr/' if training_set else '_vl/')
+	action_path = 'data/pusher/action_reward_data' + ('_tr.json' if training_set else '_vl.json')
 	actions = []
 	rewards = []
 	proprioception = []

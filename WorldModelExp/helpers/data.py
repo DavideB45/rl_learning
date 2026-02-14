@@ -23,7 +23,7 @@ class PNGDataset(Dataset):
 		
 		self.from_disk = images is None
 
-		self.files = glob.glob(path + '/img_*.png') if self.from_disk else []
+		self.files = glob.glob(path + 'img_*.png') if self.from_disk else []
 		self.transform = torchvision.transforms.ToTensor()
 		self.data = []
 		self.images = images
@@ -64,7 +64,7 @@ def make_img_dataloader(data_dir=None, images=None, batch_size=64, test_split=0.
 	return train_loader, test_loader
 
 def make_image_dataloader_safe(data_dir:str, traininig:bool, batch_size:int=256) -> DataLoader:
-	data_dir = data_dir + '_tr/' if traininig else '_vl/'
+	data_dir = data_dir + ('_tr/' if traininig else '_vl/')
 	print(f'Creating dataloaded from {data_dir}')
 	dataset = PNGDataset(path=data_dir)
 	dataloader = DataLoader(dataset, batch_size, shuffle=True, num_workers=4)
@@ -113,7 +113,7 @@ class TrasitionDataset(Dataset):
 	'''
 	def __init__(self, path:str, seq_len:int=10, vq:VQVAE=None, max_ep:int=1000000, training:bool=True):
 		super().__init__()
-		apr_path = path + '/action_reward_data' + '_tr.json' if training else '_vl.json'
+		apr_path = path + '/action_reward_data' + ('_tr.json' if training else '_vl.json')
 		apr_json = json.load(open(apr_path, 'r'))
 		act = apr_json["actions"]
 		prop = apr_json["proprioception"]

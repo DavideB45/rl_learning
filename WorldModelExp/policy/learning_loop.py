@@ -40,6 +40,8 @@ reset = '\033[0m'
 def main():
 	vq = load_vq_vae(PUSHER, CODEBOOK_S, CODE_DEPTH, LATENT_DIM, USE_EMA, SMOOTH, best_device()) # ricaricare ogni volta per tenere il meglio
 	lstm = load_lstm_quantized(PUSHER, vq, best_device(), HIDDEN_DIM, SMOOTH, True, USE_KL) # ricaricare ogni volta per tenere il meglio
+	generate_data(vq, lstm, 2000, policy=None, training_set=True)
+	generate_data(vq, lstm, 200, policy=None, training_set=False)
 	wrapper_env = PusherWrapEnv(vq, lstm)
 	dream_env = PusherDreamEnv(vq, lstm, 10, 200000)
 	agent = PPO(MlpPolicy, dream_env, verbose=1) # deve essere cambiato ogni volta?
@@ -48,10 +50,10 @@ def main():
 
 	for round in range(N_ROUNDS):
 		print(f'Training round: {round}')
-		generate_data(20000, policy=agent, training_set=True)
-		generate_data(2000, policy=agent, training_set=False)
-		vq = tune_vq(vq)
-		lstm = tune_lstm(lstm)
+		generate_data(vq, lstm, 2000, policy=agent, training_set=True)
+		generate_data(vq, lstm, 200, policy=agent, training_set=False)
+		vq = tune_vq(vq, 10)
+		lstm = tune_lstm(lstm, 10)
 		dream_env = PusherDreamEnv(vq, lstm, 10, 200000)
 		agent = PPO.load(PUSHER['models'] + 'agent', dream_env)
 		agent = tune_agent(agent)
@@ -102,7 +104,7 @@ def tune_lstm(model: LSTMQClass, encoder: VQVAE, num_epocs:int=20, lr:float=5e-5
 				break
 	return load_lstm_quantized(PUSHER, encoder, best_device(), HIDDEN_DIM, SMOOTH, True, USE_KL)
 	
-def tune_agent(agent:PPO, num_steps:200000) -> PPO:
+def tune_agent(agent:PPO, num_steps=200000) -> PPO:
 	agent.learn(num_steps)
 	agent.save(PUSHER['models'] + 'agent')
 	return agent
