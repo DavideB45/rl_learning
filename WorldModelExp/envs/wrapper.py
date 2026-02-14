@@ -7,6 +7,7 @@ import torchvision.transforms as T
 import json
 from PIL import Image
 from stable_baselines3.ppo import PPO
+from tqdm import tqdm
 
 import os
 import sys
@@ -152,7 +153,7 @@ def generate_data(vq, lstm, n_sample=1000, policy=None, training_set=True):
 	rewards.append([])
 	proprioception.append([env.current_prop.flatten().tolist()])
 	env.current_render.save(base_images_path + f'img_{episode}_{step}.png')
-	for i in range(n_sample):
+	for i in tqdm(range(n_sample)):
 		step += 1
 		if policy == None:
 			action = env.action_space.sample()

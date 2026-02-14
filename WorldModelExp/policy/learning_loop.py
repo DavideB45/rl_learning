@@ -33,7 +33,7 @@ INIT_LEN	= 18
 # (Smooth is not present becasuse needs to be consistent with the vq)
 
 # PPO RELATED PARAMETERS
-N_ROUNDS	= 20 # number of training iterations to do
+N_ROUNDS	= 10 # number of training iterations to do
 
 colors = ['\033[91m', '\033[95m', '\033[92m', '\033[93m', '\033[96m']
 reset = '\033[0m'
@@ -54,8 +54,8 @@ def main():
 	print(f"\033[1;31m--- {time.strftime('%H:%M:%S', time.gmtime(time.time()-start_time))} ---\033[0m")
 	for round in range(N_ROUNDS):
 		print(f'Training round: {round}')
-		generate_data(vq, lstm, 10000, policy=agent, training_set=True)
-		generate_data(vq, lstm, 1000, policy=agent, training_set=False)
+		generate_data(vq, lstm, 20000, policy=agent, training_set=True)
+		generate_data(vq, lstm, 2000, policy=agent, training_set=False)
 		vq = tune_vq(vq, 5)
 		lstm = tune_lstm(lstm, vq, 5)
 		dream_env = PusherDreamEnv(vq, lstm, 10, 100000)
