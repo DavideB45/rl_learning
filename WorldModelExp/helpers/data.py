@@ -124,8 +124,8 @@ class TrasitionDataset(Dataset):
 		self.max_ep = max_ep
 		with torch.no_grad():
 			print(f"Encoding dataset from {path} using VQ-VAE...")
-			#for episode in tqdm(range(min(len(act), max_ep)), 'Encoding Dataset'):
-			for episode in range(min(len(act), max_ep)):
+			for episode in tqdm(range(min(len(act), max_ep)), 'Encoding Dataset'):
+			#for episode in range(min(len(act), max_ep)):
 				latents.append([])
 				# for i in range(0, len(act[episode]) + 1, 64): # to save memory process 16 images at a time
 				# 	batch_imgs = []
@@ -152,8 +152,8 @@ class TrasitionDataset(Dataset):
 		self.proprioception = []
 		self.reward = []
 		print(f"Creating sequences of length {seq_len}...")
-		#for episode in tqdm(range(min(len(act), max_ep)), 'Defining Dataset'):
-		for episode in range(min(len(act), max_ep)):
+		for episode in tqdm(range(min(len(act), max_ep)), 'Defining Dataset'):
+		#for episode in range(min(len(act), max_ep)):
 			for i in range(0, len(act[episode]) - seq_len + 1, 1):
 				l = []
 				p = []

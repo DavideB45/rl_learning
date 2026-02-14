@@ -105,8 +105,8 @@ def tune_lstm(model: LSTMQClass, encoder: VQVAE, num_epocs:int=20, lr:float=5e-5
 				break
 	return load_lstm_quantized(PUSHER, encoder, best_device(), HIDDEN_DIM, SMOOTH, True, USE_KL)
 	
-def tune_agent(agent:PPO, num_steps=20000) -> PPO:
-	agent.learn(num_steps)
+def tune_agent(agent:PPO, num_steps=100000) -> PPO:
+	agent.learn(num_steps, progress_bar=True)
 	agent.save(PUSHER['models'] + 'agent')
 	return agent
 
