@@ -185,7 +185,7 @@ def generate_data(vq, lstm, n_sample=1000, policy=None, training_set=True):
 		)
 
 if __name__ == "__main__":
-	SMOOTH = False
+	SMOOTH = True
 	KL = False
 	vq = load_vq_vae(PUSHER, 64, 16, 4, True, SMOOTH, best_device())
 	lstm = load_lstm_quantized(PUSHER, vq, best_device(), 1024, SMOOTH, True, KL)

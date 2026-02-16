@@ -4,6 +4,7 @@ import gymnasium as gym
 from gymnasium import spaces
 import torch
 import torchvision.transforms as T
+from stable_baselines3.ppo import PPO
 from PIL import Image
 
 import os
@@ -27,7 +28,7 @@ class PusherDreamEnv(gym.Env):
 
 	def __init__(self, vq:VQVAE=None, lstm:LSTMQuantized=None, sequence_length=10, max_ep=30):
 		super(PusherDreamEnv, self).__init__()
-		self.max_len = 100
+		self.max_len = 20 # this way the model will learn only 20 steps, hopefully in the end he will manage to merge his knowledge
 
 		self.vq = vq
 		self.vq.eval()
@@ -110,18 +111,20 @@ class PusherDreamEnv(gym.Env):
 		pass
 
 if __name__ == "__main__":
-	SMOOTH = False
+	SMOOTH = True
 	KL = False
 	vq = load_vq_vae(PUSHER, 64, 16, 4, True, SMOOTH, best_device())
 	lstm = load_lstm_quantized(PUSHER, vq, best_device(), 1024, SMOOTH, True, KL)
-	env = PusherDreamEnv(vq, lstm, 18, 3)
-	env.reset()
+	env = PusherDreamEnv(vq, lstm, 18, 5)
+	observation, _ = env.reset()
 	env.render()
 	done = False
 	total_reward = 0
 	step_count = 0
+	agent = PPO.load(PUSHER['models'] + 'agent', env)
 	while not done:
-		action = env.action_space.sample()  # random action
+		#action = env.action_space.sample()  # random action
+		action, _states = agent.predict(observation, deterministic=True)
 		observation, reward, terminated, truncated, info = env.step(action)
 		print(f"Step {step_count} Reward: {reward}")
 		env.render()

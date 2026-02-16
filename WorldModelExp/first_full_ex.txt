@@ -1,0 +1,761 @@
+(rl_env) davideborghini@iMac-di-Davide WorldModelExp % python policy/learning_loop.py
+Loading vq_4_16_64_True_smoothTrue.pth
+0
+100%|█████████████████████████████████████████████████████████████████████████████████████████| 10000/10000 [02:35<00:00, 64.34it/s]
+0
+100%|███████████████████████████████████████████████████████████████████████████████████████████| 1000/1000 [00:16<00:00, 59.31it/s]
+Encoding dataset from data/pusher/ using VQ-VAE...
+Encoding Dataset: 100%|███████████████████████████████████████████████████████████████████████████| 100/100 [00:34<00:00,  2.92it/s]
+Creating sequences of length 10...
+Defining Dataset: 100%|██████████████████████████████████████████████████████████████████████████| 100/100 [00:00<00:00, 358.96it/s]
+ 100% ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100,352/100,000  [ 0:11:49 < 0:00:00 , 151 it/s ]
+/Users/davideborghini/miniconda3/envs/rl_env/lib/python3.10/site-packages/stable_baselines3/common/evaluation.py:70: UserWarning: Evaluation environment is not wrapped with a ``Monitor`` wrapper. This may result in reporting modified episode lengths and rewards, if other wrappers happen to modify these. Consider wrapping environment first with ``Monitor`` wrapper.
+  warnings.warn(
+(np.float64(-59.14818539917469), np.float64(9.64127326877404))
+--- 00:15:35 ---
+Training round: 0
+100
+100%|█████████████████████████████████████████████████████████████████████████████████████████| 20000/20000 [05:04<00:00, 65.78it/s]
+10
+100%|███████████████████████████████████████████████████████████████████████████████████████████| 2000/2000 [00:30<00:00, 65.95it/s]
+Creating dataloaded from data/pusher/imgs_tr/
+Creating dataloaded from data/pusher/imgs_vl/
+------------------------- 01/5 -------------------------
+  New best model saved!
+  Train total_loss: 4.6730, Val total_loss: 3.6637
+  Train recon_loss: 3.6535, Val recon_loss: 2.8229
+  Train commit_loss: 0.8352, Val commit_loss: 0.6674
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0922, Val flatness_loss: 0.0867
+------------------------- 02/5 -------------------------
+  New best model saved!
+  Train total_loss: 3.7366, Val total_loss: 3.5574
+  Train recon_loss: 2.8869, Val recon_loss: 2.7707
+  Train commit_loss: 0.7119, Val commit_loss: 0.6257
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0689, Val flatness_loss: 0.0805
+------------------------- 03/5 -------------------------
+  New best model saved!
+  Train total_loss: 3.5046, Val total_loss: 3.4654
+  Train recon_loss: 2.7141, Val recon_loss: 2.7309
+  Train commit_loss: 0.6658, Val commit_loss: 0.5843
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0623, Val flatness_loss: 0.0751
+------------------------- 04/5 -------------------------
+  New best model saved!
+  Train total_loss: 3.3488, Val total_loss: 3.4572
+  Train recon_loss: 2.6012, Val recon_loss: 2.7104
+  Train commit_loss: 0.6305, Val commit_loss: 0.6052
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0585, Val flatness_loss: 0.0708
+------------------------- 05/5 -------------------------
+  Train total_loss: 3.2209, Val total_loss: 3.4717
+  Train recon_loss: 2.5078, Val recon_loss: 2.7513
+  Train commit_loss: 0.6022, Val commit_loss: 0.5837
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0555, Val flatness_loss: 0.0683
+Loading vq_4_16_64_True_smoothTrue.pth
+Encoding dataset from data/pusher/ using VQ-VAE...
+Encoding Dataset: 100%|███████████████████████████████████████████████████████████████████████████| 300/300 [01:20<00:00,  3.73it/s]
+Creating sequences of length 23...
+Defining Dataset: 100%|██████████████████████████████████████████████████████████████████████████| 300/300 [00:00<00:00, 301.09it/s]
+Encoding dataset from data/pusher/ using VQ-VAE...
+Encoding Dataset: 100%|█████████████████████████████████████████████████████████████████████████████| 30/30 [00:07<00:00,  3.78it/s]
+Creating sequences of length 23...
+Defining Dataset: 100%|████████████████████████████████████████████████████████████████████████████| 30/30 [00:00<00:00, 416.75it/s]
++-----------------------------------------------+
+| Epoch 0         |        Train |          Val |
++-----------------------------------------------+
+| CE              |       1.2787 |       1.3374 |
+| Prop MSE        |       0.5850 |       0.6646 |
+| Rew MSE         |       0.0303 |       0.0333 |
+| Accuracy        |        56.6% |        54.4% |
+| MSE             |       7.2678 |       7.4717 |
+| First Acc       |        62.4% |        61.8% |
++-----------------------------------------------+
++-----------------------------------------------+
+| Epoch 1         |        Train |          Val |
++-----------------------------------------------+
+| CE              |       1.0544 |       1.3161 |
+| Prop MSE        |       0.4568 |       0.6641 |
+| Rew MSE         |       0.0251 |       0.0332 |
+| Accuracy        |        63.2% |        55.3% |
+| MSE             |       5.5779 |       7.2882 |
+| First Acc       |        68.6% |        63.1% |
++-----------------------------------------------+
+Encoding dataset from data/pusher/ using VQ-VAE...
+Encoding Dataset: 100%|███████████████████████████████████████████████████████████████████████████| 300/300 [01:14<00:00,  4.00it/s]
+Creating sequences of length 10...
+Defining Dataset: 100%|██████████████████████████████████████████████████████████████████████████| 300/300 [00:00<00:00, 457.43it/s]
+ 100% ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100,352/100,000  [ 0:11:26 < 0:00:00 , 143 it/s ]
+(np.float64(-59.33412235379219), np.float64(4.865189083965311))
+--- 00:47:52 ---
+Training round: 1
+300
+100%|█████████████████████████████████████████████████████████████████████████████████████████| 20000/20000 [04:59<00:00, 66.73it/s]
+30
+100%|███████████████████████████████████████████████████████████████████████████████████████████| 2000/2000 [00:30<00:00, 66.63it/s]
+Creating dataloaded from data/pusher/imgs_tr/
+Creating dataloaded from data/pusher/imgs_vl/
+------------------------- 01/5 -------------------------
+  New best model saved!
+  Train total_loss: 4.1862, Val total_loss: 3.9672
+  Train recon_loss: 3.3460, Val recon_loss: 3.1587
+  Train commit_loss: 0.6613, Val commit_loss: 0.6288
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0895, Val flatness_loss: 0.0899
+------------------------- 02/5 -------------------------
+  Train total_loss: 3.8014, Val total_loss: 4.2358
+  Train recon_loss: 3.0148, Val recon_loss: 3.4365
+  Train commit_loss: 0.6298, Val commit_loss: 0.6345
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0784, Val flatness_loss: 0.0824
+------------------------- 03/5 -------------------------
+  New best model saved!
+  Train total_loss: 3.6462, Val total_loss: 3.8095
+  Train recon_loss: 2.8883, Val recon_loss: 3.0372
+  Train commit_loss: 0.6096, Val commit_loss: 0.6084
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0742, Val flatness_loss: 0.0820
+------------------------- 04/5 -------------------------
+  Train total_loss: 3.5455, Val total_loss: 3.8784
+  Train recon_loss: 2.8098, Val recon_loss: 3.1509
+  Train commit_loss: 0.5926, Val commit_loss: 0.5705
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0715, Val flatness_loss: 0.0785
+------------------------- 05/5 -------------------------
+  New best model saved!
+  Train total_loss: 3.4581, Val total_loss: 3.7184
+  Train recon_loss: 2.7381, Val recon_loss: 2.9806
+  Train commit_loss: 0.5803, Val commit_loss: 0.5874
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0699, Val flatness_loss: 0.0752
+Loading vq_4_16_64_True_smoothTrue.pth
+Encoding dataset from data/pusher/ using VQ-VAE...
+Encoding Dataset: 100%|███████████████████████████████████████████████████████████████████████████| 500/500 [01:58<00:00,  4.24it/s]
+Creating sequences of length 23...
+Defining Dataset: 100%|██████████████████████████████████████████████████████████████████████████| 500/500 [00:01<00:00, 282.62it/s]
+Encoding dataset from data/pusher/ using VQ-VAE...
+Encoding Dataset: 100%|█████████████████████████████████████████████████████████████████████████████| 50/50 [00:11<00:00,  4.18it/s]
+Creating sequences of length 23...
+Defining Dataset: 100%|████████████████████████████████████████████████████████████████████████████| 50/50 [00:00<00:00, 446.19it/s]
++-----------------------------------------------+
+| Epoch 0         |        Train |          Val |
++-----------------------------------------------+
+| CE              |       1.1530 |       1.2780 |
+| Prop MSE        |       0.4561 |       0.6169 |
+| Rew MSE         |       0.0223 |       0.0275 |
+| Accuracy        |        60.7% |        56.5% |
+| MSE             |       6.0673 |       6.8529 |
+| First Acc       |        65.7% |        62.5% |
++-----------------------------------------------+
++-----------------------------------------------+
+| Epoch 2         |        Train |          Val |
++-----------------------------------------------+
+| CE              |       0.9189 |       1.2728 |
+| Prop MSE        |       0.3571 |       0.6096 |
+| Rew MSE         |       0.0171 |       0.0281 |
+| Accuracy        |        67.7% |        57.1% |
+| MSE             |       4.4425 |       6.5603 |
+| First Acc       |        72.3% |        63.7% |
++-----------------------------------------------+
+Encoding dataset from data/pusher/ using VQ-VAE...
+Encoding Dataset: 100%|███████████████████████████████████████████████████████████████████████████| 500/500 [02:02<00:00,  4.09it/s]
+Creating sequences of length 10...
+Defining Dataset: 100%|██████████████████████████████████████████████████████████████████████████| 500/500 [00:01<00:00, 435.51it/s]
+ 100% ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100,352/100,000  [ 0:11:22 < 0:00:00 , 142 it/s ]
+(np.float64(-63.30916254222393), np.float64(5.772530182689611))
+--- 01:25:51 ---
+Training round: 2
+500
+100%|█████████████████████████████████████████████████████████████████████████████████████████| 20000/20000 [04:55<00:00, 67.62it/s]
+50
+100%|███████████████████████████████████████████████████████████████████████████████████████████| 2000/2000 [00:29<00:00, 67.51it/s]
+Creating dataloaded from data/pusher/imgs_tr/
+Creating dataloaded from data/pusher/imgs_vl/
+------------------------- 01/5 -------------------------
+  New best model saved!
+  Train total_loss: 4.5184, Val total_loss: 4.4715
+  Train recon_loss: 3.6104, Val recon_loss: 3.6311
+  Train commit_loss: 0.7195, Val commit_loss: 0.6366
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0943, Val flatness_loss: 0.1019
+------------------------- 02/5 -------------------------
+  New best model saved!
+  Train total_loss: 4.1692, Val total_loss: 4.2873
+  Train recon_loss: 3.2688, Val recon_loss: 3.4069
+  Train commit_loss: 0.7227, Val commit_loss: 0.6950
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0888, Val flatness_loss: 0.0927
+------------------------- 03/5 -------------------------
+  New best model saved!
+  Train total_loss: 4.0231, Val total_loss: 4.1771
+  Train recon_loss: 3.1482, Val recon_loss: 3.3223
+  Train commit_loss: 0.7038, Val commit_loss: 0.6720
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0855, Val flatness_loss: 0.0914
+------------------------- 04/5 -------------------------
+  New best model saved!
+  Train total_loss: 3.9248, Val total_loss: 4.1238
+  Train recon_loss: 3.0699, Val recon_loss: 3.3120
+  Train commit_loss: 0.6892, Val commit_loss: 0.6374
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0828, Val flatness_loss: 0.0872
+------------------------- 05/5 -------------------------
+  New best model saved!
+  Train total_loss: 3.8498, Val total_loss: 4.0500
+  Train recon_loss: 3.0112, Val recon_loss: 3.2368
+  Train commit_loss: 0.6756, Val commit_loss: 0.6396
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0815, Val flatness_loss: 0.0868
+Loading vq_4_16_64_True_smoothTrue.pth
+Encoding dataset from data/pusher/ using VQ-VAE...
+Encoding Dataset: 100%|███████████████████████████████████████████████████████████████████████████| 700/700 [02:47<00:00,  4.19it/s]
+Creating sequences of length 23...
+Defining Dataset: 100%|██████████████████████████████████████████████████████████████████████████| 700/700 [00:02<00:00, 268.28it/s]
+Encoding dataset from data/pusher/ using VQ-VAE...
+Encoding Dataset: 100%|█████████████████████████████████████████████████████████████████████████████| 70/70 [00:16<00:00,  4.20it/s]
+Creating sequences of length 23...
+Defining Dataset: 100%|████████████████████████████████████████████████████████████████████████████| 70/70 [00:00<00:00, 450.06it/s]
++-----------------------------------------------+
+| Epoch 0         |        Train |          Val |
++-----------------------------------------------+
+| CE              |       1.0488 |       1.2233 |
+| Prop MSE        |       0.3707 |       0.5509 |
+| Rew MSE         |       0.0180 |       0.0263 |
+| Accuracy        |        64.3% |        58.8% |
+| MSE             |       5.6152 |       6.8416 |
+| First Acc       |        68.6% |        64.6% |
++-----------------------------------------------+
+Encoding dataset from data/pusher/ using VQ-VAE...
+Encoding Dataset: 100%|███████████████████████████████████████████████████████████████████████████| 700/700 [02:49<00:00,  4.12it/s]
+Creating sequences of length 10...
+Defining Dataset: 100%|██████████████████████████████████████████████████████████████████████████| 700/700 [00:01<00:00, 439.63it/s]
+ 100% ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100,352/100,000  [ 0:11:28 < 0:00:00 , 143 it/s ]
+(np.float64(-64.00953697860241), np.float64(4.825282618663186))
+--- 02:11:22 ---
+Training round: 3
+700
+100%|█████████████████████████████████████████████████████████████████████████████████████████| 20000/20000 [05:08<00:00, 64.87it/s]
+70
+100%|███████████████████████████████████████████████████████████████████████████████████████████| 2000/2000 [00:30<00:00, 64.83it/s]
+Creating dataloaded from data/pusher/imgs_tr/
+Creating dataloaded from data/pusher/imgs_vl/
+------------------------- 01/5 -------------------------
+  New best model saved!
+  Train total_loss: 4.0487, Val total_loss: 4.2301
+  Train recon_loss: 3.1538, Val recon_loss: 3.3671
+  Train commit_loss: 0.7016, Val commit_loss: 0.6762
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0966, Val flatness_loss: 0.0934
+------------------------- 02/5 -------------------------
+  New best model saved!
+  Train total_loss: 3.8707, Val total_loss: 4.1241
+  Train recon_loss: 3.0083, Val recon_loss: 3.2912
+  Train commit_loss: 0.6762, Val commit_loss: 0.6467
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0931, Val flatness_loss: 0.0931
+------------------------- 03/5 -------------------------
+  New best model saved!
+  Train total_loss: 3.7977, Val total_loss: 3.9990
+  Train recon_loss: 2.9536, Val recon_loss: 3.1779
+  Train commit_loss: 0.6617, Val commit_loss: 0.6462
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0912, Val flatness_loss: 0.0874
+------------------------- 04/5 -------------------------
+  Train total_loss: 3.7327, Val total_loss: 4.1489
+  Train recon_loss: 2.9035, Val recon_loss: 3.3465
+  Train commit_loss: 0.6508, Val commit_loss: 0.6147
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0892, Val flatness_loss: 0.0939
+------------------------- 05/5 -------------------------
+  Train total_loss: 3.6875, Val total_loss: 4.0059
+  Train recon_loss: 2.8741, Val recon_loss: 3.2325
+  Train commit_loss: 0.6384, Val commit_loss: 0.5975
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0875, Val flatness_loss: 0.0880
+Loading vq_4_16_64_True_smoothTrue.pth
+Encoding dataset from data/pusher/ using VQ-VAE...
+Encoding Dataset: 100%|███████████████████████████████████████████████████████████████████████████| 900/900 [03:37<00:00,  4.14it/s]
+Creating sequences of length 23...
+Defining Dataset: 100%|██████████████████████████████████████████████████████████████████████████| 900/900 [00:03<00:00, 260.58it/s]
+Encoding dataset from data/pusher/ using VQ-VAE...
+Encoding Dataset: 100%|█████████████████████████████████████████████████████████████████████████████| 90/90 [00:21<00:00,  4.20it/s]
+Creating sequences of length 23...
+Defining Dataset: 100%|████████████████████████████████████████████████████████████████████████████| 90/90 [00:00<00:00, 439.10it/s]
++-----------------------------------------------+
+| Epoch 0         |        Train |          Val |
++-----------------------------------------------+
+| CE              |       0.9833 |       1.1600 |
+| Prop MSE        |       0.3329 |       0.4805 |
+| Rew MSE         |       0.0168 |       0.0238 |
+| Accuracy        |        66.1% |        60.5% |
+| MSE             |       5.4931 |       6.9709 |
+| First Acc       |        70.1% |        65.8% |
++-----------------------------------------------+
++-----------------------------------------------+
+| Epoch 2         |        Train |          Val |
++-----------------------------------------------+
+| CE              |       0.8096 |       1.1557 |
+| Prop MSE        |       0.2757 |       0.4892 |
+| Rew MSE         |       0.0160 |       0.0272 |
+| Accuracy        |        71.4% |        61.2% |
+| MSE             |       4.2422 |       6.5827 |
+| First Acc       |        75.0% |        66.7% |
++-----------------------------------------------+
+Encoding dataset from data/pusher/ using VQ-VAE...
+Encoding Dataset: 100%|███████████████████████████████████████████████████████████████████████████| 900/900 [03:38<00:00,  4.12it/s]
+Creating sequences of length 10...
+Defining Dataset: 100%|██████████████████████████████████████████████████████████████████████████| 900/900 [00:02<00:00, 421.72it/s]
+ 100% ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100,352/100,000  [ 0:11:26 < 0:00:00 , 143 it/s ]
+(np.float64(-54.949486050009725), np.float64(3.5072020041235525))
+--- 03:04:24 ---
+Training round: 4
+900
+100%|█████████████████████████████████████████████████████████████████████████████████████████| 20000/20000 [05:10<00:00, 64.40it/s]
+90
+100%|███████████████████████████████████████████████████████████████████████████████████████████| 2000/2000 [00:30<00:00, 64.61it/s]
+Creating dataloaded from data/pusher/imgs_tr/
+Creating dataloaded from data/pusher/imgs_vl/
+------------------------- 01/5 -------------------------
+  New best model saved!
+  Train total_loss: 3.6845, Val total_loss: 3.8040
+  Train recon_loss: 2.8680, Val recon_loss: 3.0097
+  Train commit_loss: 0.6334, Val commit_loss: 0.6155
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0916, Val flatness_loss: 0.0894
+------------------------- 02/5 -------------------------
+  New best model saved!
+  Train total_loss: 3.5701, Val total_loss: 3.7521
+  Train recon_loss: 2.7808, Val recon_loss: 2.9616
+  Train commit_loss: 0.6178, Val commit_loss: 0.6336
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0857, Val flatness_loss: 0.0785
+------------------------- 03/5 -------------------------
+  New best model saved!
+  Train total_loss: 3.5094, Val total_loss: 3.6757
+  Train recon_loss: 2.7444, Val recon_loss: 2.9022
+  Train commit_loss: 0.6100, Val commit_loss: 0.6254
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0774, Val flatness_loss: 0.0741
+------------------------- 04/5 -------------------------
+  New best model saved!
+  Train total_loss: 3.4725, Val total_loss: 3.6508
+  Train recon_loss: 2.7248, Val recon_loss: 2.8970
+  Train commit_loss: 0.6011, Val commit_loss: 0.6097
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0733, Val flatness_loss: 0.0720
+------------------------- 05/5 -------------------------
+  New best model saved!
+  Train total_loss: 3.4370, Val total_loss: 3.6315
+  Train recon_loss: 2.7035, Val recon_loss: 2.8954
+  Train commit_loss: 0.5924, Val commit_loss: 0.5872
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0706, Val flatness_loss: 0.0745
+Loading vq_4_16_64_True_smoothTrue.pth
+Encoding dataset from data/pusher/ using VQ-VAE...
+Encoding Dataset: 100%|█████████████████████████████████████████████████████████████████████████| 1100/1100 [04:23<00:00,  4.18it/s]
+Creating sequences of length 23...
+Defining Dataset: 100%|████████████████████████████████████████████████████████████████████████| 1100/1100 [00:05<00:00, 214.57it/s]
+Encoding dataset from data/pusher/ using VQ-VAE...
+Encoding Dataset: 100%|███████████████████████████████████████████████████████████████████████████| 110/110 [00:26<00:00,  4.12it/s]
+Creating sequences of length 23...
+Defining Dataset: 100%|██████████████████████████████████████████████████████████████████████████| 110/110 [00:00<00:00, 424.55it/s]
++-----------------------------------------------+
+| Epoch 0         |        Train |          Val |
++-----------------------------------------------+
+| CE              |       0.9845 |       1.1714 |
+| Prop MSE        |       0.2806 |       0.4372 |
+| Rew MSE         |       0.0167 |       0.0239 |
+| Accuracy        |        65.8% |        60.0% |
+| MSE             |       4.9315 |       6.4698 |
+| First Acc       |        69.3% |        65.0% |
++-----------------------------------------------+
++-----------------------------------------------+
+| Epoch 1         |        Train |          Val |
++-----------------------------------------------+
+| CE              |       0.8557 |       1.1617 |
+| Prop MSE        |       0.2555 |       0.4349 |
+| Rew MSE         |       0.0169 |       0.0273 |
+| Accuracy        |        69.7% |        60.5% |
+| MSE             |       4.2024 |       6.3156 |
+| First Acc       |        73.2% |        65.8% |
++-----------------------------------------------+
+Encoding dataset from data/pusher/ using VQ-VAE...
+Encoding Dataset: 100%|█████████████████████████████████████████████████████████████████████████| 1100/1100 [04:25<00:00,  4.15it/s]
+Creating sequences of length 10...
+Defining Dataset: 100%|████████████████████████████████████████████████████████████████████████| 1100/1100 [00:02<00:00, 391.24it/s]
+ 100% ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100,352/100,000  [ 0:11:32 < 0:00:00 , 144 it/s ]
+(np.float64(-66.07135833799839), np.float64(5.300053167137145))
+--- 04:04:53 ---
+Training round: 5
+1100
+100%|█████████████████████████████████████████████████████████████████████████████████████████| 20000/20000 [05:06<00:00, 65.28it/s]
+110
+100%|███████████████████████████████████████████████████████████████████████████████████████████| 2000/2000 [00:30<00:00, 65.03it/s]
+Creating dataloaded from data/pusher/imgs_tr/
+Creating dataloaded from data/pusher/imgs_vl/
+------------------------- 01/5 -------------------------
+  New best model saved!
+  Train total_loss: 3.3248, Val total_loss: 3.4261
+  Train recon_loss: 2.6129, Val recon_loss: 2.7471
+  Train commit_loss: 0.5700, Val commit_loss: 0.5353
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0710, Val flatness_loss: 0.0718
+------------------------- 02/5 -------------------------
+  New best model saved!
+  Train total_loss: 3.2486, Val total_loss: 3.4093
+  Train recon_loss: 2.5550, Val recon_loss: 2.7196
+  Train commit_loss: 0.5571, Val commit_loss: 0.5512
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0683, Val flatness_loss: 0.0693
+------------------------- 03/5 -------------------------
+  Train total_loss: 3.2071, Val total_loss: 3.4542
+  Train recon_loss: 2.5279, Val recon_loss: 2.7346
+  Train commit_loss: 0.5461, Val commit_loss: 0.5909
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0666, Val flatness_loss: 0.0644
+------------------------- 04/5 -------------------------
+  New best model saved!
+  Train total_loss: 3.1787, Val total_loss: 3.3976
+  Train recon_loss: 2.5090, Val recon_loss: 2.7147
+  Train commit_loss: 0.5394, Val commit_loss: 0.5576
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0652, Val flatness_loss: 0.0626
+------------------------- 05/5 -------------------------
+  New best model saved!
+  Train total_loss: 3.1466, Val total_loss: 3.2943
+  Train recon_loss: 2.4894, Val recon_loss: 2.6567
+  Train commit_loss: 0.5298, Val commit_loss: 0.5083
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0637, Val flatness_loss: 0.0646
+Loading vq_4_16_64_True_smoothTrue.pth
+Encoding dataset from data/pusher/ using VQ-VAE...
+Encoding Dataset: 100%|█████████████████████████████████████████████████████████████████████████| 1300/1300 [05:19<00:00,  4.07it/s]
+Creating sequences of length 23...
+Defining Dataset: 100%|████████████████████████████████████████████████████████████████████████| 1300/1300 [00:05<00:00, 245.50it/s]
+Encoding dataset from data/pusher/ using VQ-VAE...
+Encoding Dataset: 100%|███████████████████████████████████████████████████████████████████████████| 130/130 [00:31<00:00,  4.07it/s]
+Creating sequences of length 23...
+Defining Dataset: 100%|██████████████████████████████████████████████████████████████████████████| 130/130 [00:01<00:00, 103.19it/s]
++-----------------------------------------------+
+| Epoch 0         |        Train |          Val |
++-----------------------------------------------+
+| CE              |       0.9120 |       1.1386 |
+| Prop MSE        |       0.2456 |       0.3942 |
+| Rew MSE         |       0.0166 |       0.0237 |
+| Accuracy        |        67.6% |        60.7% |
+| MSE             |       4.1651 |       5.8060 |
+| First Acc       |        71.3% |        65.9% |
++-----------------------------------------------+
++-----------------------------------------------+
+| Epoch 1         |        Train |          Val |
++-----------------------------------------------+
+| CE              |       0.8172 |       1.1277 |
+| Prop MSE        |       0.2267 |       0.3983 |
+| Rew MSE         |       0.0159 |       0.0239 |
+| Accuracy        |        70.7% |        61.5% |
+| MSE             |       3.6529 |       5.6717 |
+| First Acc       |        74.3% |        66.7% |
++-----------------------------------------------+
+Encoding dataset from data/pusher/ using VQ-VAE...
+Encoding Dataset: 100%|█████████████████████████████████████████████████████████████████████████| 1300/1300 [05:16<00:00,  4.10it/s]
+Creating sequences of length 10...
+Defining Dataset: 100%|████████████████████████████████████████████████████████████████████████| 1300/1300 [00:02<00:00, 489.37it/s]
+ 100% ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100,352/100,000  [ 0:11:26 < 0:00:00 , 144 it/s ]
+(np.float64(-78.71089098453521), np.float64(2.774198043906556))
+--- 05:12:52 ---
+Training round: 6
+1300
+100%|█████████████████████████████████████████████████████████████████████████████████████████| 20000/20000 [05:04<00:00, 65.71it/s]
+130
+100%|███████████████████████████████████████████████████████████████████████████████████████████| 2000/2000 [00:30<00:00, 65.07it/s]
+Creating dataloaded from data/pusher/imgs_tr/
+Creating dataloaded from data/pusher/imgs_vl/
+------------------------- 01/5 -------------------------
+  New best model saved!
+  Train total_loss: 3.0100, Val total_loss: 3.1164
+  Train recon_loss: 2.3767, Val recon_loss: 2.4825
+  Train commit_loss: 0.5055, Val commit_loss: 0.5058
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0639, Val flatness_loss: 0.0640
+------------------------- 02/5 -------------------------
+  New best model saved!
+  Train total_loss: 2.9534, Val total_loss: 3.0979
+  Train recon_loss: 2.3367, Val recon_loss: 2.4708
+  Train commit_loss: 0.4935, Val commit_loss: 0.4945
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0616, Val flatness_loss: 0.0663
+------------------------- 03/5 -------------------------
+  Train total_loss: 2.9274, Val total_loss: 3.1118
+  Train recon_loss: 2.3194, Val recon_loss: 2.4992
+  Train commit_loss: 0.4873, Val commit_loss: 0.4849
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0603, Val flatness_loss: 0.0638
+------------------------- 04/5 -------------------------
+  Train total_loss: 2.9021, Val total_loss: 3.1505
+  Train recon_loss: 2.3018, Val recon_loss: 2.5516
+  Train commit_loss: 0.4815, Val commit_loss: 0.4639
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0594, Val flatness_loss: 0.0675
+------------------------- 05/5 -------------------------
+  New best model saved!
+  Train total_loss: 2.8790, Val total_loss: 3.0840
+  Train recon_loss: 2.2877, Val recon_loss: 2.4618
+  Train commit_loss: 0.4743, Val commit_loss: 0.4916
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0585, Val flatness_loss: 0.0653
+Loading vq_4_16_64_True_smoothTrue.pth
+Encoding dataset from data/pusher/ using VQ-VAE...
+Encoding Dataset: 100%|█████████████████████████████████████████████████████████████████████████| 1500/1500 [05:57<00:00,  4.20it/s]
+Creating sequences of length 23...
+Defining Dataset: 100%|████████████████████████████████████████████████████████████████████████| 1500/1500 [00:06<00:00, 240.12it/s]
+Encoding dataset from data/pusher/ using VQ-VAE...
+Encoding Dataset: 100%|███████████████████████████████████████████████████████████████████████████| 150/150 [00:36<00:00,  4.10it/s]
+Creating sequences of length 23...
+Defining Dataset: 100%|██████████████████████████████████████████████████████████████████████████| 150/150 [00:00<00:00, 416.59it/s]
++-----------------------------------------------+
+| Epoch 0         |        Train |          Val |
++-----------------------------------------------+
+| CE              |       0.8619 |       1.0935 |
+| Prop MSE        |       0.2218 |       0.3688 |
+| Rew MSE         |       0.0155 |       0.0221 |
+| Accuracy        |        69.0% |        62.0% |
+| MSE             |       3.6466 |       5.2312 |
+| First Acc       |        73.0% |        67.5% |
++-----------------------------------------------+
+Encoding dataset from data/pusher/ using VQ-VAE...
+Encoding Dataset: 100%|█████████████████████████████████████████████████████████████████████████| 1500/1500 [06:09<00:00,  4.06it/s]
+Creating sequences of length 10...
+Defining Dataset: 100%|████████████████████████████████████████████████████████████████████████| 1500/1500 [00:03<00:00, 384.83it/s]
+ 100% ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100,352/100,000  [ 0:11:23 < 0:00:00 , 145 it/s ]
+(np.float64(-75.60739760398864), np.float64(4.2698699329946095))
+--- 06:28:22 ---
+Training round: 7
+1500
+100%|█████████████████████████████████████████████████████████████████████████████████████████| 20000/20000 [05:12<00:00, 64.08it/s]
+150
+100%|███████████████████████████████████████████████████████████████████████████████████████████| 2000/2000 [00:31<00:00, 64.03it/s]
+Creating dataloaded from data/pusher/imgs_tr/
+Creating dataloaded from data/pusher/imgs_vl/
+------------------------- 01/5 -------------------------
+  New best model saved!
+  Train total_loss: 2.7675, Val total_loss: 2.8218
+  Train recon_loss: 2.1895, Val recon_loss: 2.2642
+  Train commit_loss: 0.4604, Val commit_loss: 0.4355
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0588, Val flatness_loss: 0.0610
+------------------------- 02/5 -------------------------
+  Train total_loss: 2.7345, Val total_loss: 2.8622
+  Train recon_loss: 2.1648, Val recon_loss: 2.2791
+  Train commit_loss: 0.4552, Val commit_loss: 0.4612
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0573, Val flatness_loss: 0.0610
+------------------------- 03/5 -------------------------
+  Train total_loss: 2.7157, Val total_loss: 2.8710
+  Train recon_loss: 2.1531, Val recon_loss: 2.3156
+  Train commit_loss: 0.4499, Val commit_loss: 0.4324
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0563, Val flatness_loss: 0.0615
+------------------------- 04/5 -------------------------
+  New best model saved!
+  Train total_loss: 2.6926, Val total_loss: 2.7823
+  Train recon_loss: 2.1396, Val recon_loss: 2.2342
+  Train commit_loss: 0.4421, Val commit_loss: 0.4292
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0554, Val flatness_loss: 0.0595
+------------------------- 05/5 -------------------------
+  Train total_loss: 2.6865, Val total_loss: 2.7845
+  Train recon_loss: 2.1373, Val recon_loss: 2.2389
+  Train commit_loss: 0.4398, Val commit_loss: 0.4338
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0546, Val flatness_loss: 0.0559
+Loading vq_4_16_64_True_smoothTrue.pth
+Encoding dataset from data/pusher/ using VQ-VAE...
+Encoding Dataset: 100%|█████████████████████████████████████████████████████████████████████████| 1700/1700 [06:53<00:00,  4.11it/s]
+Creating sequences of length 23...
+Defining Dataset: 100%|████████████████████████████████████████████████████████████████████████| 1700/1700 [00:08<00:00, 202.35it/s]
+Encoding dataset from data/pusher/ using VQ-VAE...
+Encoding Dataset: 100%|███████████████████████████████████████████████████████████████████████████| 170/170 [00:41<00:00,  4.06it/s]
+Creating sequences of length 23...
+Defining Dataset: 100%|██████████████████████████████████████████████████████████████████████████| 170/170 [00:00<00:00, 409.87it/s]
++-----------------------------------------------+
+| Epoch 0         |        Train |          Val |
++-----------------------------------------------+
+| CE              |       0.8384 |       1.0573 |
+| Prop MSE        |       0.2066 |       0.3277 |
+| Rew MSE         |       0.0150 |       0.0211 |
+| Accuracy        |        69.9% |        63.3% |
+| MSE             |       3.4589 |       4.8404 |
+| First Acc       |        73.7% |        68.4% |
++-----------------------------------------------+
++-----------------------------------------------+
+| Epoch 1         |        Train |          Val |
++-----------------------------------------------+
+| CE              |       0.7637 |       1.0496 |
+| Prop MSE        |       0.1916 |       0.3305 |
+| Rew MSE         |       0.0147 |       0.0203 |
+| Accuracy        |        72.4% |        64.1% |
+| MSE             |       3.0919 |       4.8167 |
+| First Acc       |        76.0% |        69.3% |
++-----------------------------------------------+
+Encoding dataset from data/pusher/ using VQ-VAE...
+Encoding Dataset: 100%|█████████████████████████████████████████████████████████████████████████| 1700/1700 [06:54<00:00,  4.10it/s]
+Creating sequences of length 10...
+Defining Dataset: 100%|████████████████████████████████████████████████████████████████████████| 1700/1700 [00:05<00:00, 324.11it/s]
+ 100% ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100,352/100,000  [ 0:11:23 < 0:00:00 , 143 it/s ]
+(np.float64(-66.19262251257896), np.float64(3.9887234395518862))
+--- 07:51:59 ---
+Training round: 8
+1700
+100%|█████████████████████████████████████████████████████████████████████████████████████████| 20000/20000 [05:09<00:00, 64.72it/s]
+170
+100%|███████████████████████████████████████████████████████████████████████████████████████████| 2000/2000 [00:30<00:00, 65.16it/s]
+Creating dataloaded from data/pusher/imgs_tr/
+Creating dataloaded from data/pusher/imgs_vl/
+------------------------- 01/5 -------------------------
+  New best model saved!
+  Train total_loss: 2.6232, Val total_loss: 2.7183
+  Train recon_loss: 2.0851, Val recon_loss: 2.1814
+  Train commit_loss: 0.4304, Val commit_loss: 0.4259
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0539, Val flatness_loss: 0.0555
+------------------------- 02/5 -------------------------
+  Train total_loss: 2.5969, Val total_loss: 3.6400
+  Train recon_loss: 2.0667, Val recon_loss: 3.1221
+  Train commit_loss: 0.4247, Val commit_loss: 0.4014
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0527, Val flatness_loss: 0.0583
+------------------------- 03/5 -------------------------
+  New best model saved!
+  Train total_loss: 2.5845, Val total_loss: 2.6648
+  Train recon_loss: 2.0608, Val recon_loss: 2.1432
+  Train commit_loss: 0.4206, Val commit_loss: 0.4039
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0516, Val flatness_loss: 0.0589
+------------------------- 04/5 -------------------------
+  New best model saved!
+  Train total_loss: 2.5750, Val total_loss: 2.6479
+  Train recon_loss: 2.0551, Val recon_loss: 2.1298
+  Train commit_loss: 0.4189, Val commit_loss: 0.4151
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0505, Val flatness_loss: 0.0515
+------------------------- 05/5 -------------------------
+  New best model saved!
+  Train total_loss: 2.5560, Val total_loss: 2.6219
+  Train recon_loss: 2.0427, Val recon_loss: 2.1174
+  Train commit_loss: 0.4143, Val commit_loss: 0.4042
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0495, Val flatness_loss: 0.0501
+Loading vq_4_16_64_True_smoothTrue.pth
+Encoding dataset from data/pusher/ using VQ-VAE...
+Encoding Dataset: 100%|█████████████████████████████████████████████████████████████████████████| 1900/1900 [07:50<00:00,  4.04it/s]
+Creating sequences of length 23...
+Defining Dataset: 100%|████████████████████████████████████████████████████████████████████████| 1900/1900 [00:08<00:00, 235.86it/s]
+Encoding dataset from data/pusher/ using VQ-VAE...
+Encoding Dataset: 100%|███████████████████████████████████████████████████████████████████████████| 190/190 [00:47<00:00,  4.01it/s]
+Creating sequences of length 23...
+Defining Dataset: 100%|███████████████████████████████████████████████████████████████████████████| 190/190 [00:02<00:00, 88.43it/s]
++-----------------------------------------------+
+| Epoch 0         |        Train |          Val |
++-----------------------------------------------+
+| CE              |       0.8428 |       1.0521 |
+| Prop MSE        |       0.2009 |       0.3182 |
+| Rew MSE         |       0.0140 |       0.0195 |
+| Accuracy        |        69.5% |        63.3% |
+| MSE             |       3.3133 |       4.6940 |
+| First Acc       |        73.3% |        68.6% |
++-----------------------------------------------+
++-----------------------------------------------+
+| Epoch 1         |        Train |          Val |
++-----------------------------------------------+
+| CE              |       0.7623 |       1.0517 |
+| Prop MSE        |       0.1865 |       0.3179 |
+| Rew MSE         |       0.0136 |       0.0193 |
+| Accuracy        |        72.1% |        63.5% |
+| MSE             |       2.9294 |       4.5686 |
+| First Acc       |        75.8% |        69.1% |
++-----------------------------------------------+
+Encoding dataset from data/pusher/ using VQ-VAE...
+Encoding Dataset: 100%|█████████████████████████████████████████████████████████████████████████| 1900/1900 [07:43<00:00,  4.10it/s]
+Creating sequences of length 10...
+Defining Dataset: 100%|████████████████████████████████████████████████████████████████████████| 1900/1900 [00:05<00:00, 373.50it/s]
+ 100% ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100,352/100,000  [ 0:11:27 < 0:00:00 , 137 it/s ]
+(np.float64(-69.99831029772758), np.float64(3.188470682958434))
+--- 09:23:23 ---
+Training round: 9
+1900
+100%|█████████████████████████████████████████████████████████████████████████████████████████| 20000/20000 [05:07<00:00, 64.98it/s]
+190
+100%|███████████████████████████████████████████████████████████████████████████████████████████| 2000/2000 [00:30<00:00, 65.84it/s]
+Creating dataloaded from data/pusher/imgs_tr/
+Creating dataloaded from data/pusher/imgs_vl/
+------------------------- 01/5 -------------------------
+  New best model saved!
+  Train total_loss: 2.4867, Val total_loss: 2.5910
+  Train recon_loss: 1.9843, Val recon_loss: 2.0756
+  Train commit_loss: 0.4046, Val commit_loss: 0.4137
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0489, Val flatness_loss: 0.0508
+------------------------- 02/5 -------------------------
+  New best model saved!
+  Train total_loss: 2.4649, Val total_loss: 2.5894
+  Train recon_loss: 1.9713, Val recon_loss: 2.0900
+  Train commit_loss: 0.3985, Val commit_loss: 0.3857
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0476, Val flatness_loss: 0.0569
+------------------------- 03/5 -------------------------
+  New best model saved!
+  Train total_loss: 2.4385, Val total_loss: 2.5083
+  Train recon_loss: 1.9569, Val recon_loss: 2.0244
+  Train commit_loss: 0.3889, Val commit_loss: 0.3862
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0464, Val flatness_loss: 0.0488
+------------------------- 04/5 -------------------------
+  Train total_loss: 2.4344, Val total_loss: 2.5121
+  Train recon_loss: 1.9574, Val recon_loss: 2.0387
+  Train commit_loss: 0.3867, Val commit_loss: 0.3729
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0452, Val flatness_loss: 0.0502
+------------------------- 05/5 -------------------------
+  Train total_loss: 2.4233, Val total_loss: 2.5409
+  Train recon_loss: 1.9509, Val recon_loss: 2.0241
+  Train commit_loss: 0.3831, Val commit_loss: 0.4050
+  Train codes_usage: 1.0000, Val codes_usage: 1.0000
+  Train flatness_loss: 0.0446, Val flatness_loss: 0.0559
+Loading vq_4_16_64_True_smoothTrue.pth
+Encoding dataset from data/pusher/ using VQ-VAE...
+Encoding Dataset: 100%|█████████████████████████████████████████████████████████████████████████| 2100/2100 [08:17<00:00,  4.22it/s]
+Creating sequences of length 23...
+Defining Dataset: 100%|████████████████████████████████████████████████████████████████████████| 2100/2100 [00:10<00:00, 199.26it/s]
+Encoding dataset from data/pusher/ using VQ-VAE...
+Encoding Dataset: 100%|███████████████████████████████████████████████████████████████████████████| 210/210 [00:49<00:00,  4.24it/s]
+Creating sequences of length 23...
+Defining Dataset: 100%|██████████████████████████████████████████████████████████████████████████| 210/210 [00:00<00:00, 427.30it/s]
++-----------------------------------------------+
+| Epoch 0         |        Train |          Val |
++-----------------------------------------------+
+| CE              |       0.8095 |       1.0491 |
+| Prop MSE        |       0.1891 |       0.3003 |
+| Rew MSE         |       0.0128 |       0.0170 |
+| Accuracy        |        70.4% |        63.7% |
+| MSE             |       3.0223 |       4.2999 |
+| First Acc       |        74.3% |        69.0% |
++-----------------------------------------------+
++-----------------------------------------------+
+| Epoch 1         |        Train |          Val |
++-----------------------------------------------+
+| CE              |       0.7388 |       1.0449 |
+| Prop MSE        |       0.1773 |       0.2986 |
+| Rew MSE         |       0.0122 |       0.0179 |
+| Accuracy        |        72.8% |        63.9% |
+| MSE             |       2.6966 |       4.2398 |
+| First Acc       |        76.5% |        69.3% |
++-----------------------------------------------+
+Encoding dataset from data/pusher/ using VQ-VAE...
+Encoding Dataset: 100%|█████████████████████████████████████████████████████████████████████████| 2100/2100 [08:28<00:00,  4.13it/s]
+Creating sequences of length 10...
+Defining Dataset: 100%|████████████████████████████████████████████████████████████████████████| 2100/2100 [00:08<00:00, 251.44it/s]
+ 100% ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100,352/100,000  [ 0:11:19 < 0:00:00 , 144 it/s ]
+(np.float64(-57.55096469223499), np.float64(2.7848675323469014))
+--- 11:01:39 ---

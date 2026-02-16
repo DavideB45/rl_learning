@@ -178,7 +178,7 @@ class LSTMQClass(nn.Module):
 		latent = self.out_emb_fc(output) #(B, Seq_len, Width*Height*Classes)
 		latent_q = self.unflatten_rep(latent, input.size(1)) # Batch, Seq_len, Depth, Width, Height
 		prop_out = self.out_prop_fc(output.detach()) #(B, Seq_len, Prop_dim)
-		reward = self.out_reward(output.detach())
+		reward = self.out_reward(output)
 		
 		return latent, latent_q, prop_out, reward, h
 	

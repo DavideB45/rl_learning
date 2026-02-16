@@ -48,20 +48,21 @@ def main():
 	wrapper_env = PusherWrapEnv(vq, lstm)
 	dream_env = PusherDreamEnv(vq, lstm, 10, 100000)
 	agent = PPO(MlpPolicy, dream_env, verbose=0) # deve essere cambiato ogni volta?
-	agent = tune_agent(agent)
-	print(evaluate_policy(agent, wrapper_env))
+	agent = tune_agent(agent, num_steps=20000)
+	print(evaluate_policy(agent, wrapper_env, warn=False))
 
 	print(f"\033[1;31m--- {time.strftime('%H:%M:%S', time.gmtime(time.time()-start_time))} ---\033[0m")
 	for round in range(N_ROUNDS):
 		print(f'Training round: {round}')
 		generate_data(vq, lstm, 20000, policy=agent, training_set=True)
 		generate_data(vq, lstm, 2000, policy=agent, training_set=False)
-		vq = tune_vq(vq, 5)
-		lstm = tune_lstm(lstm, vq, 5)
+		if round % 2 == 1:
+			vq = tune_vq(vq, 2)
+		lstm = tune_lstm(lstm, vq, 2)
 		dream_env = PusherDreamEnv(vq, lstm, 10, 100000)
 		agent = PPO.load(PUSHER['models'] + 'agent', dream_env)
-		agent = tune_agent(agent)
-		print(evaluate_policy(agent, wrapper_env))
+		agent = tune_agent(agent, num_steps=200000)
+		print(evaluate_policy(agent, wrapper_env, warn=False))
 		print(f"\033[1;31m--- {time.strftime('%H:%M:%S', time.gmtime(time.time()-start_time))} ---\033[0m")
 
 
