@@ -59,6 +59,9 @@ def main():
 		#if round % 2 == 1:
 		vq = tune_vq(vq, 2)
 		lstm = tune_lstm(lstm, vq, 2)
+		del wrapper_env
+		wrapper_env = PusherWrapEnv(vq, lstm)
+		del dream_env
 		dream_env = PusherDreamEnv(vq, lstm, 10, 100000)
 		agent = PPO.load(PUSHER['models'] + 'agent', dream_env)
 		agent = tune_agent(agent, num_steps=200000)
@@ -90,6 +93,7 @@ def tune_vq(model:VQVAE, num_epocs:int=20, lr:float=1e-3, wd:float=1e-3, reg:flo
 			color = colors[i % len(colors)]
 			print(f"{color}  Train {key}: {tr_loss[key]:.4f}, Val {key}: {val_loss[key]:.4f}{reset}")
 	# this last line is needed: if the loop terminated with early stopping we still use the best model found
+	del model
 	return load_vq_vae(PUSHER, CODEBOOK_S, CODE_DEPTH, LATENT_DIM, USE_EMA, SMOOTH, best_device())
 
 def tune_lstm(model: LSTMQClass, encoder: VQVAE, num_epocs:int=20, lr:float=5e-5, wd=5e-4) -> LSTMQClass:
@@ -110,12 +114,15 @@ def tune_lstm(model: LSTMQClass, encoder: VQVAE, num_epocs:int=20, lr:float=5e-5
 			no_improvements += 1
 			if no_improvements >= 5:
 				break
+	del model
 	return load_lstm_quantized(PUSHER, encoder, best_device(), HIDDEN_DIM, SMOOTH, True, USE_KL)
 	
 def tune_agent(agent:PPO, num_steps=100000) -> PPO:
 	agent.learn(num_steps, progress_bar=True)
 	agent.save(PUSHER['models'] + 'agent')
-	return agent
+	del agent
+	return PPO.load(PUSHER['models'] + 'agent')
+
 
 
 
