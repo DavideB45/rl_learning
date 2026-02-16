@@ -33,7 +33,7 @@ INIT_LEN	= 18
 # (Smooth is not present becasuse needs to be consistent with the vq)
 
 # PPO RELATED PARAMETERS
-N_ROUNDS	= 10 # number of training iterations to do
+N_ROUNDS	= 12 # number of training iterations to do
 
 colors = ['\033[91m', '\033[95m', '\033[92m', '\033[93m', '\033[96m']
 reset = '\033[0m'
@@ -48,7 +48,7 @@ def main():
 	wrapper_env = PusherWrapEnv(vq, lstm)
 	dream_env = PusherDreamEnv(vq, lstm, 10, 100000)
 	agent = PPO(MlpPolicy, dream_env, verbose=0) # deve essere cambiato ogni volta?
-	agent = tune_agent(agent, num_steps=20000)
+	agent = tune_agent(agent, num_steps=200000)
 	print(evaluate_policy(agent, wrapper_env, warn=False))
 
 	print(f"\033[1;31m--- {time.strftime('%H:%M:%S', time.gmtime(time.time()-start_time))} ---\033[0m")
@@ -56,8 +56,8 @@ def main():
 		print(f'Training round: {round}')
 		generate_data(vq, lstm, 20000, policy=agent, training_set=True)
 		generate_data(vq, lstm, 2000, policy=agent, training_set=False)
-		if round % 2 == 1:
-			vq = tune_vq(vq, 2)
+		#if round % 2 == 1:
+		vq = tune_vq(vq, 2)
 		lstm = tune_lstm(lstm, vq, 2)
 		dream_env = PusherDreamEnv(vq, lstm, 10, 100000)
 		agent = PPO.load(PUSHER['models'] + 'agent', dream_env)

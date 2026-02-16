@@ -120,6 +120,7 @@ class PusherWrapEnv(gym.Env):
 			img = self.vq.decode(self.current_latent).squeeze(0).permute(1, 2, 0).cpu().numpy()
 			img = (img * 255).astype(np.uint8)
 			image = Image.fromarray(img)
+			image = self.get_img() 
 			image_resized = image.resize((256, 256))
 			cv2.imshow('DreamEnv', np.array(image_resized))
 			cv2.waitKey(100)
