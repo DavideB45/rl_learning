@@ -63,7 +63,6 @@ def main():
 		wrapper_env = PusherWrapEnv(vq, lstm)
 		del dream_env
 		dream_env = PusherDreamEnv(vq, lstm, 10, 100000)
-		agent = PPO.load(PUSHER['models'] + 'agent', dream_env)
 		agent = tune_agent(agent, num_steps=200000)
 		print(evaluate_policy(agent, wrapper_env, warn=False))
 		print(f"\033[1;31m--- {time.strftime('%H:%M:%S', time.gmtime(time.time()-start_time))} ---\033[0m")
