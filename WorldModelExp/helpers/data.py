@@ -171,7 +171,7 @@ class TrasitionDataset(Dataset):
 				
 
 	def __len__(self):
-		return min(len(self.actions), self.max_ep)
+		return len(self.actions)
 	
 	def __getitem__(self, idx):
 		return {
