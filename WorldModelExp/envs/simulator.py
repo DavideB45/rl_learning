@@ -28,7 +28,7 @@ class PusherDreamEnv(gym.Env):
 
 	def __init__(self, vq:VQVAE=None, lstm:LSTMQuantized=None, sequence_length=10, max_ep=30):
 		super(PusherDreamEnv, self).__init__()
-		self.max_len = 20 # this way the model will learn only 20 steps, hopefully in the end he will manage to merge his knowledge
+		self.max_len = 100 # this way the model will learn only 20 steps, hopefully in the end he will manage to merge his knowledge
 
 		self.vq = vq
 		self.vq.eval()
@@ -101,36 +101,48 @@ class PusherDreamEnv(gym.Env):
 			img = self.vq.decode(self.current_latent).squeeze(0).permute(1, 2, 0).cpu().numpy()
 			img = (img * 255).astype(np.uint8)
 			image = Image.fromarray(img)
-			image_resized = image.resize((256, 256))
+			image_resized = image.resize((512, 512), Image.NEAREST)
 			cv2.imshow('DreamEnv', np.array(image_resized))
 			cv2.waitKey(100)
-			return img
+			return image_resized
+			#return img
 		
 	def close(self):
 		self.env.close()
 		pass
 
 if __name__ == "__main__":
-	SMOOTH = True
+	SMOOTH = False
 	KL = False
 	vq = load_vq_vae(PUSHER, 64, 16, 4, True, SMOOTH, best_device())
 	lstm = load_lstm_quantized(PUSHER, vq, best_device(), 1024, SMOOTH, True, KL)
 	env = PusherDreamEnv(vq, lstm, 18, 5)
 	observation, _ = env.reset()
-	env.render()
+	frames = []
+	frames.append(env.render())
 	done = False
 	total_reward = 0
 	step_count = 0
 	agent = PPO.load(PUSHER['models'] + 'agent', env)
 	while not done:
-		#action = env.action_space.sample()  # random action
-		action, _states = agent.predict(observation, deterministic=True)
+		action = env.action_space.sample()  # random action
+		#action, _states = agent.predict(observation, deterministic=True)
 		observation, reward, terminated, truncated, info = env.step(action)
 		print(f"Step {step_count} Reward: {reward}")
-		env.render()
+		frames.append(env.render())
 		done = terminated or truncated
 		total_reward += reward
 		step_count += 1
 		if done:
 			print(f"Game over! Total Reward: {total_reward}")
 	env.close()
+
+	GIF_PATH = "output.gif"
+	FRAME_DURATION_MS = 50
+	# frames[0].save(
+    #     GIF_PATH,
+    #     save_all=True,
+    #     append_images=frames[1:],
+    #     loop=0,                    # 0 = loop forever
+    #     duration=FRAME_DURATION_MS,
+    # )
