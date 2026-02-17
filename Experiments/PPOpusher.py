@@ -15,10 +15,10 @@ if len(sys.argv) != 2 or sys.argv[1] not in ["train", "load"]:
 	print("Usage: python PPOpusher.py [train|load]")
 	sys.exit(1)
 
-LEARNING_RATE = [3e-4, 4e-4]
-CLIP_RANGE = [0.1, 0.2, 0.3]
-GAE_LAMBDA = [0.9, 0.95, 0.98]
-N_EPOCS = [4, 10]
+LEARNING_RATE = [3e-4]#, 4e-4]
+CLIP_RANGE = [0.1]#, 0.2, 0.3]
+GAE_LAMBDA = [0.9]#, 0.95, 0.98]
+N_EPOCS = [4]#, 10]
 N_STEPS = [2048]
 
 results = []
