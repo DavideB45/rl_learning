@@ -52,7 +52,7 @@ def main():
 		print(f'Training round: {round}')
 		generate_data(vq, lstm, 20000, policy=agent, training_set=True)
 		generate_data(vq, lstm, 2000, policy=agent, training_set=False)
-		vq = tune_vq(vq, num_epocs=4, reg=2 if SMOOTH else 0)
+		vq = tune_vq(vq, num_epocs=5, reg=2 if SMOOTH else 0)
 		lstm = tune_lstm(lstm, vq, num_epocs=2)
 		wrapper_env = PusherWrapEnv(vq, lstm)
 		dream_env = PusherDreamEnv(vq, lstm, 10, 100000)

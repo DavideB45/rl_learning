@@ -155,8 +155,8 @@ class TrasitionDataset(Dataset):
 		self.proprioception = []
 		self.reward = []
 		print(f"Creating sequences of length {seq_len}...")
-		for episode in tqdm(range(min(len(act), max_ep)), 'Defining Dataset'):
-		#for episode in range(min(len(act), max_ep)):
+		#for episode in tqdm(range(min(len(act), max_ep)), 'Defining Dataset'):
+		for episode in range(min(len(act), max_ep)):
 			for i in range(0, len(act[episode]) - seq_len + 1, 1):
 				l = []
 				p = []
