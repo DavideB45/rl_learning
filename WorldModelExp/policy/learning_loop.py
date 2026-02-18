@@ -64,7 +64,7 @@ def main():
 		
 		grades = evaluate_policy(agent, wrapper_env, warn=False, n_eval_episodes=15)
 		print(grades)
-		with open('res.csv', 'w') as f:
+		with open('res.csv', 'a') as f:
 			f.write(f'{grades[0]},{grades[1]}')
 		print(f"\033[1;31m--- {time.strftime('%H:%M:%S', time.gmtime(time.time()-start_time))} ---\033[0m")
 
