@@ -155,7 +155,8 @@ def generate_data(vq, lstm, n_sample=1000, policy=None, training_set=True):
 	rewards.append([])
 	proprioception.append([env.current_prop.flatten().tolist()])
 	env.current_render.save(base_images_path + f'img_{episode}_{step}.png')
-	for i in tqdm(range(n_sample)):
+	#for i in tqdm(range(n_sample)):
+	for i in range(n_sample):
 		step += 1
 		if policy == None:
 			action = env.action_space.sample()

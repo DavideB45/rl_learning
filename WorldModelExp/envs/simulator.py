@@ -28,7 +28,7 @@ class PusherDreamEnv(gym.Env):
 
 	def __init__(self, vq:VQVAE=None, lstm:LSTMQuantized=None, sequence_length=10, max_ep=30):
 		super(PusherDreamEnv, self).__init__()
-		self.max_len = 100 # this way the model will learn only 20 steps, hopefully in the end he will manage to merge his knowledge
+		self.max_len = 20 # this way the model will learn only 20 steps, hopefully in the end he will manage to merge his knowledge
 
 		self.vq = vq
 		self.vq.eval()

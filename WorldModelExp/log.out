@@ -1,17 +1,4 @@
 nohup: ignoring input
-Loading vq_4_16_64_True_smoothFalse.pth
-Creating sequence dataloader using data from data/pusher/
-Encoding dataset from data/pusher/ using VQ-VAE...
-Creating sequences of length 23...
-Trained (1/36) LSTMC lstmc_1024_4_16_64_False_5e-05_0.0005_False in 26.64 minutes.
-Current min found for 64 = 1.3603651197881645
-Trained (2/36) LSTMC lstmc_1024_4_16_64_True_5e-05_0.0005_False in 31.84 minutes.
-Current min found for 64 = 2.695458293286829
-Loading vq_4_16_64_True_smoothTrue.pth
-Creating sequence dataloader using data from data/pusher/
-Encoding dataset from data/pusher/ using VQ-VAE...
-Creating sequences of length 23...
-Trained (3/36) LSTMC lstmc_1024_4_16_64_False_5e-05_0.0005_True in 28.44 minutes.
-Current min found for 64 = 1.2946636680045414
-Trained (4/36) LSTMC lstmc_1024_4_16_64_True_5e-05_0.0005_True in 22.26 minutes.
-Current min found for 64 = 4.746596383918178
+[1;31m--- 00:00:00 ---[0m
+Training round: 0
+0

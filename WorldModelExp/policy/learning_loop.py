@@ -21,19 +21,19 @@ from envs.wrapper import PusherWrapEnv, generate_data
 # VAE RELATED PARAMETERS
 SMOOTH 		= True
 LATENT_DIM	= 4
-CODE_DEPTH	= 16
+CODE_DEPTH	= 32
 CODEBOOK_S	= 64
 USE_EMA		= True
 
 # LSTM RELATED PARAMETERS
-USE_KL 		= False
+USE_KL 		= True
 HIDDEN_DIM	= 1024
 SEQ_LEN		= 23
 INIT_LEN	= 18
 # (Smooth is not present becasuse needs to be consistent with the vq)
 
 # PPO RELATED PARAMETERS
-N_ROUNDS	= 12 # number of training iterations to do
+N_ROUNDS	= 20 # number of training iterations to do (the first data gathering counts)
 
 colors = ['\033[91m', '\033[95m', '\033[92m', '\033[93m', '\033[96m']
 reset = '\033[0m'
@@ -41,30 +41,31 @@ reset = '\033[0m'
 def main():
 
 	start_time = time.time()
-	vq = load_vq_vae(PUSHER, CODEBOOK_S, CODE_DEPTH, LATENT_DIM, USE_EMA, SMOOTH, best_device()) # ricaricare ogni volta per tenere il meglio
-	lstm = load_lstm_quantized(PUSHER, vq, best_device(), HIDDEN_DIM, SMOOTH, True, USE_KL) # ricaricare ogni volta per tenere il meglio
-	generate_data(vq, lstm, 10000, policy=None, training_set=True)
-	generate_data(vq, lstm, 1000, policy=None, training_set=False)
-	wrapper_env = PusherWrapEnv(vq, lstm)
-	dream_env = PusherDreamEnv(vq, lstm, 10, 100000)
-	agent = PPO(MlpPolicy, dream_env, verbose=0) # deve essere cambiato ogni volta?
-	agent = tune_agent(agent, num_steps=200000)
-	print(evaluate_policy(agent, wrapper_env, warn=False))
+	vq = VQVAE(CODEBOOK_S, CODE_DEPTH, LATENT_DIM, 0.25, best_device(), True)
+	lstm = LSTMQClass(vq, best_device(), PUSHER['a_size'], 17, 1024)
+	agent = None
+	with open('res.csv', 'w') as f:
+			f.write(f'mean,var')
 
 	print(f"\033[1;31m--- {time.strftime('%H:%M:%S', time.gmtime(time.time()-start_time))} ---\033[0m")
 	for round in range(N_ROUNDS):
 		print(f'Training round: {round}')
 		generate_data(vq, lstm, 20000, policy=agent, training_set=True)
 		generate_data(vq, lstm, 2000, policy=agent, training_set=False)
-		#if round % 2 == 1:
-		vq = tune_vq(vq, 2)
-		lstm = tune_lstm(lstm, vq, 2)
-		del wrapper_env
+		vq = tune_vq(vq, num_epocs=4, reg=2 if SMOOTH else 0)
+		lstm = tune_lstm(lstm, vq, num_epocs=2)
 		wrapper_env = PusherWrapEnv(vq, lstm)
-		del dream_env
 		dream_env = PusherDreamEnv(vq, lstm, 10, 100000)
+
+		if round == 0:
+			agent = PPO(MlpPolicy, dream_env)
 		agent = tune_agent(agent, num_steps=200000)
-		print(evaluate_policy(agent, wrapper_env, warn=False))
+		agent = PPO.load(PUSHER['models'] + 'agent', dream_env)
+		
+		grades = evaluate_policy(agent, wrapper_env, warn=False, n_eval_episodes=15)
+		print(grades)
+		with open('res.csv', 'w') as f:
+			f.write(f'{grades[0]},{grades[1]}')
 		print(f"\033[1;31m--- {time.strftime('%H:%M:%S', time.gmtime(time.time()-start_time))} ---\033[0m")
 
 
@@ -117,10 +118,8 @@ def tune_lstm(model: LSTMQClass, encoder: VQVAE, num_epocs:int=20, lr:float=5e-5
 	return load_lstm_quantized(PUSHER, encoder, best_device(), HIDDEN_DIM, SMOOTH, True, USE_KL)
 	
 def tune_agent(agent:PPO, num_steps=100000) -> PPO:
-	agent.learn(num_steps, progress_bar=True)
+	agent.learn(num_steps, progress_bar=False)
 	agent.save(PUSHER['models'] + 'agent')
-	del agent
-	return PPO.load(PUSHER['models'] + 'agent')
 
 
 
