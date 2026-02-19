@@ -1,6 +1,6 @@
 # Manually added
 *.zip
-!WorldModel/**/*.zip
+!WorldModelExp/data/*/models/agent.zip
 WorldModel/data/*/img/*
 WorldModel/data/*/transition_data.json
 WorldModel/data/*/experience.json
