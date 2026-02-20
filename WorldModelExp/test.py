@@ -3,13 +3,16 @@ import torch
 from PIL import Image
 
 from helpers.general import best_device
-from helpers.model_loader import load_vq_vae
+from helpers.model_loader import load_vq_vae, load_lstm_quantized
 from global_var import PUSHER
+from envs.wrapper import PusherWrapEnv
 import cv2
 
 if __name__ == '__main__':
 	vq = load_vq_vae(PUSHER, 64, 16, 4, True, True, best_device())
-
+	lstm = load_lstm_quantized(PUSHER, vq, best_device(), 1024, True, True, False)
+	env = PusherWrapEnv(vq, lstm)
+	env.reset()
 	from helpers.data import make_seq_dataloader_safe, get_data_path
 	from helpers.general import best_device
 	tr_seq = make_seq_dataloader_safe(get_data_path(PUSHER['data_dir'], True, 0), vq, 100, 1)
@@ -23,8 +26,11 @@ if __name__ == '__main__':
 				img = (img * 255).astype(np.uint8)
 				image = Image.fromarray(img)
 				image_resized = image.resize((512, 512), Image.NEAREST)
-				cv2.imshow('DreamEnv', np.array(image_resized))
+				cv2.imshow('Env', np.array(image_resized))
 				cv2.waitKey(100)
+			action = i['action'][0, j, :]
+			observation, reward, terminated, truncated, info = env.step(action)
+			env.render()
 		exit()
 
 	from dynamics.blocks_tr import Transformer, PositionalEncoding
