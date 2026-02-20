@@ -27,14 +27,14 @@ CODEBOOK_S	= 64
 USE_EMA		= True
 
 # LSTM RELATED PARAMETERS
-USE_KL 		= True
-HIDDEN_DIM	= 1024
+USE_KL 		= False
+HIDDEN_DIM	= 512
 SEQ_LEN		= 23
 INIT_LEN	= 18
 # (Smooth is not present becasuse needs to be consistent with the vq)
 
 # PPO RELATED PARAMETERS
-N_ROUNDS	= 20 # number of training iterations to do (the first data gathering counts)
+N_ROUNDS	= 5 # number of training iterations to do (the first data gathering counts)
 
 colors = ['\033[91m', '\033[95m', '\033[92m', '\033[93m', '\033[96m']
 reset = '\033[0m'
@@ -43,10 +43,8 @@ def main():
 
 	start_time = time.time()
 	vq = VQVAE(CODEBOOK_S, CODE_DEPTH, LATENT_DIM, 0.25, best_device(), True)
-	lstm = LSTMQClass(vq, best_device(), PUSHER['a_size'], 17, 1024)
+	lstm = LSTMQClass(vq, best_device(), PUSHER['a_size'], 17, HIDDEN_DIM)
 	agent = None
-	tr_seq = None
-	vl_seq = None
 	with open('res.csv', 'w') as f:
 			f.write(f'mean,var')
 
@@ -60,14 +58,12 @@ def main():
 		vq = tune_vq(model=vq, num_epocs=3, reg=2 if SMOOTH else 0)
 		lstm = tune_lstm(lstm, tr=tr_seq, vl=vl_seq, encoder=vq, num_epocs=2)
 		wrapper_env = PusherWrapEnv(vq, lstm)
-		dream_env = PusherDreamEnv(vq, lstm, vl_seq, 1, 20)
+		dream_env = PusherDreamEnv(vq, lstm, vl_seq, 3, 20)
 
-		if round == 0:
-			agent = PPO(MlpPolicy, dream_env)
-		agent = tune_agent(agent, num_steps=200000, env=dream_env)
-		
+		agent = tune_agent(agent, num_steps=20000, env=dream_env)
 		grades = evaluate_policy(agent, wrapper_env, warn=False, n_eval_episodes=15)
 		print(grades)
+
 		with open('res.csv', 'a') as f:
 			f.write(f'{grades[0]},{grades[1]}')
 		print(f"\033[1;31m--- {time.strftime('%H:%M:%S', time.gmtime(time.time()-start_time))} ---\033[0m")
@@ -120,7 +116,9 @@ def tune_lstm(model: LSTMQClass, tr:DataLoader, vl:DataLoader, encoder: VQVAE, n
 	return load_lstm_quantized(PUSHER, encoder, best_device(), HIDDEN_DIM, SMOOTH, True, USE_KL)
 	
 def tune_agent(agent:PPO, env:PusherDreamEnv, num_steps:int=100000) -> PPO:
-	agent = agent.learn(num_steps, progress_bar=False, reset_num_timesteps=False)
+	if agent is None:
+		agent = PPO(MlpPolicy, env)
+	agent = agent.learn(num_steps, progress_bar=True, reset_num_timesteps=False)
 	agent.save(PUSHER['models'] + 'agent')
 	return PPO.load(PUSHER['models'] + 'agent', env)
 
