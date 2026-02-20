@@ -7,6 +7,7 @@ import torchvision.transforms as T
 import json
 from PIL import Image
 from stable_baselines3.ppo import PPO
+from stable_baselines3.common.base_class import BaseAlgorithm
 from tqdm import tqdm
 
 import os
@@ -131,9 +132,9 @@ class PusherWrapEnv(gym.Env):
 		self.env.close()
 		pass
 
-def generate_data(vq, lstm, n_sample=1000, policy=None, training_set=True):
-	base_images_path = 'data/pusher/imgs' + ('_tr/' if training_set else '_vl/')
-	action_path = 'data/pusher/action_reward_data' + ('_tr.json' if training_set else '_vl.json')
+def generate_data(vq:VQVAE, lstm:LSTMQuantized, n_sample:int=1000, policy:BaseAlgorithm=None, training_set:bool=True, round:int=0):
+	base_images_path = 'data/pusher/' + ('tr/' if training_set else 'vl/') + f'round_{round}/'
+	action_path = base_images_path + 'action_reward_data.json'
 	actions = []
 	rewards = []
 	proprioception = []
@@ -189,8 +190,8 @@ def generate_data(vq, lstm, n_sample=1000, policy=None, training_set=True):
 
 if __name__ == "__main__":
 	SMOOTH = True
-	KL = False
-	vq = load_vq_vae(PUSHER, 64, 16, 4, True, SMOOTH, best_device())
+	KL = True
+	vq = load_vq_vae(PUSHER, 64, 32, 4, True, SMOOTH, best_device())
 	lstm = load_lstm_quantized(PUSHER, vq, best_device(), 1024, SMOOTH, True, KL)
 	env = PusherWrapEnv(vq, lstm)
 	observation, _ = env.reset()

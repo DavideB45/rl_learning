@@ -3,9 +3,9 @@ import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
 import torch
-import torchvision.transforms as T
 from stable_baselines3.ppo import PPO
 from PIL import Image
+from torch.utils.data import DataLoader
 
 import os
 import sys
@@ -13,7 +13,6 @@ sys.path.insert(1, os.path.join(sys.path[0], '../'))
 
 from vae.vqVae import VQVAE
 from dynamics.lstm import LSTMQuantized
-from helpers.data import make_seq_dataloader_safe
 from helpers.model_loader import load_vq_vae, load_lstm_quantized
 from helpers.general import best_device
 from global_var import PUSHER
@@ -26,9 +25,11 @@ class PusherDreamEnv(gym.Env):
 	"""
 
 
-	def __init__(self, vq:VQVAE=None, lstm:LSTMQuantized=None, sequence_length=10, max_ep=30):
+	def __init__(self, vq:VQVAE, lstm:LSTMQuantized, dataloader:DataLoader, init_len:int=10, ep_len:int=20):
 		super(PusherDreamEnv, self).__init__()
-		self.max_len = 20 # this way the model will learn only 20 steps, hopefully in the end he will manage to merge his knowledge
+		self.max_len = ep_len # this way the model will learn only 20 steps, hopefully in the end he will manage to merge his knowledge
+		self.step_count = 0
+		self.i_len = init_len
 
 		self.vq = vq
 		self.vq.eval()
@@ -45,9 +46,8 @@ class PusherDreamEnv(gym.Env):
 		self.observation_space = spaces.Box(
 			low=-np.inf, high=np.inf, shape=(self.vq_dim + self.lstm.hidden_dim,), dtype=np.float32
 		)
-		self.step_count = 0
 
-		self.data = make_seq_dataloader_safe(PUSHER['data_dir'], self.vq, seq_len=sequence_length, traininig=False, batch_size=1, max_ep=max_ep)
+		self.data = dataloader
 
 	def reset(self, seed=None, options=None):
 		'''
@@ -61,6 +61,9 @@ class PusherDreamEnv(gym.Env):
 			print("[WARNING] I haven't implemented seed it's always random")
 		init_data = self.data.dataset[np.random.randint(len(self.data.dataset))]
 		with torch.no_grad():
+			print("[WARNING] You forgot to properly initialize the environment with the correct sequence length")
+			print("[WARNING] Maybe init length should be just 1")
+			print("[WARNING] Should you use all the data? or only the last one as initialization?")
 			_, pred, prop, _, h = self.lstm.forward(init_data['latent'][:-1, :].unsqueeze(0).to(self.vq.device), init_data['action'].unsqueeze(0).to(self.vq.device), init_data['proprioception'].unsqueeze(0).to(self.vq.device), None)
 		self.hidden_state = h
 		self.current_latent = pred[:, -1, :, :, :]
@@ -112,9 +115,9 @@ class PusherDreamEnv(gym.Env):
 		pass
 
 if __name__ == "__main__":
-	SMOOTH = False
-	KL = False
-	vq = load_vq_vae(PUSHER, 64, 16, 4, True, SMOOTH, best_device())
+	SMOOTH = True
+	KL = True
+	vq = load_vq_vae(PUSHER, 64, 32, 4, True, SMOOTH, best_device())
 	lstm = load_lstm_quantized(PUSHER, vq, best_device(), 1024, SMOOTH, True, KL)
 	env = PusherDreamEnv(vq, lstm, 18, 5)
 	observation, _ = env.reset()
@@ -125,8 +128,8 @@ if __name__ == "__main__":
 	step_count = 0
 	agent = PPO.load(PUSHER['models'] + 'agent', env)
 	while not done:
-		action = env.action_space.sample()  # random action
-		#action, _states = agent.predict(observation, deterministic=True)
+		#action = env.action_space.sample()  # random action
+		action, _states = agent.predict(observation, deterministic=True)
 		observation, reward, terminated, truncated, info = env.step(action)
 		print(f"Step {step_count} Reward: {reward}")
 		frames.append(env.render())
