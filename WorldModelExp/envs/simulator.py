@@ -61,10 +61,9 @@ class PusherDreamEnv(gym.Env):
 			print("[WARNING] I haven't implemented seed it's always random")
 		init_data = self.data.dataset[np.random.randint(len(self.data.dataset))]
 		with torch.no_grad():
-			print("[WARNING] You forgot to properly initialize the environment with the correct sequence length")
 			print("[WARNING] Maybe init length should be just 1")
 			print("[WARNING] Should you use all the data? or only the last one as initialization?")
-			_, pred, prop, _, h = self.lstm.forward(init_data['latent'][:-1, :].unsqueeze(0).to(self.vq.device), init_data['action'].unsqueeze(0).to(self.vq.device), init_data['proprioception'].unsqueeze(0).to(self.vq.device), None)
+			_, pred, prop, _, h = self.lstm.forward(init_data['latent'][:self.i_len, :].unsqueeze(0).to(self.vq.device), init_data['action'][:self.i_len, :].unsqueeze(0).to(self.vq.device), init_data['proprioception'][:self.i_len, :].unsqueeze(0).to(self.vq.device), None)
 		self.hidden_state = h
 		self.current_latent = pred[:, -1, :, :, :]
 		self.current_prop = prop[:, -1, :]
@@ -74,7 +73,7 @@ class PusherDreamEnv(gym.Env):
 		# print(f'Current prop shape: {self.current_prop.shape}')
 		return representation, {}
 
-	def step(self, action,) -> tuple:
+	def step(self, action) -> tuple:
 		'''
 		Step in the environment using only MDRNN
 		action: action to take
