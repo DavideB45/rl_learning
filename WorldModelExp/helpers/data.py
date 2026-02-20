@@ -42,8 +42,8 @@ class PNGDataset(Dataset):
 			img = self.transform(img)
 			return img
 
-def make_image_dataloader_safe(data_dir:str, traininig:bool, batch_size:int=256) -> DataLoader:
-	data_dir = data_dir + ('_tr/' if traininig else '_vl/')
+def make_image_dataloader_safe(data_dir:str, traininig:bool, batch_size:int=256, round:int=0) -> DataLoader:
+	data_dir = data_dir + ('tr/' if traininig else 'vl/') + f'round_{round}/'
 	print(f'Creating dataloaded from {data_dir}')
 	dataset = PNGDataset(path=data_dir)
 	dataloader = DataLoader(dataset, batch_size, shuffle=True, num_workers=2)
@@ -106,14 +106,20 @@ class TrasitionDataset(Dataset):
 			#for episode in tqdm(range(min(len(act), max_ep)), 'Encoding Dataset'):
 			for episode in range(len(act)):
 				latents.append([])
-				for i in range(len(act[episode]) + 1):
-					im_path = path + f"/img_{episode}_{i}.png"
-					with Image.open(im_path) as im:
-						img = im.convert('RGB')
-					img = to_tensor_(img).unsqueeze(0).to(vq.device)
-					_, latent, _ = vq.quantize(vq.encode(img))
-					latent = latent.detach().squeeze(0).clone().cpu()
-					latents[-1].append(latent)
+				for i in range(0, len(act[episode]) + 1, 64):
+					imgs = []
+					for j in range(i, min(i+64, len(act[episode])+1)):
+						im_path = path + f"/img_{episode}_{i}.png"
+						with Image.open(im_path) as im:
+							img = im.convert('RGB')
+							img = to_tensor_(img)
+							imgs.append(img)
+					imgs = torch.stack(imgs)
+					imgs = imgs.to(vq.device)
+					_, latent, _ = vq.quantize(vq.encode(imgs))
+					latent = latent.detach().clone().cpu()
+					for j in range(latent.shape[0]): # maybe there is a way to avoid this loop
+						latents[-1].append(latent[j])
 
 		self.representation = []
 		self.actions = []
@@ -151,9 +157,15 @@ def make_seq_dataloader_safe(data_dir:str, vq:VQVAE, seq_len:int=10, batch_size:
 	dataloader = DataLoader(dataset, batch_size, shuffle=True, num_workers=2)
 	return dataloader
 
-def extend_seq_loader(data_dir:str, to_extend:DataLoader, vq:VQVAE, seq_len:int=10, batch_size:int=64) -> DataLoader:
+def extend_seq_loader(data_dir:str, to_extend:DataLoader | None, vq:VQVAE, seq_len:int=10, batch_size:int=64) -> DataLoader:
 	new_data = TrasitionDataset(path=data_dir, seq_len=seq_len, vq=vq)
-	full_data = ConcatDataset([new_data, to_extend.dataset])
-	del to_extend
+	if to_extend == None:
+		full_data = new_data
+	else:
+		full_data = ConcatDataset([new_data, to_extend.dataset])
+		del to_extend
 	to_extend = DataLoader(full_data, batch_size, True, pin_memory=True, drop_last=True, num_workers=2)
 	return to_extend
+
+def get_data_path(origin:str, train:bool, round:int) -> str:
+	return origin + ('tr/' if train else 'vl/') + f'round_{round}/'

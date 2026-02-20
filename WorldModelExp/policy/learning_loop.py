@@ -2,13 +2,14 @@ from torch.optim import Adam
 from stable_baselines3.ppo.policies import MlpPolicy
 from stable_baselines3.ppo import PPO
 from stable_baselines3.common.evaluation import evaluate_policy
+from torch.utils.data import DataLoader
 import time
 
 import os
 import sys
 sys.path.insert(1, os.path.join(sys.path[0], '../'))
 
-from helpers.data import make_image_dataloader_safe, make_seq_dataloader_safe
+from helpers.data import make_image_dataloader_safe, make_seq_dataloader_safe, get_data_path
 from helpers.model_loader import load_vq_vae, load_lstm_quantized, save_vq_vae, save_lstm_quantized
 from helpers.general import best_device
 from global_var import PUSHER
@@ -44,23 +45,26 @@ def main():
 	vq = VQVAE(CODEBOOK_S, CODE_DEPTH, LATENT_DIM, 0.25, best_device(), True)
 	lstm = LSTMQClass(vq, best_device(), PUSHER['a_size'], 17, 1024)
 	agent = None
+	tr_seq = None
+	vl_seq = None
 	with open('res.csv', 'w') as f:
 			f.write(f'mean,var')
 
-	print(f"\033[1;31m--- {time.strftime('%H:%M:%S', time.gmtime(time.time()-start_time))} ---\033[0m")
 	for round in range(N_ROUNDS):
 		print(f'Training round: {round}')
-		generate_data(vq, lstm, 20000, policy=agent, training_set=True)
-		generate_data(vq, lstm, 2000, policy=agent, training_set=False)
-		vq = tune_vq(vq, num_epocs=5, reg=2 if SMOOTH else 0)
-		lstm = tune_lstm(lstm, vq, num_epocs=2)
+		generate_data(vq, lstm, 200, policy=agent, training_set=True)
+		tr_seq = make_seq_dataloader_safe(get_data_path(PUSHER['data_dir'], True, 0), vq, SEQ_LEN, 128)
+		generate_data(vq, lstm, 200, policy=agent, training_set=False)
+		vl_seq = make_seq_dataloader_safe(get_data_path(PUSHER['data_dir'], False, 0), vq, SEQ_LEN, 128)
+
+		vq = tune_vq(model=vq, num_epocs=3, reg=2 if SMOOTH else 0)
+		lstm = tune_lstm(lstm, tr=tr_seq, vl=vl_seq, encoder=vq, num_epocs=2)
 		wrapper_env = PusherWrapEnv(vq, lstm)
-		dream_env = PusherDreamEnv(vq, lstm, 10, 100000)
+		dream_env = PusherDreamEnv(vq, lstm, vl_seq, 1, 20)
 
 		if round == 0:
 			agent = PPO(MlpPolicy, dream_env)
-		agent = tune_agent(agent, num_steps=200000)
-		agent = PPO.load(PUSHER['models'] + 'agent', dream_env)
+		agent = tune_agent(agent, num_steps=200000, env=dream_env)
 		
 		grades = evaluate_policy(agent, wrapper_env, warn=False, n_eval_episodes=15)
 		print(grades)
@@ -72,8 +76,8 @@ def main():
 
 
 def tune_vq(model:VQVAE, num_epocs:int=20, lr:float=1e-3, wd:float=1e-3, reg:float=2) -> VQVAE:
-	tr = make_image_dataloader_safe(PUSHER['img_dir'], traininig=True)
-	vl = make_image_dataloader_safe(PUSHER['img_dir'], traininig=False)
+	tr = make_image_dataloader_safe(PUSHER['data_dir'], traininig=True)
+	vl = make_image_dataloader_safe(PUSHER['data_dir'], traininig=False)
 	optim = Adam(model.parameters(), lr=lr, weight_decay=wd)
 	best_val_loss = float('inf')
 	no_improvements = 0
@@ -96,9 +100,7 @@ def tune_vq(model:VQVAE, num_epocs:int=20, lr:float=1e-3, wd:float=1e-3, reg:flo
 	del model
 	return load_vq_vae(PUSHER, CODEBOOK_S, CODE_DEPTH, LATENT_DIM, USE_EMA, SMOOTH, best_device())
 
-def tune_lstm(model: LSTMQClass, encoder: VQVAE, num_epocs:int=20, lr:float=5e-5, wd=5e-4) -> LSTMQClass:
-	tr = make_seq_dataloader_safe(PUSHER['data_dir'], encoder, True, SEQ_LEN)
-	vl = make_seq_dataloader_safe(PUSHER['data_dir'], encoder, False, SEQ_LEN)
+def tune_lstm(model: LSTMQClass, tr:DataLoader, vl:DataLoader, encoder: VQVAE, num_epocs:int=20, lr:float=5e-5, wd=5e-4) -> LSTMQClass:
 	optim = Adam(model.parameters(), lr=lr, weight_decay=wd)
 	best_val_loss = float('inf')
 	no_improvements = 0
@@ -117,9 +119,10 @@ def tune_lstm(model: LSTMQClass, encoder: VQVAE, num_epocs:int=20, lr:float=5e-5
 	del model
 	return load_lstm_quantized(PUSHER, encoder, best_device(), HIDDEN_DIM, SMOOTH, True, USE_KL)
 	
-def tune_agent(agent:PPO, num_steps=100000) -> PPO:
-	agent.learn(num_steps, progress_bar=False)
+def tune_agent(agent:PPO, env:PusherDreamEnv, num_steps:int=100000) -> PPO:
+	agent = agent.learn(num_steps, progress_bar=False, reset_num_timesteps=False)
 	agent.save(PUSHER['models'] + 'agent')
+	return PPO.load(PUSHER['models'] + 'agent', env)
 
 
 
