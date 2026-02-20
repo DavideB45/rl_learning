@@ -1,7 +1,7 @@
 import glob
 import json
 from PIL import Image
-from torch.utils.data import Dataset, DataLoader, Subset, random_split
+from torch.utils.data import Dataset, DataLoader, ConcatDataset, random_split
 import torchvision
 import torch
 
@@ -41,28 +41,6 @@ class PNGDataset(Dataset):
 			img = self.images[idx]
 			img = self.transform(img)
 			return img
-		
-def make_img_dataloader(data_dir=None, images=None, batch_size=64, test_split=0.2) -> tuple[DataLoader, DataLoader]:
-	'''
-	Create PyTorch dataloader for a dataset of images
-	data_dir: directory containing the dataset images
-	images: optional list of PIL Images to use instead of loading from disk
-	batch_size: batch size for dataloader
-	returns: DataLoader
-	'''
-	if data_dir is None and images is None:
-		raise ValueError("Provide either a data_dir or images.")
-	print(f"Creating dataloader from {'images' if images is not None else data_dir}")
-	dataset = PNGDataset(path=data_dir, images=images)
-	n_total = len(dataset)
-	train_size = int((1 - test_split) * n_total)
-	train_indices = list(range(0, train_size))
-	test_indices = list(range(train_size, n_total))
-	train_dataset = Subset(dataset, train_indices)
-	test_dataset = Subset(dataset, test_indices)
-	train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=2)
-	test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=2)
-	return train_loader, test_loader
 
 def make_image_dataloader_safe(data_dir:str, traininig:bool, batch_size:int=256) -> DataLoader:
 	data_dir = data_dir + ('_tr/' if traininig else '_vl/')
@@ -113,9 +91,9 @@ class TrasitionDataset(Dataset):
 	'''
 	Custom Dataset for loading images-action
 	'''
-	def __init__(self, path:str, seq_len:int=10, vq:VQVAE=None, max_ep:int=1000000, training:bool=True):
+	def __init__(self, path:str, seq_len:int=10, vq:VQVAE=None):
 		super().__init__()
-		apr_path = path + '/action_reward_data' + ('_tr.json' if training else '_vl.json')
+		apr_path = path + '/action_reward_data.json'
 		with open(apr_path, 'r') as f:
 			apr_json = json.load(f)
 			act = apr_json["actions"]
@@ -123,26 +101,13 @@ class TrasitionDataset(Dataset):
 			rew = apr_json["reward"]
 		latents = []
 		to_tensor_ = torchvision.transforms.ToTensor()
-		self.max_ep = max_ep
 		with torch.no_grad():
 			print(f"Encoding dataset from {path} using VQ-VAE...")
 			#for episode in tqdm(range(min(len(act), max_ep)), 'Encoding Dataset'):
-			for episode in range(min(len(act), max_ep)):
+			for episode in range(len(act)):
 				latents.append([])
-				# for i in range(0, len(act[episode]) + 1, 64): # to save memory process 16 images at a time
-				# 	batch_imgs = []
-				# 	for j in range(i, min(i + 64, len(act[episode]) + 1)):
-				# 		im_path = path + f"imgs/img_{episode}_{j}.png"
-				# 		img = Image.open(im_path).convert('RGB')
-				# 		img = to_tensor_(img).unsqueeze(0).to(vq.device)
-				# 		batch_imgs.append(img)
-				# 	batch_tensor = torch.cat(batch_imgs, dim=0)
-				# 	_, lat_batch, _ = vq.quantize(vq.encode(batch_tensor))
-				# 	lat_batch = lat_batch.detach().cpu()
-				# 	for k in range(lat_batch.shape[0]):
-				# 		latents[-1].append(lat_batch[k].clone())
 				for i in range(len(act[episode]) + 1):
-					im_path = path + f"imgs{'_tr/' if training else '_vl/'}/img_{episode}_{i}.png"
+					im_path = path + f"/img_{episode}_{i}.png"
 					with Image.open(im_path) as im:
 						img = im.convert('RGB')
 					img = to_tensor_(img).unsqueeze(0).to(vq.device)
@@ -156,7 +121,7 @@ class TrasitionDataset(Dataset):
 		self.reward = []
 		print(f"Creating sequences of length {seq_len}...")
 		#for episode in tqdm(range(min(len(act), max_ep)), 'Defining Dataset'):
-		for episode in range(min(len(act), max_ep)):
+		for episode in range(len(act)):
 			for i in range(0, len(act[episode]) - seq_len + 1, 1):
 				l = []
 				p = []
@@ -181,20 +146,14 @@ class TrasitionDataset(Dataset):
 			'reward': torch.tensor(self.reward[idx], dtype=torch.float32).detach()
 		}
 
-def make_sequence_dataloaders(path:str, vq:VQVAE ,seq_len:int=10, test_split:float=0.2, batch_size:int=64, max_ep:int=9999999) -> tuple[DataLoader, DataLoader]:
-	print(f"Creating sequence dataloader using data from {path}")
-	dataset = TrasitionDataset(path=path, seq_len=seq_len, vq=vq, max_ep=max_ep)
-	n_total = len(dataset)
-	train_size = n_total - int(n_total * test_split)
-	train_indices = list(range(0, train_size))
-	test_indices = list(range(train_size + seq_len, n_total))
-	train_dataset = Subset(dataset, train_indices)
-	test_dataset = Subset(dataset, test_indices)
-	train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=2)
-	test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=2)
-	return train_loader, test_loader
-
-def make_seq_dataloader_safe(data_dir:str, vq:VQVAE, traininig:bool, seq_len:int=10, batch_size:int=64, max_ep=99999999999) -> DataLoader:
-	dataset = TrasitionDataset(path=data_dir, seq_len=seq_len, vq=vq, max_ep=max_ep, training=traininig)
+def make_seq_dataloader_safe(data_dir:str, vq:VQVAE, seq_len:int=10, batch_size:int=64) -> DataLoader:
+	dataset = TrasitionDataset(path=data_dir, seq_len=seq_len, vq=vq)
 	dataloader = DataLoader(dataset, batch_size, shuffle=True, num_workers=2)
 	return dataloader
+
+def extend_seq_loader(data_dir:str, to_extend:DataLoader, vq:VQVAE, seq_len:int=10, batch_size:int=64) -> DataLoader:
+	new_data = TrasitionDataset(path=data_dir, seq_len=seq_len, vq=vq)
+	full_data = ConcatDataset([new_data, to_extend.dataset])
+	del to_extend
+	to_extend = DataLoader(full_data, batch_size, True, pin_memory=True, drop_last=True, num_workers=2)
+	return to_extend
