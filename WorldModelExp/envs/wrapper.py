@@ -16,7 +16,6 @@ sys.path.insert(1, os.path.join(sys.path[0], '../'))
 
 from vae.vqVae import VQVAE
 from dynamics.lstm import LSTMQuantized
-from helpers.data import make_sequence_dataloaders
 from helpers.model_loader import load_vq_vae, load_lstm_quantized
 from helpers.general import best_device
 from global_var import PUSHER

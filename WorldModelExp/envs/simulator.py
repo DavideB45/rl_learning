@@ -25,7 +25,7 @@ class PusherDreamEnv(gym.Env):
 	"""
 
 
-	def __init__(self, vq:VQVAE, lstm:LSTMQuantized, dataloader:DataLoader, init_len:int=10, ep_len:int=20):
+	def __init__(self, vq:VQVAE, lstm:LSTMQuantized, dataloader:DataLoader, init_len:int=1, ep_len:int=20):
 		super(PusherDreamEnv, self).__init__()
 		self.max_len = ep_len # this way the model will learn only 20 steps, hopefully in the end he will manage to merge his knowledge
 		self.step_count = 0
