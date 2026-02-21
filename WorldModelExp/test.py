@@ -7,12 +7,14 @@ from helpers.model_loader import load_vq_vae, load_lstm_quantized
 from global_var import PUSHER
 from envs.wrapper import PusherWrapEnv
 import cv2
+from time import sleep 
 
 if __name__ == '__main__':
 	vq = load_vq_vae(PUSHER, 64, 16, 4, True, True, best_device())
 	lstm = load_lstm_quantized(PUSHER, vq, best_device(), 1024, True, True, False)
 	env = PusherWrapEnv(vq, lstm)
 	env.reset()
+	env.render()
 	from helpers.data import make_seq_dataloader_safe, get_data_path
 	from helpers.general import best_device
 	tr_seq = make_seq_dataloader_safe(get_data_path(PUSHER['data_dir'], True, 0), vq, 100, 1)
@@ -30,6 +32,7 @@ if __name__ == '__main__':
 				cv2.waitKey(100)
 			action = i['action'][0, j, :]
 			observation, reward, terminated, truncated, info = env.step(action)
+			sleep(2)
 			env.render()
 		exit()
 
