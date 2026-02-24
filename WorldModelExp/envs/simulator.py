@@ -46,25 +46,16 @@ class PusherDreamEnv(VecEnv):
 			render_mode='rgb_array',
 			default_camera_config=PUSHER['default_camera_config'],
 		)
-		self.single_action_space = self.env.action_space
-		self.single_observation_space = spaces.Box(
-			low=-np.inf, high=np.inf, shape=(self.vq_dim + self.lstm.hidden_dim,), dtype=np.float32
-		)
 		self.observation_space = spaces.Box(
 			low=-np.inf, high=np.inf, 
-			shape=(num_envs, self.vq_dim + self.lstm.hidden_dim), 
+			shape=(self.vq_dim + self.lstm.hidden_dim,), 
 			dtype=np.float32
 		)
-		self.action_space = spaces.Box(
-			low=self.env.action_space.low[0], 
-			high=self.env.action_space.high[0],
-			shape=(num_envs, *self.env.action_space.shape),
-			dtype=self.env.action_space.dtype
-		)
+		self.action_space = self.env.action_space
 		super(PusherDreamEnv, self).__init__(
 			num_envs=num_envs,
-			action_space=self.single_action_space,
-			observation_space=self.single_observation_space	
+			action_space=self.action_space,
+			observation_space=self.observation_space	
 		)
 
 		self.data = dataloader
@@ -76,13 +67,12 @@ class PusherDreamEnv(VecEnv):
 		options: additional options
 		returns: initial observation (np.array) obtained encoding the first image and the initial hidden state
 		'''
-		super().reset(seed=seed, options=options)
 		if seed is not None:
 			print("[WARNING] I haven't implemented seed it's always random")
 		init_data_list = [self.data.dataset[np.random.randint(len(self.data.dataset))] for _ in range(self.num_envs)]
 		with torch.no_grad():
-			print("[WARNING] Maybe init length should be just 1")
-			print("[WARNING] Should you use all the data? or only the last one as initialization?")
+			#print("[WARNING] Maybe init length should be just 1")
+			#print("[WARNING] Should you use all the data? or only the last one as initialization?")
 			latents = torch.stack([init_data['latent'][:self.i_len, :] for init_data in init_data_list]).to(self.vq.device)
 			actions = torch.stack([init_data['action'][:self.i_len, :] for init_data in init_data_list]).to(self.vq.device)
 			props = torch.stack([init_data['proprioception'][:self.i_len, :] for init_data in init_data_list]).to(self.vq.device)
@@ -118,7 +108,7 @@ class PusherDreamEnv(VecEnv):
 			latent_input = self.current_latent.unsqueeze(1).to(self.vq.device)
 			prop_input = self.current_prop.unsqueeze(1).to(self.vq.device)
 			_, pred, prop, rew, h = self.lstm.forward(latent_input, action_tensor, prop_input, self.hidden_state)
-			
+
 			self.step_count += 1
 			self.hidden_state = h
 			self.current_latent = pred[:, -1, :, :, :]
@@ -129,15 +119,16 @@ class PusherDreamEnv(VecEnv):
 			representation = torch.cat([latent_flat, hidden_flat], dim=-1).cpu().numpy()
 
 			terminateds = np.array([self.step_count >= self.max_len] * self.num_envs, dtype=bool)
-			truncateds = np.zeros(self.num_envs, dtype=bool)
-		# print(f'Latent shape: {self.current_latent.shape}')
-		# print(f'Current prop shape: {self.current_prop.shape}')
+			#truncateds = np.zeros(self.num_envs, dtype=bool)
+			infos = [
+				{'terminal_observation': representation[i]} for i in range(self.num_envs)
+			]
 		return (
-			representation, # based on world model
-			rew[:, -1].item(), # from world model
+			representation if not terminateds.any() else self.reset(), # based on world model
+			rew.flatten().cpu(), # from world model
 			terminateds, # For now only based on step count
-			truncateds, # Truncated
-			{} # empty dict
+			# truncateds, # Truncated
+			infos
 		)
 	
 	def render(self):
@@ -158,14 +149,38 @@ class PusherDreamEnv(VecEnv):
 		self.env.close()
 		pass
 
+	# additional implementation for the interface
+	def env_is_wrapped(self, wrapper_class, indices = None):
+		return super().env_is_wrapped(wrapper_class, indices)
+	
+	def env_method(self, method_name, *method_args, indices = None, **method_kwargs):
+		return super().env_method(method_name, *method_args, indices=indices, **method_kwargs)
+	
+	def get_attr(self, attr_name, indices = None):
+		print(attr_name)
+		if 'render_mode':
+			return ['rgb_array' for _ in range(self.num_envs)]
+		return super().get_attr(attr_name, indices)
+	
+	def set_attr(self, attr_name, value, indices = None):
+		return super().set_attr(attr_name, value, indices)
+	
+	def step_async(self, actions):
+		return super().step_async(actions)
+	
+	def step_wait(self):
+		return super().step_wait()
+	
+
+
 if __name__ == "__main__":
 	SMOOTH = True
 	KL = True
 	vq = load_vq_vae(PUSHER, 64, 32, 4, True, SMOOTH, best_device())
 	lstm = load_lstm_quantized(PUSHER, vq, best_device(), 1024, SMOOTH, True, KL)
 	env = PusherDreamEnv(vq=vq, lstm=lstm, dataloader=make_seq_dataloader_safe(get_data_path(PUSHER['data_dir'], True, 0), vq, 100, 1), 
-					  num_envs=1, ep_len=100, init_len=1)
-	observation, _ = env.reset()
+					  num_envs=3, ep_len=100, init_len=1)
+	observation = env.reset()
 	frames = []
 	frames.append(env.render())
 	done = False
@@ -175,10 +190,10 @@ if __name__ == "__main__":
 	while not done:
 		action = env.action_space.sample()  # random action
 		#action, _states = agent.predict(observation, deterministic=True)
-		observation, reward, terminated, truncated, info = env.step(action)
+		observation, reward, terminated, info = env.step(action)
 		print(f"Step {step_count} Reward: {reward}")
 		frames.append(env.render())
-		done = terminated or truncated
+		done = terminated.any()
 		total_reward += reward
 		step_count += 1
 		time.sleep(2)
