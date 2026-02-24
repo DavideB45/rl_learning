@@ -46,7 +46,7 @@ def main():
 	lstm = LSTMQClass(vq, best_device(), PUSHER['a_size'], 17, HIDDEN_DIM)
 	agent = None
 	with open('res.csv', 'w') as f:
-			f.write(f'mean,var')
+			f.write(f'mean,var\n')
 
 	for round in range(N_ROUNDS):
 		print(f'Training round: {round}')
@@ -65,7 +65,7 @@ def main():
 		print(grades)
 
 		with open('res.csv', 'a') as f:
-			f.write(f'{grades[0]},{grades[1]}')
+			f.write(f'{grades[0]},{grades[1]}\n')
 		print(f"\033[1;31m--- {time.strftime('%H:%M:%S', time.gmtime(time.time()-start_time))} ---\033[0m")
 
 
