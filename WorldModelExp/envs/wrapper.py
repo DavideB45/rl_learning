@@ -189,9 +189,9 @@ def generate_data(vq:VQVAE, lstm:LSTMQuantized, n_sample:int=1000, policy:BaseAl
 
 if __name__ == "__main__":
 	SMOOTH = True
-	KL = True
+	KL = False
 	vq = load_vq_vae(PUSHER, 64, 32, 4, True, SMOOTH, best_device())
-	lstm = load_lstm_quantized(PUSHER, vq, best_device(), 1024, SMOOTH, True, KL)
+	lstm = load_lstm_quantized(PUSHER, vq, best_device(), 512, SMOOTH, True, KL)
 	env = PusherWrapEnv(vq, lstm)
 	observation, _ = env.reset()
 	frames = []

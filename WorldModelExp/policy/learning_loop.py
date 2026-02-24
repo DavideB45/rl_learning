@@ -55,10 +55,10 @@ def main():
 		generate_data(vq, lstm, 200, policy=agent, training_set=False)
 		vl_seq = make_seq_dataloader_safe(get_data_path(PUSHER['data_dir'], False, 0), vq, SEQ_LEN, 128)
 
-		vq = tune_vq(model=vq, num_epocs=3, reg=2 if SMOOTH else 0)
-		lstm = tune_lstm(lstm, tr=tr_seq, vl=vl_seq, encoder=vq, num_epocs=2)
+		vq = tune_vq(model=vq, num_epocs=1, reg=2 if SMOOTH else 0)
+		lstm = tune_lstm(lstm, tr=tr_seq, vl=vl_seq, encoder=vq, num_epocs=1)
 		wrapper_env = PusherWrapEnv(vq, lstm)
-		dream_env = PusherDreamEnv(vq, lstm, vl_seq, 3, 20, 2)
+		dream_env = PusherDreamEnv(vq, lstm, vl_seq, 1, 20, 2)
 
 		agent = tune_agent(agent, num_steps=20000, env=dream_env)
 		grades = evaluate_policy(agent, wrapper_env, warn=False, n_eval_episodes=15)
