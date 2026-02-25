@@ -35,7 +35,7 @@ INIT_LEN	= 5
 # (Smooth is not present becasuse needs to be consistent with the vq)
 
 # PPO RELATED PARAMETERS
-N_ROUNDS	= 2 # number of training iterations to do (the first data gathering counts)
+N_ROUNDS	= 20 # number of training iterations to do (the first data gathering counts)
 policy_kwargs = dict(
     net_arch=dict(
         pi=[512, 512, 256],   # policy network layers
