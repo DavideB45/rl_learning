@@ -147,7 +147,7 @@ class LSTMQuantized(nn.Module):
 		prop_out = self.out_prop_fc(output.detach()) #(B, Seq_len, Prop_dim)
 		reward = self.out_reward(output)
 		
-		_, latent_q, _ = self.quantizer.quantize(output.view(-1, self.d, self.w_h, self.w_h))
+		_, latent_q, _ = self.quantizer.quantize(output.reshape(-1, self.d, self.w_h, self.w_h))
 		latent_q = latent_q.view(input.size(0), input.size(1), self.d, self.w_h, self.w_h)
 		
 		return latent, latent_q, prop_out, reward, h

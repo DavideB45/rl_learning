@@ -154,7 +154,7 @@ def tune_lstm(model: LSTMQuantized, tr:DataLoader, vl:DataLoader, encoder: VQVAE
 	
 def tune_agent(agent:PPO, env:PusherDreamEnv, num_steps:int=100000) -> PPO:
 	if agent is None:
-		agent = PPO(MlpPolicy, env, policy_kwargs=policy_kwargs, n_steps=4096, batch_size=256, ent_coef=0.01)#, sde_sample_freq=30, use_sde=True
+		agent = PPO(MlpPolicy, env, policy_kwargs=policy_kwargs, n_steps=256, batch_size=256, ent_coef=0.01)#, sde_sample_freq=30, use_sde=True (, device='cpu' is a skam)
 	agent = agent.learn(num_steps, progress_bar=False, reset_num_timesteps=False)
 	agent.save(PUSHER['models'] + 'agent')
 	return PPO.load(PUSHER['models'] + 'agent', env)
