@@ -4,6 +4,7 @@ from stable_baselines3.ppo import PPO
 from stable_baselines3.common.evaluation import evaluate_policy
 from torch.utils.data import DataLoader
 import time
+import json
 
 import os
 import sys
@@ -29,17 +30,30 @@ USE_EMA		= True
 # LSTM RELATED PARAMETERS
 USE_KL 		= False
 HIDDEN_DIM	= 512
-SEQ_LEN		= 23
-INIT_LEN	= 18
+SEQ_LEN		= 10
+INIT_LEN	= 5
 # (Smooth is not present becasuse needs to be consistent with the vq)
 
 # PPO RELATED PARAMETERS
-N_ROUNDS	= 5 # number of training iterations to do (the first data gathering counts)
+N_ROUNDS	= 2 # number of training iterations to do (the first data gathering counts)
+policy_kwargs = dict(
+    net_arch=dict(
+        pi=[512, 512, 256],   # policy network layers
+        vf=[521, 512, 256]    # value network layers
+    ),
+	ortho_init=True
+)
 
 colors = ['\033[91m', '\033[95m', '\033[92m', '\033[93m', '\033[96m']
 reset = '\033[0m'
 
 def main():
+	collecting_time = 0
+	vq_training_time = 0
+	lstm_training_time = 0
+	dataset_generation_time = 0
+	agent_training_time = 0
+	evaluation_time = 0
 
 	start_time = time.time()
 	vq = VQVAE(CODEBOOK_S, CODE_DEPTH, LATENT_DIM, 0.25, best_device(), True)
@@ -50,28 +64,51 @@ def main():
 
 	for round in range(N_ROUNDS):
 		print(f'Training round: {round}')
-		generate_data(vq, lstm, 200, policy=agent, training_set=True)
+		collecting_time -= time.time()
+		generate_data(vq, lstm, 20000, policy=agent, training_set=True)
+		generate_data(vq, lstm, 2000, policy=agent, training_set=False)
+		collecting_time += time.time()
+
+		vq_training_time -= time.time()
+		vq = tune_vq(model=vq, num_epocs=2, reg=1 if SMOOTH else 0)
+		vq_training_time += time.time()
+
+		dataset_generation_time -= time.time()
 		tr_seq = make_seq_dataloader_safe(get_data_path(PUSHER['data_dir'], True, 0), vq, SEQ_LEN, 128)
-		generate_data(vq, lstm, 200, policy=agent, training_set=False)
 		vl_seq = make_seq_dataloader_safe(get_data_path(PUSHER['data_dir'], False, 0), vq, SEQ_LEN, 128)
+		dataset_generation_time += time.time()
 
-		vq = tune_vq(model=vq, num_epocs=1, reg=2 if SMOOTH else 0)
-		lstm = tune_lstm(lstm, tr=tr_seq, vl=vl_seq, encoder=vq, num_epocs=1)
+		lstm_training_time -= time.time()
+		lstm = tune_lstm(lstm, tr=tr_seq, vl=vl_seq, encoder=vq, num_epocs=2)
+		lstm_training_time += time.time()
 		wrapper_env = PusherWrapEnv(vq, lstm)
-		dream_env = PusherDreamEnv(vq, lstm, vl_seq, 1, 20, 2)
+		dream_env = PusherDreamEnv(vq, lstm, vl_seq, init_len=2, ep_len=20, num_envs=100)
 
-		agent = tune_agent(agent, num_steps=20000, env=dream_env)
+		agent_training_time -= time.time()
+		agent = tune_agent(agent, num_steps=1000000, env=dream_env)
+		agent_training_time += time.time()
+
+		evaluation_time -= time.time()
 		grades = evaluate_policy(agent, wrapper_env, warn=False, n_eval_episodes=15)
 		print(grades)
+		evaluation_time += time.time()
 
 		with open('res.csv', 'a') as f:
 			f.write(f'{grades[0]},{grades[1]}\n')
 		print(f"\033[1;31m--- {time.strftime('%H:%M:%S', time.gmtime(time.time()-start_time))} ---\033[0m")
+	with open('time.json', 'w') as f:
+		json.dump({
+			'collecting_time': collecting_time,
+			'vq_training_time': vq_training_time,
+			'lstm_training_time': lstm_training_time,
+			'dataset_generation_time': dataset_generation_time,
+			'agent_training_time': agent_training_time,
+			'evaluation_time': evaluation_time
+		}, f)
 
 
 
-
-def tune_vq(model:VQVAE, num_epocs:int=20, lr:float=1e-3, wd:float=1e-3, reg:float=2) -> VQVAE:
+def tune_vq(model:VQVAE, num_epocs:int=20, lr:float=1e-3, wd:float=1e-3, reg:float=1) -> VQVAE:
 	tr = make_image_dataloader_safe(PUSHER['data_dir'], traininig=True)
 	vl = make_image_dataloader_safe(PUSHER['data_dir'], traininig=False)
 	optim = Adam(model.parameters(), lr=lr, weight_decay=wd)
@@ -117,8 +154,8 @@ def tune_lstm(model: LSTMQuantized, tr:DataLoader, vl:DataLoader, encoder: VQVAE
 	
 def tune_agent(agent:PPO, env:PusherDreamEnv, num_steps:int=100000) -> PPO:
 	if agent is None:
-		agent = PPO(MlpPolicy, env)
-	agent = agent.learn(num_steps, progress_bar=True, reset_num_timesteps=False)
+		agent = PPO(MlpPolicy, env, policy_kwargs=policy_kwargs, n_steps=4096, batch_size=256, ent_coef=0.01)#, sde_sample_freq=30, use_sde=True
+	agent = agent.learn(num_steps, progress_bar=False, reset_num_timesteps=False)
 	agent.save(PUSHER['models'] + 'agent')
 	return PPO.load(PUSHER['models'] + 'agent', env)
 

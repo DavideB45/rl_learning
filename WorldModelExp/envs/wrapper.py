@@ -165,6 +165,7 @@ def generate_data(vq:VQVAE, lstm:LSTMQuantized, n_sample:int=1000, policy:BaseAl
 		if policy == None:
 			action = env.action_space.sample()
 		else:
+			# qui c'è un problema quando si usa gSDE
 			action, _ = policy.predict(obs, deterministic=False)
 		obs, rew, ter, trunc, _ = env.step(action)
 		proprioception[-1].append(env.current_prop.flatten().tolist())
