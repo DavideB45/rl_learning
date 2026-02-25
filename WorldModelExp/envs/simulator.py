@@ -42,16 +42,16 @@ class PusherDreamEnv(VecEnv):
 		self.lstm.eval()
 		self.hidden_state = None # (num_envs, hidden_dim)
 
-		self.env = gym.make('Pusher-v5', 
-			render_mode='rgb_array',
-			default_camera_config=PUSHER['default_camera_config'],
-		)
 		self.observation_space = spaces.Box(
 			low=-np.inf, high=np.inf, 
 			shape=(self.vq_dim + self.lstm.hidden_dim,), 
 			dtype=np.float32
 		)
-		self.action_space = self.env.action_space
+		self.action_space = spaces.Box(
+			low=-1, high=1, 
+			shape=(7,), 
+			dtype=np.float32
+		)
 		super(PusherDreamEnv, self).__init__(
 			num_envs=num_envs,
 			action_space=self.action_space,
@@ -146,7 +146,6 @@ class PusherDreamEnv(VecEnv):
 			#return img
 		
 	def close(self):
-		self.env.close()
 		pass
 
 	# additional implementation for the interface

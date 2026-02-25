@@ -41,7 +41,11 @@ class PusherWrapEnv(gym.Env):
 			default_camera_config=PUSHER['default_camera_config'],
 		)
 		self.renderer = self.env.env.env.env.mujoco_renderer
-		self.action_space = self.env.action_space
+		self.action_space = spaces.Box(
+			low=-1, high=1, 
+			shape=(7,), 
+			dtype=np.float32
+		)
 		self.observation_space = spaces.Box(
 			low=-np.inf, high=np.inf, shape=(self.vq_dim + self.lstm.hidden_dim,), dtype=np.float32
 		)
@@ -92,7 +96,7 @@ class PusherWrapEnv(gym.Env):
 		action: action to take
 		returns: observation (np.array), reward (float), terminated (bool), truncated (bool), info (dict)
 		'''
-		prop, reward, terminated, truncated, info = self.env.step(action)
+		prop, reward, terminated, truncated, info = self.env.step(action*2)
 		prop = prop[0:17]
 		img = self.get_img()
 		with torch.no_grad():

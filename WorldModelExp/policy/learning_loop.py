@@ -14,7 +14,7 @@ from helpers.model_loader import load_vq_vae, load_lstm_quantized, save_vq_vae, 
 from helpers.general import best_device
 from global_var import PUSHER
 from vae.vqVae import VQVAE
-from dynamics.lstmc import LSTMQClass
+from dynamics.lstm import LSTMQuantized
 
 from envs.simulator import PusherDreamEnv
 from envs.wrapper import PusherWrapEnv, generate_data
@@ -43,7 +43,7 @@ def main():
 
 	start_time = time.time()
 	vq = VQVAE(CODEBOOK_S, CODE_DEPTH, LATENT_DIM, 0.25, best_device(), True)
-	lstm = LSTMQClass(vq, best_device(), PUSHER['a_size'], 17, HIDDEN_DIM)
+	lstm = LSTMQuantized(vq, best_device(), PUSHER['a_size'], 17, HIDDEN_DIM)
 	agent = None
 	with open('res.csv', 'w') as f:
 			f.write(f'mean,var\n')
@@ -96,24 +96,24 @@ def tune_vq(model:VQVAE, num_epocs:int=20, lr:float=1e-3, wd:float=1e-3, reg:flo
 	del model
 	return load_vq_vae(PUSHER, CODEBOOK_S, CODE_DEPTH, LATENT_DIM, USE_EMA, SMOOTH, best_device())
 
-def tune_lstm(model: LSTMQClass, tr:DataLoader, vl:DataLoader, encoder: VQVAE, num_epocs:int=20, lr:float=5e-5, wd=5e-4) -> LSTMQClass:
+def tune_lstm(model: LSTMQuantized, tr:DataLoader, vl:DataLoader, encoder: VQVAE, num_epocs:int=20, lr:float=5e-5, wd=5e-4) -> LSTMQuantized:
 	optim = Adam(model.parameters(), lr=lr, weight_decay=wd)
 	best_val_loss = float('inf')
 	no_improvements = 0
 	for epoch in range(num_epocs):
-		err_tr = model.train_rwm_style(tr, optim, init_len=INIT_LEN, err_decay=0.99, useKL=USE_KL)
-		err_vl = model.eval_rwm_style(vl, init_len=INIT_LEN, err_decay=0.99, useKL=USE_KL)
-		if err_vl['ce'] < best_val_loss:
+		err_tr = model.train_rwm_style(tr, optim, init_len=INIT_LEN, err_decay=0.99)#, useKL=USE_KL
+		err_vl = model.eval_rwm_style(vl, init_len=INIT_LEN, err_decay=0.99)#, useKL=USE_KL
+		if err_vl['mse'] < best_val_loss:
 			print_lstm_analytics(epoch, err_tr, err_vl)
-			best_val_loss = err_vl['ce']
+			best_val_loss = err_vl['mse']
 			no_improvements = 0
-			save_lstm_quantized(PUSHER, model, cl=True, kl=USE_KL, tf=SMOOTH)
+			save_lstm_quantized(PUSHER, model, cl=False, kl=False, tf=SMOOTH)
 		else:
 			no_improvements += 1
 			if no_improvements >= 5:
 				break
 	del model
-	return load_lstm_quantized(PUSHER, encoder, best_device(), HIDDEN_DIM, SMOOTH, True, USE_KL)
+	return load_lstm_quantized(PUSHER, encoder, best_device(), HIDDEN_DIM, SMOOTH, cl=False, kl=False)
 	
 def tune_agent(agent:PPO, env:PusherDreamEnv, num_steps:int=100000) -> PPO:
 	if agent is None:
@@ -133,6 +133,19 @@ def row(c1, c2="", c3="", color=RESET):
 def sep(color=RESET):
     print(color + "+" + "-"*(WIDTH+2) + "+" + RESET)
 def print_lstm_analytics(epoch, err_tr, err_vl):
+	sep(PURPLE)
+	row(f"Epoch {epoch}", "Train", "Val", YELLOW)
+	sep(PURPLE)
+	row("MSE",		f"{err_tr['mse']:.4f}",			f"{err_vl['mse']:.4f}",			BLUE)
+	row("QMSE",		f"{err_tr['qmse']:.4f}",		f"{err_vl['qmse']:.4f}",		BLUE)
+	row("Prop MSE",	f"{err_tr['prop_mse']:.4f}",	f"{err_vl['prop_mse']:.4f}",	BLUE)
+	row("Rew MSE",	f"{err_tr['reward_mse']:.4f}",	f"{err_vl['reward_mse']:.4f}",	BLUE)
+	row("Accuracy",	f"{err_tr['acc']:.1f}%",		f"{err_vl['acc']:.1f}%",		PURPLE)
+	row("First Acc",f"{err_tr['first_acc']*100:.1f}%",
+					f"{err_vl['first_acc']*100:.1f}%", PURPLE)
+	sep(PURPLE)
+
+def print_lstmc_analytics(epoch, err_tr, err_vl):
 	sep(PURPLE)
 	row(f"Epoch {epoch}", "Train", "Val", YELLOW)
 	sep(PURPLE)
