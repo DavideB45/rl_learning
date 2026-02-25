@@ -66,7 +66,7 @@ def main():
 		print(f'Training round: {round}')
 		collecting_time -= time.time()
 		generate_data(vq, lstm, 20000, policy=agent, training_set=True)
-		generate_data(vq, lstm, 2000, policy=agent, training_set=False)
+		generate_data(vq, lstm, 1000, policy=agent, training_set=False)
 		collecting_time += time.time()
 
 		vq_training_time -= time.time()
@@ -82,10 +82,10 @@ def main():
 		lstm = tune_lstm(lstm, tr=tr_seq, vl=vl_seq, encoder=vq, num_epocs=2)
 		lstm_training_time += time.time()
 		wrapper_env = PusherWrapEnv(vq, lstm)
-		dream_env = PusherDreamEnv(vq, lstm, vl_seq, init_len=2, ep_len=20, num_envs=100)
+		dream_env = PusherDreamEnv(vq, lstm, vl_seq, init_len=2, ep_len=20, num_envs=50)
 
 		agent_training_time -= time.time()
-		agent = tune_agent(agent, num_steps=1000000, env=dream_env)
+		agent = tune_agent(agent, num_steps=500000, env=dream_env)
 		agent_training_time += time.time()
 
 		evaluation_time -= time.time()
@@ -104,7 +104,7 @@ def main():
 			'dataset_generation_time': dataset_generation_time,
 			'agent_training_time': agent_training_time,
 			'evaluation_time': evaluation_time
-		}, f)
+		}, f, indent=1)
 
 
 
