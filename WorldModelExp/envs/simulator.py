@@ -1,6 +1,5 @@
 import cv2
 import numpy as np
-import gymnasium as gym
 from gymnasium import spaces
 from stable_baselines3.common.vec_env import VecEnv
 import torch
@@ -125,7 +124,7 @@ class PusherDreamEnv(VecEnv):
 			]
 		return (
 			representation if not terminateds.any() else self.reset(), # based on world model
-			rew.flatten().cpu(), # from world model
+			np.array(rew.flatten().cpu()), # from world model
 			terminateds, # For now only based on step count
 			# truncateds, # Truncated
 			infos
@@ -156,7 +155,6 @@ class PusherDreamEnv(VecEnv):
 		return super().env_method(method_name, *method_args, indices=indices, **method_kwargs)
 	
 	def get_attr(self, attr_name, indices = None):
-		print(attr_name)
 		if 'render_mode':
 			return ['rgb_array' for _ in range(self.num_envs)]
 		return super().get_attr(attr_name, indices)
@@ -165,10 +163,11 @@ class PusherDreamEnv(VecEnv):
 		return super().set_attr(attr_name, value, indices)
 	
 	def step_async(self, actions):
-		return super().step_async(actions)
+		# this is a trick: the call is not really async so this can cause some slowdown
+		self.async_values = self.step(actions)
 	
 	def step_wait(self):
-		return super().step_wait()
+		return self.async_values
 	
 
 
