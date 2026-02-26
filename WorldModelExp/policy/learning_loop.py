@@ -23,24 +23,24 @@ from envs.wrapper import PusherWrapEnv, generate_data
 # VAE RELATED PARAMETERS
 SMOOTH 		= True
 LATENT_DIM	= 4
-CODE_DEPTH	= 32
+CODE_DEPTH	= 16
 CODEBOOK_S	= 64
 USE_EMA		= True
 
 # LSTM RELATED PARAMETERS
 USE_KL 		= False
-HIDDEN_DIM	= 512
-SEQ_LEN		= 10
-INIT_LEN	= 5
+HIDDEN_DIM	= 1024
+SEQ_LEN		= 23
+INIT_LEN	= 18
 # (Smooth is not present becasuse needs to be consistent with the vq)
 
 # PPO RELATED PARAMETERS
 N_ROUNDS	= 20 # number of training iterations to do (the first data gathering counts)
 policy_kwargs = dict(
-    net_arch=dict(
-        pi=[512, 512, 256],   # policy network layers
-        vf=[521, 512, 256]    # value network layers
-    ),
+	net_arch=dict(
+		pi=[512, 512, 256],   # policy network layers
+		vf=[521, 512, 256]    # value network layers
+	),
 	ortho_init=True
 )
 
@@ -79,11 +79,10 @@ def main():
 		dataset_generation_time += time.time()
 
 		lstm_training_time -= time.time()
-		lstm.quantizer = vq
-		lstm = tune_lstm(lstm, tr=tr_seq, vl=vl_seq, encoder=vq, num_epocs=2)
+		lstm = tune_lstm(lstm, tr=tr_seq, vl=vl_seq, encoder=vq, num_epocs=4)
 		lstm_training_time += time.time()
 		wrapper_env = PusherWrapEnv(vq, lstm)
-		dream_env = PusherDreamEnv(vq, lstm, vl_seq, init_len=2, ep_len=20, num_envs=50)
+		dream_env = PusherDreamEnv(vq, lstm, vl_seq, init_len=18, ep_len=20, num_envs=50)
 
 		agent_training_time -= time.time()
 		agent = tune_agent(agent, num_steps=500000, env=dream_env)
@@ -135,6 +134,7 @@ def tune_vq(model:VQVAE, num_epocs:int=20, lr:float=1e-3, wd:float=1e-3, reg:flo
 	return load_vq_vae(PUSHER, CODEBOOK_S, CODE_DEPTH, LATENT_DIM, USE_EMA, SMOOTH, best_device())
 
 def tune_lstm(model: LSTMQuantized, tr:DataLoader, vl:DataLoader, encoder: VQVAE, num_epocs:int=20, lr:float=5e-5, wd=5e-4) -> LSTMQuantized:
+	model.quantizer = encoder
 	optim = Adam(model.parameters(), lr=lr, weight_decay=wd)
 	best_val_loss = float('inf')
 	no_improvements = 0
@@ -167,9 +167,9 @@ PURPLE = "\033[95m"; YELLOW = "\033[93m"; BLUE   = "\033[94m"; RESET  = "\033[0m
 COL1, COL2, COL3 = 15, 12, 12
 WIDTH = COL1 + COL2 + COL3 + 6
 def row(c1, c2="", c3="", color=RESET):
-    print(color + f"| {c1:<{COL1}} | {c2:>{COL2}} | {c3:>{COL3}} |" + RESET)
+	print(color + f"| {c1:<{COL1}} | {c2:>{COL2}} | {c3:>{COL3}} |" + RESET)
 def sep(color=RESET):
-    print(color + "+" + "-"*(WIDTH+2) + "+" + RESET)
+	print(color + "+" + "-"*(WIDTH+2) + "+" + RESET)
 def print_lstm_analytics(epoch, err_tr, err_vl):
 	sep(PURPLE)
 	row(f"Epoch {epoch}", "Train", "Val", YELLOW)

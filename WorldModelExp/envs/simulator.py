@@ -173,9 +173,9 @@ class PusherDreamEnv(VecEnv):
 
 if __name__ == "__main__":
 	SMOOTH = True
-	KL = True
+	KL = False
 	vq = load_vq_vae(PUSHER, 64, 32, 4, True, SMOOTH, best_device())
-	lstm = load_lstm_quantized(PUSHER, vq, best_device(), 1024, SMOOTH, True, KL)
+	lstm = load_lstm_quantized(PUSHER, vq, best_device(), 512, SMOOTH, True, KL)
 	env = PusherDreamEnv(vq=vq, lstm=lstm, dataloader=make_seq_dataloader_safe(get_data_path(PUSHER['data_dir'], True, 0), vq, 100, 1), 
 					  num_envs=3, ep_len=100, init_len=1)
 	observation = env.reset()
@@ -201,10 +201,10 @@ if __name__ == "__main__":
 
 	GIF_PATH = "output.gif"
 	FRAME_DURATION_MS = 50
-	# frames[0].save(
-    #     GIF_PATH,
-    #     save_all=True,
-    #     append_images=frames[1:],
-    #     loop=0,                    # 0 = loop forever
-    #     duration=FRAME_DURATION_MS,
-    # )
+	frames[0].save(
+        GIF_PATH,
+        save_all=True,
+        append_images=frames[1:],
+        loop=0,                    # 0 = loop forever
+        duration=FRAME_DURATION_MS,
+    )

@@ -22,5 +22,8 @@ if __name__ == '__main__':
 	"agent_training_time": 3350.7150461673737,
 	"evaluation_time": 776.5424153804779
 	}
+	tot = 0
 	for key in times:
+		tot += times[key]
 		print(f"{key} : {time.strftime('%H:%M:%S', time.gmtime(times[key]))}")
+	print(f"tot : {time.strftime('%H:%M:%S', time.gmtime(tot))}")
