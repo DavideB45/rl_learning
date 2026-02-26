@@ -647,3 +647,45 @@ Creating sequences of length 10...
 [1;31m--- 03:41:46 ---[0m
 Training round: 14
 2800
+140
+Creating dataloaded from data/pusher/tr/round_0/
+Creating dataloaded from data/pusher/vl/round_0/
+------------------------- 01/2 -------------------------
+[96m  New best model saved![0m
+[91m  Train total_loss: 3.8580, Val total_loss: 3.9932[0m
+[95m  Train recon_loss: 2.7863, Val recon_loss: 3.2064[0m
+[92m  Train commit_loss: 0.9466, Val commit_loss: 0.7023[0m
+[93m  Train codes_usage: 1.0000, Val codes_usage: 1.0000[0m
+[96m  Train flatness_loss: 0.1251, Val flatness_loss: 0.0844[0m
+------------------------- 02/2 -------------------------
+[96m  New best model saved![0m
+[91m  Train total_loss: 3.3214, Val total_loss: 3.5248[0m
+[95m  Train recon_loss: 2.5720, Val recon_loss: 2.8059[0m
+[92m  Train commit_loss: 0.6746, Val commit_loss: 0.6428[0m
+[93m  Train codes_usage: 1.0000, Val codes_usage: 1.0000[0m
+[96m  Train flatness_loss: 0.0747, Val flatness_loss: 0.0761[0m
+Loading vq_4_32_64_True_smoothTrue.pth
+Encoding dataset from data/pusher/tr/round_0/ using VQ-VAE...
+Creating sequences of length 10...
+Encoding dataset from data/pusher/vl/round_0/ using VQ-VAE...
+Creating sequences of length 10...
+[95m+-----------------------------------------------+[0m
+[93m| Epoch 0         |        Train |          Val |[0m
+[95m+-----------------------------------------------+[0m
+[94m| MSE             |       6.0701 |       6.0023 |[0m
+[94m| QMSE            |      16.8186 |      16.9433 |[0m
+[94m| Prop MSE        |       0.3738 |       0.3921 |[0m
+[94m| Rew MSE         |       0.0065 |       0.0070 |[0m
+[95m| Accuracy        |         2.7% |         2.8% |[0m
+[95m| First Acc       |         3.5% |         3.5% |[0m
+[95m+-----------------------------------------------+[0m
+[95m+-----------------------------------------------+[0m
+[93m| Epoch 1         |        Train |          Val |[0m
+[95m+-----------------------------------------------+[0m
+[94m| MSE             |       5.7219 |       5.7502 |[0m
+[94m| QMSE            |      17.0241 |      17.0489 |[0m
+[94m| Prop MSE        |       0.3650 |       0.3892 |[0m
+[94m| Rew MSE         |       0.0063 |       0.0065 |[0m
+[95m| Accuracy        |         2.6% |         2.8% |[0m
+[95m| First Acc       |         3.3% |         3.4% |[0m
+[95m+-----------------------------------------------+[0m

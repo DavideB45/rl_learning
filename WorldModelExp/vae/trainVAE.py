@@ -10,7 +10,7 @@ if basic:
 else:
 	from vae.vqVae import VQVAE as VAE
 from helpers.general import best_device
-from helpers.data import make_img_dataloader
+from helpers.data import make_image_dataloader_safe, get_data_path
 from helpers.model_loader import save_base_vae, save_vq_vae
 from global_var import CURRENT_ENV
 
@@ -45,7 +45,8 @@ if __name__ == "__main__":
 	#print(vae)
 	num_params = sum(p.numel() for p in vae.parameters() if p.requires_grad)
 	print(f"Number of trainable parameters: {num_params}")
-	train_loader, val_loader = make_img_dataloader(data_dir=DATA_PATH, batch_size=256, test_split=0.2)
+	train_loader = tr = make_image_dataloader_safe(CURRENT_ENV['data_dir'], traininig=True)
+	val_loader = make_image_dataloader_safe(CURRENT_ENV['data_dir'], traininig=False)
 	print(f"Training on {len(train_loader.dataset)} images, validating on {len(val_loader.dataset)} images.")
 	reg_strength = REG_STRENGTH
 	best_val_loss = float('inf')
