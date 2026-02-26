@@ -7,6 +7,7 @@ import torchvision.transforms as T
 import json
 from PIL import Image
 from stable_baselines3.ppo import PPO
+from stable_baselines3.common.base_class import BaseAlgorithm
 from tqdm import tqdm
 
 import os
@@ -15,7 +16,6 @@ sys.path.insert(1, os.path.join(sys.path[0], '../'))
 
 from vae.vqVae import VQVAE
 from dynamics.lstm import LSTMQuantized
-from helpers.data import make_sequence_dataloaders
 from helpers.model_loader import load_vq_vae, load_lstm_quantized
 from helpers.general import best_device
 from global_var import PUSHER
@@ -41,7 +41,11 @@ class PusherWrapEnv(gym.Env):
 			default_camera_config=PUSHER['default_camera_config'],
 		)
 		self.renderer = self.env.env.env.env.mujoco_renderer
-		self.action_space = self.env.action_space
+		self.action_space = spaces.Box(
+			low=-1, high=1, 
+			shape=(7,), 
+			dtype=np.float32
+		)
 		self.observation_space = spaces.Box(
 			low=-np.inf, high=np.inf, shape=(self.vq_dim + self.lstm.hidden_dim,), dtype=np.float32
 		)
@@ -92,7 +96,7 @@ class PusherWrapEnv(gym.Env):
 		action: action to take
 		returns: observation (np.array), reward (float), terminated (bool), truncated (bool), info (dict)
 		'''
-		prop, reward, terminated, truncated, info = self.env.step(action)
+		prop, reward, terminated, truncated, info = self.env.step(action*2)
 		prop = prop[0:17]
 		img = self.get_img()
 		with torch.no_grad():
@@ -131,9 +135,9 @@ class PusherWrapEnv(gym.Env):
 		self.env.close()
 		pass
 
-def generate_data(vq, lstm, n_sample=1000, policy=None, training_set=True):
-	base_images_path = 'data/pusher/imgs' + ('_tr/' if training_set else '_vl/')
-	action_path = 'data/pusher/action_reward_data' + ('_tr.json' if training_set else '_vl.json')
+def generate_data(vq:VQVAE, lstm:LSTMQuantized, n_sample:int=1000, policy:BaseAlgorithm=None, training_set:bool=True, round:int=0):
+	base_images_path = 'data/pusher/' + ('tr/' if training_set else 'vl/') + f'round_{round}/'
+	action_path = base_images_path + 'action_reward_data.json'
 	actions = []
 	rewards = []
 	proprioception = []
@@ -161,6 +165,7 @@ def generate_data(vq, lstm, n_sample=1000, policy=None, training_set=True):
 		if policy == None:
 			action = env.action_space.sample()
 		else:
+			# qui c'è un problema quando si usa gSDE
 			action, _ = policy.predict(obs, deterministic=False)
 		obs, rew, ter, trunc, _ = env.step(action)
 		proprioception[-1].append(env.current_prop.flatten().tolist())
@@ -190,8 +195,8 @@ def generate_data(vq, lstm, n_sample=1000, policy=None, training_set=True):
 if __name__ == "__main__":
 	SMOOTH = True
 	KL = False
-	vq = load_vq_vae(PUSHER, 64, 16, 4, True, SMOOTH, best_device())
-	lstm = load_lstm_quantized(PUSHER, vq, best_device(), 1024, SMOOTH, True, KL)
+	vq = load_vq_vae(PUSHER, 64, 32, 4, True, SMOOTH, best_device())
+	lstm = load_lstm_quantized(PUSHER, vq, best_device(), 512, SMOOTH, True, KL)
 	env = PusherWrapEnv(vq, lstm)
 	observation, _ = env.reset()
 	frames = []
@@ -202,7 +207,7 @@ if __name__ == "__main__":
 	agent = PPO.load(PUSHER['models'] + 'agent', env)
 	while not done:
 		#action = env.action_space.sample()  # random action
-		action, _states = agent.predict(observation, deterministic=False)
+		action, _states = agent.predict(observation, deterministic=True)
 		observation, reward, terminated, truncated, info = env.step(action)
 		print(f"Step {step_count} Reward: {reward}")
 		frames.append(env.render())

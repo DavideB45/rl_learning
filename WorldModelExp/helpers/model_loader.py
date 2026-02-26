@@ -53,7 +53,7 @@ def load_lstm_quantized(env:dict, vq:VQVAE, device:torch.device, hidden_dim:int,
 	if cl:
 		model = LSTMQClass(vq, device, env['a_size'], 17, hidden_dim)
 	else:
-		model = LSTMQuantized(vq, device, env['a_size'], hidden_dim)
+		model = LSTMQuantized(vq, device, env['a_size'], 17, hidden_dim)
 	d = vq.code_depth
 	w_h = vq.latent_dim
 	s = vq.codebook_size
