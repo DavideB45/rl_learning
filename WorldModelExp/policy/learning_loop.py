@@ -35,7 +35,7 @@ INIT_LEN	= 18
 # (Smooth is not present becasuse needs to be consistent with the vq)
 
 # PPO RELATED PARAMETERS
-N_ROUNDS	= 20 # number of training iterations to do (the first data gathering counts)
+N_ROUNDS	= 30 # number of training iterations to do (the first data gathering counts)
 policy_kwargs = dict(
 	net_arch=dict(
 		pi=[512, 512, 256],   # policy network layers
@@ -79,7 +79,7 @@ def main():
 		dataset_generation_time += time.time()
 
 		lstm_training_time -= time.time()
-		lstm = tune_lstm(lstm, tr=tr_seq, vl=vl_seq, encoder=vq, num_epocs=4)
+		lstm = tune_lstm(lstm, tr=tr_seq, vl=vl_seq, encoder=vq, num_epocs=2)
 		lstm_training_time += time.time()
 		wrapper_env = PusherWrapEnv(vq, lstm)
 		dream_env = PusherDreamEnv(vq, lstm, vl_seq, init_len=18, ep_len=20, num_envs=50)

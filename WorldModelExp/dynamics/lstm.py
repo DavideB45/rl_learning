@@ -143,11 +143,11 @@ class LSTMQuantized(nn.Module):
 
 		output = output + skip_output #(B, Seq_len, Hidden_dim)
 		latent = self.out_fc(output) #(B, Seq_len, Height*Width*Depth)
-		latent = self.unflatten_rep(output, input.size(1)) # (B, Seq_len, Depth, Height, Width)
+		latent = self.unflatten_rep(latent, input.size(1)) # (B, Seq_len, Depth, Height, Width)
 		prop_out = self.out_prop_fc(output.detach()) #(B, Seq_len, Prop_dim)
 		reward = self.out_reward(output)
 		
-		_, latent_q, _ = self.quantizer.quantize(output.reshape(-1, self.d, self.w_h, self.w_h))
+		_, latent_q, _ = self.quantizer.quantize(latent.reshape(-1, self.d, self.w_h, self.w_h))
 		latent_q = latent_q.view(input.size(0), input.size(1), self.d, self.w_h, self.w_h)
 		
 		return latent, latent_q, prop_out, reward, h
