@@ -79,6 +79,7 @@ def main():
 		dataset_generation_time += time.time()
 
 		lstm_training_time -= time.time()
+		lstm.quantizer = vq
 		lstm = tune_lstm(lstm, tr=tr_seq, vl=vl_seq, encoder=vq, num_epocs=2)
 		lstm_training_time += time.time()
 		wrapper_env = PusherWrapEnv(vq, lstm)
