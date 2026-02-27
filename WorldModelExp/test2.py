@@ -21,7 +21,15 @@ if __name__ == '__main__':
 	"dataset_generation_time": 1635.7053062915802,
 	"agent_training_time": 3350.7150461673737,
 	"evaluation_time": 776.5424153804779
-	}
+	} # 20 iterazioni
+	times = {
+	"collecting_time": 15034.367637634277,
+	"vq_training_time": 2924.7899508476257,
+	"lstm_training_time": 4407.352098226547,
+	"dataset_generation_time": 3200.922375202179,
+	"agent_training_time": 4832.109834432602,
+	"evaluation_time": 999.9526515007019
+	} # 30 iterazioni
 	tot = 0
 	for key in times:
 		tot += times[key]
