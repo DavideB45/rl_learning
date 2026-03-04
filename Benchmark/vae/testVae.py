@@ -8,28 +8,24 @@ sys.path.insert(1, os.path.join(sys.path[0], '../'))
 from helpers.general import best_device
 
 from vae.vqVae import VQVAE
-from global_var import CURRENT_ENV
+from global_var import CURRENT_ENV, LATENT_DIM, CODE_DEPTH, CODEBOOK_SIZE, SMOOTH
 from helpers.data import make_image_dataloader_safe, get_data_path
 from helpers.model_loader import load_vq_vae
 import matplotlib.pyplot as plt
 
-LATENT_DIM_VQ = 4
-CODE_DEPTH = 16
-CODEBOOK_SIZE = 64
-EMA_MODE = True
 
 if __name__ == "__main__":
 	device = best_device()
 	vq_vae = VQVAE(
 		codebook_size=CODEBOOK_SIZE,
 		code_depth=CODE_DEPTH,
-		latent_dim=LATENT_DIM_VQ,
+		latent_dim=LATENT_DIM,
 		commitment_cost=0.25,
 		device=device,
-		ema_mode=EMA_MODE,
+		ema_mode=True,
 	).to(device)
 	print(f"Testing {CURRENT_ENV['env_name']} VAE model")
-	vq_vae = load_vq_vae(CURRENT_ENV, CODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM_VQ, EMA_MODE, True, device)
+	vq_vae = load_vq_vae(CURRENT_ENV, CODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM, True, True if SMOOTH > 0 else False, device)
 	vq_vae.eval()
 
 	test_loader = make_image_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], False, 0))
@@ -92,4 +88,4 @@ if __name__ == "__main__":
 	plt.ylabel('Frequency')
 	plt.title('Codebook Usage Frequencies')
 	plt.savefig('codebook_usage_.png', dpi=600)
-	plt.show()
+	#plt.show()
