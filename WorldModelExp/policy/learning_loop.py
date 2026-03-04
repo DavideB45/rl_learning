@@ -70,7 +70,8 @@ def main():
 		collecting_time += time.time()
 
 		vq_training_time -= time.time()
-		vq = tune_vq(model=vq, num_epocs=2, reg=1 if SMOOTH else 0)
+		if(round < 10 or round % 2 == 0):
+			vq = tune_vq(model=vq, num_epocs=2, reg=1 if SMOOTH else 0, wd=0.001)
 		vq_training_time += time.time()
 
 		dataset_generation_time -= time.time()
@@ -79,13 +80,13 @@ def main():
 		dataset_generation_time += time.time()
 
 		lstm_training_time -= time.time()
-		lstm = tune_lstm(lstm, tr=tr_seq, vl=vl_seq, encoder=vq, num_epocs=2)
+		lstm = tune_lstm(lstm, tr=tr_seq, vl=vl_seq, encoder=vq, num_epocs=3, wd=0.0002)
 		lstm_training_time += time.time()
 		wrapper_env = PusherWrapEnv(vq, lstm)
-		dream_env = PusherDreamEnv(vq, lstm, vl_seq, init_len=18, ep_len=20, num_envs=50)
+		dream_env = PusherDreamEnv(vq, lstm, vl_seq, init_len=18, ep_len=30, num_envs=50)
 
 		agent_training_time -= time.time()
-		agent = tune_agent(agent, num_steps=500000, env=dream_env)
+		agent = tune_agent(agent, num_steps=1000000, env=dream_env)
 		agent_training_time += time.time()
 
 		evaluation_time -= time.time()
@@ -155,10 +156,12 @@ def tune_lstm(model: LSTMQuantized, tr:DataLoader, vl:DataLoader, encoder: VQVAE
 	
 def tune_agent(agent:PPO, env:PusherDreamEnv, num_steps:int=100000) -> PPO:
 	if agent is None:
-		agent = PPO(MlpPolicy, env, policy_kwargs=policy_kwargs, n_steps=256, batch_size=256, ent_coef=0.01)#, sde_sample_freq=30, use_sde=True (, device='cpu' is a skam)
+		agent = PPO(MlpPolicy, env, policy_kwargs=policy_kwargs, n_steps=256, batch_size=1024, learning_rate=0.0003, ent_coef=0.01)#, sde_sample_freq=30, use_sde=True (, device='cpu' is a skam), 
+	else:
+		agent = PPO.load(PUSHER['models'] + 'agent', env)
 	agent = agent.learn(num_steps, progress_bar=False, reset_num_timesteps=False)
 	agent.save(PUSHER['models'] + 'agent')
-	return PPO.load(PUSHER['models'] + 'agent', env)
+	return agent
 
 
 
