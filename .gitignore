@@ -9,6 +9,7 @@ WorldModelExp/data/*/tr/
 WorldModelExp/data/*/vl/
 rl_env/
 legacy/
+Benchmark/data/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
