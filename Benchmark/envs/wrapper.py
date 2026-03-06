@@ -132,7 +132,7 @@ class MetaWrapEnv(gym.Env):
 
 def generate_data(vq:VQVAE, lstm:LSTMQuantized, n_sample:int=1000, policy:BaseAlgorithm=None, training_set:bool=True, round:int=0):
 	base_path = get_data_path(CURRENT_ENV['img_dir'], training_set, round)
-	action_path = CURRENT_ENV['transitions']
+	action_path = base_path + TRANSITIONS
 	actions = []
 	rewards = []
 	proprioception = []
@@ -144,6 +144,7 @@ def generate_data(vq:VQVAE, lstm:LSTMQuantized, n_sample:int=1000, policy:BaseAl
 			proprioception = f['proprioception']
 	if not os.path.exists(base_path):
 		os.makedirs(base_path)
+	if not os.path.exists(CURRENT_ENV['models']):
 		os.makedirs(CURRENT_ENV['models'])
 		
 	env = MetaWrapEnv(vq, lstm)
@@ -199,10 +200,10 @@ if __name__ == "__main__":
 	done = False
 	total_reward = 0
 	step_count = 0
-	#agent = PPO.load(CURRENT_ENV['models'] + 'agent', env)
+	agent = PPO.load(CURRENT_ENV['models'] + 'agent', env)
 	while not done:
-		action = env.action_space.sample()  # random action
-		#action, _states = agent.predict(observation, deterministic=True)
+		#action = env.action_space.sample()  # random action
+		action, _states = agent.predict(observation, deterministic=True)
 		observation, reward, terminated, truncated, info = env.step(action)
 		print(f"Step {step_count} Reward: {reward}")
 		frames.append(env.render())
@@ -214,7 +215,7 @@ if __name__ == "__main__":
 	env.close()
 
 	GIF_PATH = "output.gif"
-	FRAME_DURATION_MS = 50
+	FRAME_DURATION_MS = 2
 	frames[0].save(
         GIF_PATH,
         save_all=True,

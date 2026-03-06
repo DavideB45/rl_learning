@@ -67,8 +67,8 @@ class TrasitionDataset(Dataset):
 		to_tensor_ = torchvision.transforms.ToTensor()
 		with torch.no_grad():
 			print(f"Encoding dataset from {path} using VQ-VAE...")
-			for episode in tqdm(range(len(act)), 'Encoding Dataset'):
-			#for episode in range(len(act)):
+			#for episode in tqdm(range(len(act)), 'Encoding Dataset'):
+			for episode in range(len(act)):
 				latents.append([])
 				for i in range(0, len(act[episode]) + 1, 64):
 					imgs = []
@@ -90,8 +90,8 @@ class TrasitionDataset(Dataset):
 		self.proprioception = []
 		self.reward = []
 		print(f"Creating sequences of length {seq_len}...")
-		for episode in tqdm(range(len(act)), 'Defining Dataset'):
-		#for episode in range(len(act)):
+		#for episode in tqdm(range(len(act)), 'Defining Dataset'):
+		for episode in range(len(act)):
 			for i in range(0, len(act[episode]) - seq_len + 1, 1):
 				l = []
 				p = []

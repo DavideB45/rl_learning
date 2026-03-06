@@ -8,7 +8,7 @@ import os
 import sys
 sys.path.insert(1, os.path.join(sys.path[0], '../'))
 
-from global_var import CURRENT_ENV
+from global_var import CURRENT_ENV, TRANSITIONS
 from helpers.data import get_data_path
 
 def get_img(renderer) -> Image.Image:
@@ -66,7 +66,7 @@ def gather_data(n_samples=1000, path=0):
 
 if __name__ == "__main__":
 
-	path = get_data_path(CURRENT_ENV['img_dir'], False, 0)
+	path = get_data_path(CURRENT_ENV['img_dir'], True, 0)
 	if not os.path.exists(path):
 		os.makedirs(path)
 	if not os.path.exists(CURRENT_ENV['models']):
@@ -78,7 +78,7 @@ if __name__ == "__main__":
 	print(f"Generated {len(actions)} actions, and {len(rewards)} rewards.")
 
 
-	with open(CURRENT_ENV['transitions'], "w") as f:
+	with open(path + TRANSITIONS, "w") as f:
 		json.dump(
 			{
 				"actions": actions,
