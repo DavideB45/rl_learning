@@ -12,7 +12,25 @@ BUTTON = {
 	"camera_id": 1,
 }
 
-CURRENT_ENV = BUTTON
+PUSH_DATA_DIR = "data/push/"
+PUSH = {
+	"env_name": "push-v3",
+	"img_dir": PUSH_DATA_DIR + IMG_DIR,
+	"models": PUSH_DATA_DIR + MODELS_DIR,
+	"a_size": 4,
+	"camera_id": 1,
+}
+
+DRAWERO_DATA_DIR = "data/drawer-open/"
+DRAWER_OPEN = {
+	"env_name": "drawer-open-v3",
+	"img_dir": DRAWERO_DATA_DIR + IMG_DIR,
+	"models": DRAWERO_DATA_DIR + MODELS_DIR,
+	"a_size": 4,
+	"camera_id": 1,
+}
+
+CURRENT_ENV = DRAWER_OPEN
 
 LATENT_DIM = 8
 CODE_DEPTH = 16
