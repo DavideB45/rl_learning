@@ -189,24 +189,82 @@ def generate_data(vq:VQVAE, lstm:LSTMQuantized, n_sample:int=1000, policy:BaseAl
 			indent=4
 		)
 
+def evaluate_gathering(vq:VQVAE, lstm:LSTMQuantized, policy:BaseAlgorithm, n_sample:int=1000, training_set:bool=True, round:int=0) -> tuple[list[float], list[bool]]:
+	"""
+	Evaluate the policy on the environment, gathering data and saving it in the same format as generate_data
+	Args:
+		vq: VQVAE model
+		lstm: LSTM model
+		n_sample: number of samples to gather
+		policy: policy to use for action selection, if None random actions will be taken
+		training_set: whether to use the training set or the test set path for data storage
+		round: round number for data storage (only zero should be used at the current moment and possibly forever)
+	Returns:
+		tuple[list[float], list[bool]]: total rewards and success flags for each episode
+	"""
+	base_path = get_data_path(CURRENT_ENV['img_dir'], training_set, round)
+	action_path = base_path + TRANSITIONS
+	actions = [], rewards = [], proprioception = []
+	if os.path.exists(action_path):
+		with open(action_path, "r") as f:
+			f = json.load(f)
+			actions = f['actions'], rewards = f['reward'], proprioception = f['proprioception']
+	if not os.path.exists(base_path):
+		os.makedirs(base_path)
+	if not os.path.exists(CURRENT_ENV['models']):
+		os.makedirs(CURRENT_ENV['models'])
+		
+	env = MetaWrapEnv(vq, lstm)
+	obs, _ = env.reset(), step = 0, episode = len(actions)
+	print("Number of episodes in history:", episode)
+	actions.append([]), rewards.append([]), proprioception.append([env.current_prop.flatten().tolist()])
+	env.current_render.save(base_path + f'img_{episode}_{step}.png')
+	tot_rewards = [0], tot_success = [False]
+	for i in range(n_sample):
+		step += 1
+		if step % 10 == 0: # SB3 does not do this automatically since we are evaluating the model
+			policy.policy.reset_noise()
+		action, _ = policy.predict(obs, deterministic=False)
+		obs, rew, ter, trunc, info = env.step(action)
+		proprioception[-1].append(env.current_prop.flatten().tolist()), actions[-1].append(action.tolist()), rewards[-1].append(float(rew))
+		env.current_render.save(base_path + f'img_{episode}_{step}.png')
+		tot_rewards[-1] += rew
+		tot_success[-1] = (info['success'] == 1) or tot_success[-1]
+		if ter or trunc:
+			obs, info = env.reset()
+			if i < n_sample - 1:
+				episode += 1
+				step = 0
+				proprioception.append([env.current_prop.flatten().tolist()]), actions.append([]), rewards.append([]), tot_rewards.append(0), tot_success.append(False)
+				env.current_render.save(base_path + f'img_{episode}_{step}.png')
+	with open(action_path, "w") as f:
+		json.dump(
+			{ "actions": actions, "reward": rewards, "proprioception": proprioception },
+			f, indent=4
+		)
+	return tot_rewards, tot_success
+
 if __name__ == "__main__":
+	from random import randint
 	SMOOTH = True if SMOOTH > 0 else False
 	vq = load_vq_vae(CURRENT_ENV, CODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM, True, SMOOTH, best_device())
 	lstm = load_lstm_quantized(CURRENT_ENV, vq, best_device(), HIDDEN_DIM, SMOOTH, False, False)
 	env = MetaWrapEnv(vq, lstm)
 	observation, _ = env.reset()
 	frames = []
-	frames.append(env.render())
+	frames.append(env.render().rotate(180))
 	done = False
 	total_reward = 0
 	step_count = 0
 	agent = PPO.load(CURRENT_ENV['models'] + 'agent', env)
 	while not done:
-		#action = env.action_space.sample()  # random action
-		action, _states = agent.predict(observation, deterministic=True)
+		if randint(0, 9) < 2:
+			action = env.action_space.sample()  # random action
+		else:
+			action, _states = agent.predict(observation, deterministic=False)
 		observation, reward, terminated, truncated, info = env.step(action)
 		print(f"Step {step_count} Reward: {reward}")
-		frames.append(env.render())
+		frames.append(env.render().rotate(180))
 		done = terminated or truncated
 		total_reward += reward
 		step_count += 1
