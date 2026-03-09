@@ -1,7 +1,6 @@
 from torch.optim import Adam
 from stable_baselines3.ppo.policies import MlpPolicy
 from stable_baselines3.ppo import PPO
-from stable_baselines3.common.evaluation import evaluate_policy
 from torch.utils.data import DataLoader
 import time
 import json
@@ -18,7 +17,7 @@ from vae.vqVae import VQVAE
 from dynamics.lstm import LSTMQuantized
 
 from envs.simulator import MetaDreamEnv
-from envs.wrapper import MetaWrapEnv, generate_data
+from envs.wrapper import MetaWrapEnv, evaluate_gathering, generate_data
 
 SMOOTHING = True if SMOOTH > 0 else False
 # PPO RELATED PARAMETERS
@@ -39,49 +38,49 @@ def main():
 	lstm_training_time = 0
 	dataset_generation_time = 0
 	agent_training_time = 0
-	evaluation_time = 0
 
 	start_time = time.time()
 	vq = VQVAE(CODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM, 0.25, best_device(), True)
 	lstm = LSTMQuantized(vq, best_device(), CURRENT_ENV['a_size'], 4, HIDDEN_DIM)
 	agent = None
 	with open('res.csv', 'w') as f:
-			f.write(f'mean,var\n')
+			f.write(f'mrew,success\n')
+	
+	collecting_time -= time.time()
+	generate_data(vq, lstm, n_sample=10000, training_set=True)
+	generate_data(vq, lstm, n_sample=1000, training_set=False)
+	collecting_time += time.time()
 
 	for round in range(N_ROUNDS):
 		print(f'Training round: {round}')
-		collecting_time -= time.time()
-		generate_data(vq, lstm, 10000, policy=agent, training_set=True)
-		generate_data(vq, lstm, 1000, policy=agent, training_set=False)
-		collecting_time += time.time()
 
 		vq_training_time -= time.time()
-		if(round < 10 or round % 2 == 0):
-			vq = tune_vq(model=vq, num_epocs=VQ_EPOCS, lr=VQ_LR, reg=SMOOTH, wd=VQ_WD)
+		vq = tune_vq(model=vq, num_epocs=VQ_EPOCS if round == 0 else 1, lr=VQ_LR, reg=SMOOTH, wd=VQ_WD)
 		vq_training_time += time.time()
 
 		dataset_generation_time -= time.time()
-		tr_seq = make_seq_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], True, 0), vq, SEQ_LEN, 128)
-		vl_seq = make_seq_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], False, 0), vq, SEQ_LEN, 128)
+		tr_seq = make_seq_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], True, 0), vq, SEQ_LEN, 128, max_ep=20)
+		vl_seq = make_seq_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], False, 0), vq, SEQ_LEN, 128, max_ep=10)
 		dataset_generation_time += time.time()
-
 		lstm_training_time -= time.time()
-		lstm = tune_lstm(lstm, tr=tr_seq, vl=vl_seq, encoder=vq, num_epocs=LSTM_EPOCS, lr=LSTM_LR, wd=LSTM_WD)
+		lstm = tune_lstm(lstm, tr=tr_seq, vl=vl_seq, encoder=vq, num_epocs=LSTM_EPOCS if round == 0 else 1, lr=LSTM_LR, wd=LSTM_WD)
 		lstm_training_time += time.time()
-		wrapper_env = MetaWrapEnv(vq, lstm)
+		
 		dream_env = MetaDreamEnv(vq, lstm, vl_seq, init_len=INIT_LEN, ep_len=50, num_envs=50)
-
 		agent_training_time -= time.time()
 		agent = tune_agent(agent, num_steps=PPO_STEPS, env=dream_env)
 		agent_training_time += time.time()
 
-		evaluation_time -= time.time()
-		grades = evaluate_policy(agent, wrapper_env, warn=False, n_eval_episodes=15)
-		print(grades)
-		evaluation_time += time.time()
-
+		collecting_time -= time.time()
+		rew, succ = evaluate_gathering(vq, lstm, n_sample=1000, policy=agent, training_set=True)
+		if round % 10 == 0:
+			generate_data(vq, lstm, n_sample=1000, policy=agent, training_set=False)
+		print(f"Average reward: {(sum(rew) / len(rew)):.2f}, Success rate: {(sum(succ) / len(succ)):.2%}")
 		with open('res.csv', 'a') as f:
-			f.write(f'{grades[0]},{grades[1]}\n')
+			for i in range(len(rew)):
+				f.write(f'{rew[i]},{succ[i]}\n')
+		collecting_time += time.time()
+
 		print(f"\033[1;31m--- {time.strftime('%H:%M:%S', time.gmtime(time.time()-start_time))} ---\033[0m")
 	with open('time.json', 'w') as f:
 		json.dump({
@@ -90,14 +89,13 @@ def main():
 			'lstm_training_time': lstm_training_time,
 			'dataset_generation_time': dataset_generation_time,
 			'agent_training_time': agent_training_time,
-			'evaluation_time': evaluation_time
 		}, f, indent=1)
 
 
 
 def tune_vq(model:VQVAE, num_epocs:int=20, lr:float=1e-3, wd:float=1e-3, reg:float=1) -> VQVAE:
-	tr = make_image_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], True, 0))
-	vl = make_image_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], False, 0))
+	tr = make_image_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], True, 0), max_size=10000)
+	vl = make_image_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], False, 0), max_size=1000)
 	optim = Adam(model.parameters(), lr=lr, weight_decay=wd)
 	best_val_loss = float('inf')
 	no_improvements = 0
@@ -142,7 +140,7 @@ def tune_lstm(model: LSTMQuantized, tr:DataLoader, vl:DataLoader, encoder: VQVAE
 	
 def tune_agent(agent:PPO, env:MetaDreamEnv, num_steps:int=100000) -> PPO:
 	if agent is None:
-		agent = PPO(MlpPolicy, env, policy_kwargs=policy_kwargs, n_steps=256, batch_size=1024, learning_rate=0.0003, ent_coef=0.01)#, sde_sample_freq=30, use_sde=True (, device='cpu' is a skam), 
+		agent = PPO(MlpPolicy, env, policy_kwargs=policy_kwargs, n_steps=500, batch_size=1000, learning_rate=0.0003, ent_coef=0.01, sde_sample_freq=10, use_sde=True)
 	else:
 		agent = PPO.load(CURRENT_ENV['models'] + 'agent', env)
 	agent = agent.learn(num_steps, progress_bar=False, reset_num_timesteps=False)

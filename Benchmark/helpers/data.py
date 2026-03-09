@@ -1,4 +1,6 @@
 import glob
+import random
+import numpy as np
 import json
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
@@ -20,34 +22,28 @@ class PNGDataset(Dataset):
 	'''
 	Custom Dataset for loading PNG images from a directory
 	'''
-	def __init__(self, path=None, images=None):
-		if (path is not None and images is not None) or (path is None and images is None):
-			raise ValueError("Provide either a path or images, not both.")
-		
-		self.from_disk = images is None
+	def __init__(self, path:str, max_size:int=10000):
 
-		self.files = glob.glob(path + 'img_*.png') if self.from_disk else []
+		self.files = glob.glob(path + 'img_*.png')
+		if len(self.files) > max_size:
+			random.shuffle(self.files)
+			self.files = self.files[:max_size]
+		else:
+			print(f"Warning: only {len(self.files)} images found in {path}, less than the specified max_size of {max_size}")
 		self.transform = torchvision.transforms.ToTensor()
-		self.data = []
-		self.images = images
 		
 	def __len__(self):
-		return len(self.files) if self.from_disk else len(self.images)
+		return len(self.files)
 	
 	def __getitem__(self, idx):
-		if self.from_disk:
-			with Image.open(self.files[idx]) as im:
-				img = im.convert('RGB')
-			img = self.transform(img)
-			return img
-		else:
-			img = self.images[idx]
-			img = self.transform(img)
-			return img
+		with Image.open(self.files[idx]) as im:
+			img = im.convert('RGB')
+		img = self.transform(img)
+		return img
 
-def make_image_dataloader_safe(data_dir:str, batch_size:int=256) -> DataLoader:
+def make_image_dataloader_safe(data_dir:str, batch_size:int=256, max_size:int=10000) -> DataLoader:
 	print(f'Creating dataloaded from {data_dir}')
-	dataset = PNGDataset(path=data_dir)
+	dataset = PNGDataset(path=data_dir, max_size=max_size)
 	dataloader = DataLoader(dataset, batch_size, shuffle=True, num_workers=2)
 	return dataloader
 
@@ -55,7 +51,7 @@ class TrasitionDataset(Dataset):
 	'''
 	Custom Dataset for loading images-action
 	'''
-	def __init__(self, path:str, seq_len:int=10, vq:VQVAE=None):
+	def __init__(self, path:str, seq_len:int=10, vq:VQVAE=None, max_ep:int=20):
 		super().__init__()
 		apr_path = path + 'action_reward_data.json'
 		with open(apr_path, 'r') as f:
@@ -63,16 +59,25 @@ class TrasitionDataset(Dataset):
 			act = apr_json["actions"]
 			prop = apr_json["proprioception"]
 			rew = apr_json["reward"]
+		if len(act) > max_ep:
+			episodes = list(range(len(act))-1)
+			weights = np.array([1 + i / len(episodes) for i in episodes])
+			weights = weights / weights.sum()  # normalize to probabilities
+			episodes = np.random.choice(episodes, size=max_ep, replace=False, p=weights)
+			episodes.append(len(act)-1) # always include the last episode because you never know...
+			act = [act[i] for i in episodes]
+			prop = [prop[i] for i in episodes]
+			rew = [rew[i] for i in episodes]
 		latents = []
 		to_tensor_ = torchvision.transforms.ToTensor()
 		with torch.no_grad():
 			print(f"Encoding dataset from {path} using VQ-VAE...")
 			#for episode in tqdm(range(len(act)), 'Encoding Dataset'):
-			for episode in range(len(act)):
+			for i, episode in enumerate(episodes):
 				latents.append([])
-				for i in range(0, len(act[episode]) + 1, 64):
+				for i in range(0, len(act[i]) + 1, 64):
 					imgs = []
-					for j in range(i, min(i+64, len(act[episode])+1)):
+					for j in range(i, min(i+64, len(act[i])+1)):
 						im_path = path + f"/img_{episode}_{j}.png"
 						with Image.open(im_path) as im:
 							img = im.convert('RGB')
@@ -97,7 +102,7 @@ class TrasitionDataset(Dataset):
 				p = []
 				for j in range(seq_len+1):
 					l.append(latents[episode][i+j].clone())# this because we have a list of tensors
-					p.append(prop[episode][i+j][0:17]) # only take the first 17 proprioception values other are target positions
+					p.append(prop[episode][i+j][0:4]) # only take the first 4 proprioception values other are target positions
 				lat = torch.stack(l)
 				self.representation.append(lat)
 				self.actions.append(act[episode][i:i+seq_len])
@@ -116,7 +121,7 @@ class TrasitionDataset(Dataset):
 			'reward': torch.tensor(self.reward[idx], dtype=torch.float32).detach()
 		}
 
-def make_seq_dataloader_safe(data_dir:str, vq:VQVAE, seq_len:int=10, batch_size:int=64) -> DataLoader:
-	dataset = TrasitionDataset(path=data_dir, seq_len=seq_len, vq=vq)
+def make_seq_dataloader_safe(data_dir:str, vq:VQVAE, seq_len:int=10, batch_size:int=64, max_ep:int=10) -> DataLoader:
+	dataset = TrasitionDataset(path=data_dir, seq_len=seq_len, vq=vq, max_ep=max_ep)
 	dataloader = DataLoader(dataset, batch_size, shuffle=True, num_workers=2)
 	return dataloader
