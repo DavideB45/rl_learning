@@ -109,7 +109,7 @@ class MetaWrapEnv(gym.Env):
 			reward, # from world model
 			terminated, # For now only based on step count
 			truncated, # Truncated
-			{} # empty dict
+			info # empty dict
 		)
 	
 	def render(self):
@@ -204,22 +204,29 @@ def evaluate_gathering(vq:VQVAE, lstm:LSTMQuantized, policy:BaseAlgorithm, n_sam
 	"""
 	base_path = get_data_path(CURRENT_ENV['img_dir'], training_set, round)
 	action_path = base_path + TRANSITIONS
-	actions = [], rewards = [], proprioception = []
+	actions = []
+	rewards = []
+	proprioception = []
 	if os.path.exists(action_path):
 		with open(action_path, "r") as f:
 			f = json.load(f)
-			actions = f['actions'], rewards = f['reward'], proprioception = f['proprioception']
+			actions = f['actions']
+			rewards = f['reward']
+			proprioception = f['proprioception']
 	if not os.path.exists(base_path):
 		os.makedirs(base_path)
 	if not os.path.exists(CURRENT_ENV['models']):
 		os.makedirs(CURRENT_ENV['models'])
 		
 	env = MetaWrapEnv(vq, lstm)
-	obs, _ = env.reset(), step = 0, episode = len(actions)
+	obs, _ = env.reset()
+	step = 0
+	episode = len(actions)
 	print("Number of episodes in history:", episode)
 	actions.append([]), rewards.append([]), proprioception.append([env.current_prop.flatten().tolist()])
 	env.current_render.save(base_path + f'img_{episode}_{step}.png')
-	tot_rewards = [0], tot_success = [False]
+	tot_rewards = [0]
+	tot_success = [False]
 	for i in range(n_sample):
 		step += 1
 		if step % 10 == 0: # SB3 does not do this automatically since we are evaluating the model

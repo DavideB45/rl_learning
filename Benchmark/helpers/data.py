@@ -60,24 +60,27 @@ class TrasitionDataset(Dataset):
 			prop = apr_json["proprioception"]
 			rew = apr_json["reward"]
 		if len(act) > max_ep:
-			episodes = list(range(len(act))-1)
+			episodes = list(range(len(act) - 1))
 			weights = np.array([1 + i / len(episodes) for i in episodes])
 			weights = weights / weights.sum()  # normalize to probabilities
 			episodes = np.random.choice(episodes, size=max_ep, replace=False, p=weights)
-			episodes.append(len(act)-1) # always include the last episode because you never know...
+			episodes = list(episodes) + [len(act) - 1]  # always include the last episode because you never know...
 			act = [act[i] for i in episodes]
 			prop = [prop[i] for i in episodes]
 			rew = [rew[i] for i in episodes]
+		else:
+			episodes = list(range(len(act)))
+			print(f"Warning: only {len(episodes)} episodes found in {apr_path}, less than the specified max_ep of {max_ep}")
 		latents = []
 		to_tensor_ = torchvision.transforms.ToTensor()
 		with torch.no_grad():
 			print(f"Encoding dataset from {path} using VQ-VAE...")
 			#for episode in tqdm(range(len(act)), 'Encoding Dataset'):
-			for i, episode in enumerate(episodes):
+			for k, episode in enumerate(episodes):
 				latents.append([])
-				for i in range(0, len(act[i]) + 1, 64):
+				for i in range(0, len(act[k]) + 1, 64):
 					imgs = []
-					for j in range(i, min(i+64, len(act[i])+1)):
+					for j in range(i, min(i+64, len(act[k])+1)):
 						im_path = path + f"/img_{episode}_{j}.png"
 						with Image.open(im_path) as im:
 							img = im.convert('RGB')
