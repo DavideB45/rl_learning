@@ -135,6 +135,17 @@ class VQVAE(AbstractVAE):
 		loss = torch.sum(avg_probs * torch.log((avg_probs + 1e-10)*self.codebook_size))
 		return loss
 	
+	def space_loss(self, z: torch.Tensor) -> torch.Tensor:
+		'''
+		Compute a loss to encourage the model to yeld smalled codes.\
+		This can be useful for downstream tasks
+		Args:
+			z (torch.Tensor): Latent representation of shape (batch, code_depth, latent_dim, latent_dim)
+		Returns:
+			loss (torch.Tensor): average size (somewhat like l2 reg)
+		'''
+		return torch.mean(z)**2
+	
 	def train_epoch(self, loader:DataLoader, optim:torch.optim.Optimizer, reg:float = 0) -> dict:
 		'''
 		Trains the VQVAE for one epoch.
@@ -165,7 +176,7 @@ class VQVAE(AbstractVAE):
 			recon_batch = self.decode(quantized)
 
 			rec_loss = self.reconstruction_loss(data, recon_batch)
-			loss = rec_loss + emb_loss + reg*flatness_loss#reg*(flatness_loss - 0.1)**2
+			loss = rec_loss + emb_loss + reg*flatness_loss
 			loss.backward()
 			optim.step()
 			used_codes.update(indexes.view(-1).cpu().numpy().tolist())
