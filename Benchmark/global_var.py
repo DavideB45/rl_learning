@@ -36,14 +36,14 @@ LATENT_DIM = 8
 CODE_DEPTH = 16
 CODEBOOK_SIZE = 128
 SMOOTH = 5
-VQ_EPOCS = 20 # used in learning loop for the initial training, then 1 epoch for each round
+VQ_EPOCS = 10 # used in learning loop for the initial training, then 1 epoch for each round
 VQ_LR = 1e-3
 VQ_WD = 0.001
 
 HIDDEN_DIM = 1024
 SEQ_LEN = 25
 INIT_LEN = 15
-LSTM_EPOCS = 10 # used in learning loop for the initial training, then 1 epoch for each round
+LSTM_EPOCS = 5 # used in learning loop for the initial training, then 1 epoch for each round
 LSTM_LR = 5e-5
 LSTM_WD = 1e-3
 

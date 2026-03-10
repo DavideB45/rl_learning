@@ -265,10 +265,10 @@ if __name__ == "__main__":
 	step_count = 0
 	agent = PPO.load(CURRENT_ENV['models'] + 'agent', env)
 	while not done:
-		if randint(0, 9) < 2:
+		if randint(0, 9) < -1:
 			action = env.action_space.sample()  # random action
 		else:
-			action, _states = agent.predict(observation, deterministic=False)
+			action, _states = agent.predict(observation, deterministic=True)
 		observation, reward, terminated, truncated, info = env.step(action)
 		print(f"Step {step_count} Reward: {reward}")
 		frames.append(env.render().rotate(180))

@@ -9,6 +9,13 @@ if __name__ == '__main__':
 	"agent_training_time": 6480.0694744586945,
 	"evaluation_time": 18568.107147216797
 	}
+	times = {
+	"collecting_time": 28852.194244623184,
+	"vq_training_time": 5033.064501047134,
+	"lstm_training_time": 4761.03252863884,
+	"dataset_generation_time": 8425.21964931488,
+	"agent_training_time": 7343.691750526428
+	}
 	for key in times:
 		tot += times[key]
 		print(f"{key} : {time.strftime('%H:%M:%S', time.gmtime(times[key]))}")

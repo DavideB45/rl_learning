@@ -52,7 +52,7 @@ def main():
 	collecting_time += time.time()
 
 	for round in range(N_ROUNDS):
-		print(f'Training round: {round}')
+		print(f'Training round: {round + 1} of {N_ROUNDS}')
 
 		vq_training_time -= time.time()
 		vq = tune_vq(model=vq, num_epocs=VQ_EPOCS if round == 0 else 1, lr=VQ_LR, reg=SMOOTH, wd=VQ_WD)
