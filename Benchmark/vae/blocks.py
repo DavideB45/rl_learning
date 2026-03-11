@@ -76,7 +76,7 @@ class VectorQuantizer(nn.Module):
 	def __init__(self, 
 			  codebook_size: int, embedding_dim: int, 
 			  commitment_cost: float, 
-			  ema: bool = False, gamma: float = 0.99, epsilon: float = 1e-5):
+			  ema: bool = False, gamma: float = 0.995, epsilon: float = 1e-5):
 		super().__init__()
 		self.codebook_size = codebook_size
 		self.embedding_dim = embedding_dim

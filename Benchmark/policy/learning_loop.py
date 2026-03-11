@@ -59,8 +59,8 @@ def main():
 		vq_training_time += time.time()
 
 		dataset_generation_time -= time.time()
-		tr_seq = make_seq_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], True, 0), vq, SEQ_LEN, 128, max_ep=20)
-		vl_seq = make_seq_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], False, 0), vq, SEQ_LEN, 128, max_ep=10)
+		tr_seq = make_seq_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], True, 0), vq, SEQ_LEN, 128, max_ep=EP_ON_LOOP)
+		vl_seq = make_seq_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], False, 0), vq, SEQ_LEN, 128, max_ep=15)
 		dataset_generation_time += time.time()
 		lstm_training_time -= time.time()
 		lstm = tune_lstm(lstm, tr=tr_seq, vl=vl_seq, encoder=vq, num_epocs=LSTM_EPOCS if round == 0 else 1, lr=LSTM_LR, wd=LSTM_WD)
@@ -94,8 +94,8 @@ def main():
 
 
 def tune_vq(model:VQVAE, num_epocs:int=20, lr:float=1e-3, wd:float=1e-3, reg:float=1) -> VQVAE:
-	tr = make_image_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], True, 0), max_size=10000)
-	vl = make_image_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], False, 0), max_size=1000)
+	tr = make_image_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], True, 0), max_size=EP_ON_LOOP*500)
+	vl = make_image_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], False, 0), max_size=1500)
 	optim = Adam(model.parameters(), lr=lr, weight_decay=wd)
 	best_val_loss = float('inf')
 	no_improvements = 0

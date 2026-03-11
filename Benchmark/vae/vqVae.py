@@ -135,7 +135,7 @@ class VQVAE(AbstractVAE):
 		loss = torch.sum(avg_probs * torch.log((avg_probs + 1e-10)*self.codebook_size))
 		return loss
 	
-	def space_loss(self, z: torch.Tensor) -> torch.Tensor:
+	def contraction_loss(self, z: torch.Tensor) -> torch.Tensor:
 		'''
 		Compute a loss to encourage the model to yeld smalled codes.\
 		This can be useful for downstream tasks
@@ -217,7 +217,7 @@ class VQVAE(AbstractVAE):
 				emb_loss, quantized, indexes = self.quantize(z)
 				recon_batch = self.decode(quantized)
 				rec_loss = self.reconstruction_loss(data, recon_batch)
-				loss = rec_loss + emb_loss + flatness_loss*reg
+				loss = rec_loss + emb_loss + flatness_loss*reg + self.contraction_loss(z)*0.0001
 				losses["total_loss"] += loss.item()
 				losses["recon_loss"] += rec_loss.item()
 				losses["commit_loss"] += emb_loss.item()
