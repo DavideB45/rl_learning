@@ -66,7 +66,7 @@ def main():
 		lstm = tune_lstm(lstm, tr=tr_seq, vl=vl_seq, encoder=vq, num_epocs=LSTM_EPOCS if round == 0 else 1, lr=LSTM_LR, wd=LSTM_WD)
 		lstm_training_time += time.time()
 		
-		dream_env = MetaDreamEnv(vq, lstm, vl_seq, init_len=INIT_LEN, ep_len=50, num_envs=50)
+		dream_env = MetaDreamEnv(vq, lstm, vl_seq, init_len=INIT_LEN, ep_len=30, num_envs=50)
 		agent_training_time -= time.time()
 		agent = tune_agent(agent, num_steps=PPO_STEPS, env=dream_env)
 		agent_training_time += time.time()

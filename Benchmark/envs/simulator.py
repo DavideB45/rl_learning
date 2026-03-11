@@ -40,6 +40,8 @@ class MetaDreamEnv(VecEnv):
 		self.lstm = lstm
 		self.lstm.eval()
 		self.hidden_state = None # (num_envs, hidden_dim)
+		self.mu = vq.quantizer.embedding.weight.data.mean(dim=0).repeat(vq.latent_dim*vq.latent_dim)
+		self.std = vq.quantizer.embedding.weight.data.std(dim=0).repeat(vq.latent_dim*vq.latent_dim)
 
 		self.observation_space = spaces.Box(
 			low=-np.inf, high=np.inf, 
@@ -79,7 +81,7 @@ class MetaDreamEnv(VecEnv):
 			self.hidden_state = h
 			self.current_latent = pred[:, -1, :, :, :]
 			self.current_prop = prop[:, -1, :]
-			latent_flat = self.current_latent.reshape(self.num_envs, -1)
+			latent_flat = (self.current_latent.reshape(self.num_envs, -1)-self.mu)/self.std
 			hidden_flat = self.hidden_state[0].reshape(self.num_envs, -1)
 
 			representation = torch.cat([latent_flat, hidden_flat], dim=-1).cpu().numpy()
@@ -105,7 +107,7 @@ class MetaDreamEnv(VecEnv):
 			self.current_latent = pred[:, -1, :, :, :]
 			self.current_prop = prop[:, -1, :]
 
-			latent_flat = self.current_latent.reshape(self.num_envs, -1)
+			latent_flat = (self.current_latent.reshape(self.num_envs, -1)-self.mu)/self.std
 			hidden_flat = self.hidden_state[0].reshape(self.num_envs, -1)
 			representation = torch.cat([latent_flat, hidden_flat], dim=-1).cpu().numpy()
 
@@ -166,7 +168,7 @@ if __name__ == "__main__":
 	vq = load_vq_vae(CURRENT_ENV, CODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM, True, SMOOTH, best_device())
 	lstm = load_lstm_quantized(CURRENT_ENV, vq, best_device(), HIDDEN_DIM, SMOOTH, False, False)
 	env = MetaDreamEnv(vq=vq, lstm=lstm, dataloader=make_seq_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], True, 0), vq, 100, 1), 
-					  num_envs=1, ep_len=500, init_len=1)
+					  num_envs=1, ep_len=50, init_len=1)
 	observation = env.reset()
 	frames = []
 	frames.append(env.render().rotate(180))

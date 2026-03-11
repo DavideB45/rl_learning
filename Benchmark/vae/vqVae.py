@@ -217,7 +217,7 @@ class VQVAE(AbstractVAE):
 				emb_loss, quantized, indexes = self.quantize(z)
 				recon_batch = self.decode(quantized)
 				rec_loss = self.reconstruction_loss(data, recon_batch)
-				loss = rec_loss + emb_loss + flatness_loss*reg + self.contraction_loss(z)*0.0001
+				loss = rec_loss + emb_loss + flatness_loss*reg #+ self.contraction_loss(z)*0.0001
 				losses["total_loss"] += loss.item()
 				losses["recon_loss"] += rec_loss.item()
 				losses["commit_loss"] += emb_loss.item()

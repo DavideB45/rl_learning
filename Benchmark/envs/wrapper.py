@@ -40,6 +40,8 @@ class MetaWrapEnv(gym.Env):
 
 		self.env = gym.make('Meta-World/MT1', env_name=CURRENT_ENV['env_name'],
 				render_mode='rgb_array', camera_id=CURRENT_ENV['camera_id'], width = 128, height = 128)
+		self.mu = vq.quantizer.embedding.weight.data.mean(dim=0).repeat(vq.latent_dim*vq.latent_dim)
+		self.std = vq.quantizer.embedding.weight.data.std(dim=0).repeat(vq.latent_dim*vq.latent_dim)
 		self.action_space = spaces.Box(
 			low=-1, high=1, 
 			shape=(4,), 
@@ -82,7 +84,8 @@ class MetaWrapEnv(gym.Env):
 		self.current_latent = lat
 		self.current_prop = torch.tensor(prop[:4], dtype=torch.float32).unsqueeze(0).unsqueeze(0)
 		self.current_render = img
-		representation = torch.cat([self.current_latent.flatten(), self.hidden_state[0].flatten()], dim=-1).cpu().numpy()
+		normalized = (self.current_latent.flatten()-self.mu)/self.std
+		representation = torch.cat([normalized, self.hidden_state[0].flatten()], dim=-1).cpu().numpy()
 		return representation, {}
 
 	def step(self, action,) -> tuple:
@@ -103,7 +106,8 @@ class MetaWrapEnv(gym.Env):
 		self.current_latent = lat
 		self.current_prop = torch.tensor(prop, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
 		self.current_render = img
-		representation = torch.cat([self.current_latent.flatten(), self.hidden_state[0].flatten()], dim=-1).cpu().numpy()
+		normalized = (self.current_latent.flatten()-self.mu)/self.std
+		representation = torch.cat([normalized, self.hidden_state[0].flatten()], dim=-1).cpu().numpy()
 		return (
 			representation, # based on world model
 			reward, # from world model
@@ -148,7 +152,7 @@ def generate_data(vq:VQVAE, lstm:LSTMQuantized, n_sample:int=1000, policy:BaseAl
 		os.makedirs(CURRENT_ENV['models'])
 		
 	env = MetaWrapEnv(vq, lstm)
-	obs, _ = env.reset()
+	obs, _ = env.reset(seed=0)
 	step = 0
 	episode = len(actions)
 	print(episode)
