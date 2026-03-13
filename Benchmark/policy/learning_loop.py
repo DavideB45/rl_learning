@@ -49,7 +49,7 @@ def main():
 			f.write(f'mrew,success,space\n')
 	
 	collecting_time -= time.time()
-	generate_data(vq, lstm, n_sample=5000, training_set=True)
+	generate_data(vq, lstm, n_sample=10000, training_set=True)
 	generate_data(vq, lstm, n_sample=1000, training_set=False)
 	collecting_time += time.time()
 

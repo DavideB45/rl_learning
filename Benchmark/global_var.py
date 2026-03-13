@@ -36,7 +36,7 @@ LATENT_DIM = 8
 CODE_DEPTH = 16
 CODEBOOK_SIZE = 128
 SMOOTH = 5
-VQ_EPOCS = 5 # used in learning loop for the initial training, then 1 epoch for each round
+VQ_EPOCS = 10 # used in learning loop for the initial training, then 1 epoch for each round
 VQ_LR = 1e-3
 VQ_WD = 0.001
 
