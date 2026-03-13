@@ -40,8 +40,8 @@ class MetaDreamEnv(VecEnv):
 		self.lstm = lstm
 		self.lstm.eval()
 		self.hidden_state = None # (num_envs, hidden_dim)
-		self.mu = vq.quantizer.embedding.weight.data.mean(dim=0).repeat(vq.latent_dim*vq.latent_dim)
-		self.std = vq.quantizer.embedding.weight.data.std(dim=0).repeat(vq.latent_dim*vq.latent_dim)
+		self.mu = vq.quantizer.embedding.weight.data.mean()
+		self.std = vq.quantizer.embedding.weight.data.std()
 
 		self.observation_space = spaces.Box(
 			low=-np.inf, high=np.inf, 

@@ -40,8 +40,8 @@ class MetaWrapEnv(gym.Env):
 
 		self.env = gym.make('Meta-World/MT1', env_name=CURRENT_ENV['env_name'],
 				render_mode='rgb_array', camera_id=CURRENT_ENV['camera_id'], width = 128, height = 128)
-		self.mu = vq.quantizer.embedding.weight.data.mean(dim=0).repeat(vq.latent_dim*vq.latent_dim)
-		self.std = vq.quantizer.embedding.weight.data.std(dim=0).repeat(vq.latent_dim*vq.latent_dim)
+		self.mu = vq.quantizer.embedding.weight.data.mean()
+		self.std = vq.quantizer.embedding.weight.data.std()
 		self.action_space = spaces.Box(
 			low=-1, high=1, 
 			shape=(4,), 

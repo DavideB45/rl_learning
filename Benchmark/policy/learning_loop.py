@@ -1,7 +1,9 @@
+import numpy as np
 from torch.optim import Adam
 from stable_baselines3.ppo.policies import MlpPolicy
 from stable_baselines3.ppo import PPO
 from torch.utils.data import DataLoader
+import torch
 import time
 import json
 
@@ -44,10 +46,10 @@ def main():
 	lstm = LSTMQuantized(vq, best_device(), CURRENT_ENV['a_size'], 4, HIDDEN_DIM)
 	agent = None
 	with open('res.csv', 'w') as f:
-			f.write(f'mrew,success\n')
+			f.write(f'mrew,success,space\n')
 	
 	collecting_time -= time.time()
-	generate_data(vq, lstm, n_sample=10000, training_set=True)
+	generate_data(vq, lstm, n_sample=5000, training_set=True)
 	generate_data(vq, lstm, n_sample=1000, training_set=False)
 	collecting_time += time.time()
 
@@ -55,7 +57,7 @@ def main():
 		print(f'Training round: {round + 1} of {N_ROUNDS}')
 
 		vq_training_time -= time.time()
-		vq = tune_vq(model=vq, num_epocs=VQ_EPOCS if round == 0 else 1, lr=VQ_LR, reg=SMOOTH, wd=VQ_WD)
+		vq = tune_vq(model=vq, num_epocs=VQ_EPOCS if round == 0 else 1, lr=VQ_LR/np.log(round*5 + 4), reg=SMOOTH, wd=VQ_WD)
 		vq_training_time += time.time()
 
 		dataset_generation_time -= time.time()
@@ -78,7 +80,7 @@ def main():
 		print(f"Average reward: {(sum(rew) / len(rew)):.2f}, Success rate: {(sum(succ) / len(succ)):.2%}")
 		with open('res.csv', 'a') as f:
 			for i in range(len(rew)):
-				f.write(f'{rew[i]},{succ[i]}\n')
+				f.write(f'{rew[i]},{succ[i]},{torch.mean(torch.abs(vq.quantizer.embedding.weight.data))}\n')
 		collecting_time += time.time()
 
 		print(f"\033[1;31m--- {time.strftime('%H:%M:%S', time.gmtime(time.time()-start_time))} ---\033[0m")
