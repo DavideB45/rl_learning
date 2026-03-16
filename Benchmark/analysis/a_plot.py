@@ -5,24 +5,24 @@ import subprocess
 
 #data=[float(x) for x in subprocess.check_output("grep , res.csv | tail n +1 |awk -F',' '{print $1}'", shell=True).decode().split()]
 data = [float(x) for x in subprocess.check_output(
-    "tail -n +2 data/drawer-open/numbers/4_norm_lrdec_noinit/res.csv | cut -d',' -f3",
+    "tail -n +2 data/drawer-open/numbers/4_norm_lrdec_noinit/res.csv | cut -d',' -f1",
     shell=True
 ).decode().split()]
-# data = [str(x) for x in subprocess.check_output(
-#     "tail -n +2 res.csv | cut -d',' -f2",
-#     shell=True
-# ).split()]
+data = [str(x) for x in subprocess.check_output(
+    "tail -n +2 res.csv | cut -d',' -f3",
+    shell=True
+).decode().split()]
 #data = [1 if x == "b'True'" else 0 for x in data]
 # data = [float(x.split('%')[0]) for x in subprocess.check_output(
-#     'grep -e "Accurac" data/drawer-open/numbers/4_norm_lrdec_noinit/log3.out | cut -d "|" -f4',
+#     'grep -e "Accurac" log3.out | cut -d "|" -f4',
 #     shell=True
 # ).decode().split()]
-data = [float(x) for x in subprocess.check_output(
-    'grep -e "Rew" data/drawer-open/numbers/4_norm_lrdec_noinit/log3.out | cut -d "|" -f4',
-    shell=True
-).decode().split()]
+# data = [float(x) for x in subprocess.check_output(
+#     'grep -e "Rew" data/drawer-open/numbers/4_norm_lrdec_noinit/log3.out | cut -d "|" -f4',
+#     shell=True
+# ).decode().split()]
 # data = [float(x.split('\x1b[0m')[0]) for x in subprocess.check_output(
-#     'grep -e "recon_loss" data/drawer-open/numbers/4_norm_lrdec_noinit/log3.out | cut -d ":" -f3',
+#     'grep -e "recon_loss" log3.out | cut -d ":" -f3',
 #     shell=True
 # ).decode().split()]
 # data = [float(x.split('\x1b[96m')[0].split('\x1b[0m')[0]) for x in subprocess.check_output(
@@ -32,7 +32,7 @@ data = [float(x) for x in subprocess.check_output(
 print(data)
 # Convert to pandas Series
 min_ = 0
-max_ = 2
+max_ = 30
 series = pd.Series(data)
 
 # Compute rolling mean (window size = 3)

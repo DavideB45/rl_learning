@@ -31,7 +31,7 @@ def gather_data(n_samples=1000, path=0):
 	returns: list of images
 	'''
 	env = gym.make('Meta-World/MT1', env_name=CURRENT_ENV['env_name'],
-				render_mode='rgb_array', camera_id=CURRENT_ENV['camera_id'], width = 128, height = 128,
+				render_mode='rgb_array', camera_id=CURRENT_ENV['camera_id'], width = 64, height = 64,
 		)
 	
 	proprioception = [[]]
@@ -66,7 +66,7 @@ def gather_data(n_samples=1000, path=0):
 
 if __name__ == "__main__":
 
-	path = get_data_path(CURRENT_ENV['img_dir'], True, 0)
+	path = get_data_path(CURRENT_ENV['img_dir'], False, 0)
 	if not os.path.exists(path):
 		os.makedirs(path)
 	if not os.path.exists(CURRENT_ENV['models']):
@@ -74,7 +74,7 @@ if __name__ == "__main__":
 	
 	# Example of creating a dataset of transitions
 	print(f"Creating transition dataset for {CURRENT_ENV['env_name']} environment")
-	actions, rewards, proprioception = gather_data(n_samples=3000, path=path)
+	actions, rewards, proprioception = gather_data(n_samples=1000, path=path)
 	print(f"Generated {len(actions)} actions, and {len(rewards)} rewards.")
 
 

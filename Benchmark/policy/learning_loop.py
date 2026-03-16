@@ -57,7 +57,10 @@ def main():
 		print(f'Training round: {round + 1} of {N_ROUNDS}')
 
 		vq_training_time -= time.time()
-		vq = tune_vq(model=vq, num_epocs=VQ_EPOCS if round == 0 else 1, lr=VQ_LR/np.log(round*5 + 4), reg=SMOOTH, wd=VQ_WD)
+		if round == 0:
+			vq = tune_vq(model=vq, num_epocs=VQ_EPOCS, lr=VQ_LR/np.log(round*5 + 4), reg=-1, wd=VQ_WD) # reg=-1 means no quantization
+		elif round % 2 == 1:
+			vq = tune_vq(model=vq, num_epocs=1, lr=VQ_LR/np.log(round*5 + 4), reg=SMOOTH, wd=VQ_WD)
 		vq_training_time += time.time()
 
 		dataset_generation_time -= time.time()
@@ -70,7 +73,10 @@ def main():
 		
 		dream_env = MetaDreamEnv(vq, lstm, vl_seq, init_len=INIT_LEN, ep_len=30, num_envs=50)
 		agent_training_time -= time.time()
-		agent = tune_agent(agent, num_steps=PPO_STEPS, env=dream_env)
+		if round % 2 == 1:
+			agent = tune_agent(agent, num_steps=PPO_STEPS*2, env=dream_env) # codes changed so we train more PPO
+		else:
+			agent = tune_agent(agent, num_steps=PPO_STEPS, env=dream_env)
 		agent_training_time += time.time()
 
 		collecting_time -= time.time()

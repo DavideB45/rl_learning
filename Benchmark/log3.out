@@ -1,8 +1,0 @@
-nohup: ignoring input
-/home/davide/github/rl_learning/rl_env/lib/python3.10/site-packages/gymnasium/utils/passive_env_checker.py:35: UserWarning: [33mWARN: A Box observation space maximum and minimum values are equal.[0m
-  logger.warn("A Box observation space maximum and minimum values are equal.")
-/home/davide/github/rl_learning/rl_env/lib/python3.10/site-packages/gymnasium/utils/passive_env_checker.py:158: UserWarning: [33mWARN: The obs returned by the `reset()` method is not within the observation space.[0m
-  logger.warn(f"{pre} is not within the observation space.")
-0
-/home/davide/github/rl_learning/rl_env/lib/python3.10/site-packages/gymnasium/utils/passive_env_checker.py:158: UserWarning: [33mWARN: The obs returned by the `step()` method is not within the observation space.[0m
-  logger.warn(f"{pre} is not within the observation space.")

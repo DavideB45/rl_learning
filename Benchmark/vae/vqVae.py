@@ -39,7 +39,7 @@ class VQVAE(AbstractVAE):
 		self.quantizer = VectorQuantizer(codebook_size, code_depth, commitment_cost, ema=ema_mode)
 		self.encoder = nn.Sequential(
 			ResidualBlock(3, 8, downsample=False),		# 128x128 -> 128x128
-			ResidualBlock(8, 8, downsample=True),		# 128x128 -> 64x64
+			#ResidualBlock(8, 8, downsample=True),		# 128x128 -> 64x64
 			ResidualBlock(8, 32, downsample=True),		# 64x64 -> 32x32
 			ResidualBlock(32, 64, downsample=True),		# 32x32 -> 16x16
 			ResidualBlock(64, 128, downsample=True),	# 16x16 -> 8x8
@@ -52,7 +52,7 @@ class VQVAE(AbstractVAE):
 			ResidualBlockUp(128, 64, upsample=True),	# 8x8 -> 16x16
 			ResidualBlockUp(64, 32, upsample=True),		# 16x16 -> 32x32
 			ResidualBlockUp(32, 8, upsample=True), 		# 32x32 -> 64x64
-			ResidualBlockUp(8, 8, upsample=True), 		# 64x64 -> 128x128
+			#ResidualBlockUp(8, 8, upsample=True), 		# 64x64 -> 128x128
 			ResidualBlockUp(8, 3, upsample=False), 		# 64x64 -> 128x128
 			nn.Conv2d(3, 3, 3, 1, 1),					# final conv layer
 			nn.Sigmoid()
@@ -173,7 +173,11 @@ class VQVAE(AbstractVAE):
 			usage = self.quantizer.get_index_probabilities(z)
 			flatness_loss = self.flat_loss(usage)
 			emb_loss, quantized, indexes = self.quantize(z)
-			recon_batch = self.decode(quantized)
+			if reg == -1:# allow to not quantize
+				recon_batch = self.decode(z)
+				flatness_loss = flatness_loss*0
+			else:
+				recon_batch = self.decode(quantized)
 
 			rec_loss = self.reconstruction_loss(data, recon_batch)
 			loss = rec_loss + emb_loss + reg*flatness_loss
@@ -215,9 +219,13 @@ class VQVAE(AbstractVAE):
 				usage = self.quantizer.get_index_probabilities(z)
 				flatness_loss = self.flat_loss(usage)
 				emb_loss, quantized, indexes = self.quantize(z)
-				recon_batch = self.decode(quantized)
+				if reg == -1:# allow to not quantize
+					recon_batch = self.decode(z)
+					flatness_loss = flatness_loss*0
+				else:
+					recon_batch = self.decode(quantized)
 				rec_loss = self.reconstruction_loss(data, recon_batch)
-				loss = rec_loss + emb_loss + flatness_loss*reg #+ self.contraction_loss(z)*0.0001
+				loss = rec_loss + emb_loss + flatness_loss*reg
 				losses["total_loss"] += loss.item()
 				losses["recon_loss"] += rec_loss.item()
 				losses["commit_loss"] += emb_loss.item()
