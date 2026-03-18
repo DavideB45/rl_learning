@@ -86,6 +86,7 @@ class MetaWrapEnv(gym.Env):
 		self.current_render = img
 		normalized = (self.current_latent.flatten()-self.mu)/self.std
 		representation = torch.cat([normalized, self.hidden_state[0].flatten()], dim=-1).cpu().numpy()
+		#representation = normalized.cpu().numpy()
 		return representation, {}
 
 	def step(self, action,) -> tuple:
@@ -108,6 +109,7 @@ class MetaWrapEnv(gym.Env):
 		self.current_render = img
 		normalized = (self.current_latent.flatten()-self.mu)/self.std
 		representation = torch.cat([normalized, self.hidden_state[0].flatten()], dim=-1).cpu().numpy()
+		#representation = normalized.cpu().numpy()
 		return (
 			representation, # based on world model
 			reward, # from world model

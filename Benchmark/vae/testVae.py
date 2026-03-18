@@ -35,6 +35,12 @@ if __name__ == "__main__":
 	
 	with torch.no_grad():
 		vq_images, _, _ = vq_vae.forward(images)
+		z = vq_vae.encode(images)
+		_, quantized, _ = vq_vae.quantize(z)
+		mask = vq_vae.pred_mask(vq_vae.decoder(z))
+		vq_images_2 = (vq_images*(1-mask)).cpu()
+		#vq_images_2 = torch.nn.functional.sigmoid(vq_vae.backgorund.data.cpu())
+		vq_images_2 = (1 - mask).squeeze().cpu()
 		vq_images = vq_images.cpu()
 		images = images.cpu()
 
@@ -57,7 +63,7 @@ if __name__ == "__main__":
 
 		# VQ reconstructed image
 		plt.subplot(3, num_images, i + 1 + 2 * num_images)
-		plt.imshow(vq_images[i].permute(1, 2, 0).numpy())
+		plt.imshow(vq_images_2[i].numpy())
 		plt.axis('off')
 		if i == 0:
 			plt.title('Flatten VQ Reconstructed Images')

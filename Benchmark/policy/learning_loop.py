@@ -58,8 +58,8 @@ def main():
 
 		vq_training_time -= time.time()
 		if round == 0:
-			vq = tune_vq(model=vq, num_epocs=VQ_EPOCS, lr=VQ_LR/np.log(round*5 + 4), reg=-1, wd=VQ_WD) # reg=-1 means no quantization
-		elif round % 2 == 1:
+			vq = tune_vq(model=vq, num_epocs=VQ_EPOCS, lr=VQ_LR/np.log(round*5 + 4), reg=SMOOTH, wd=VQ_WD) # reg=-1 means no quantization
+		else: #if round % 2 == 1
 			vq = tune_vq(model=vq, num_epocs=1, lr=VQ_LR/np.log(round*5 + 4), reg=SMOOTH, wd=VQ_WD)
 		vq_training_time += time.time()
 
@@ -71,12 +71,9 @@ def main():
 		lstm = tune_lstm(lstm, tr=tr_seq, vl=vl_seq, encoder=vq, num_epocs=LSTM_EPOCS if round == 0 else 1, lr=LSTM_LR, wd=LSTM_WD)
 		lstm_training_time += time.time()
 		
-		dream_env = MetaDreamEnv(vq, lstm, vl_seq, init_len=INIT_LEN, ep_len=30, num_envs=50)
+		dream_env = MetaDreamEnv(vq, lstm, vl_seq, init_len=INIT_LEN, ep_len=30, num_envs=50) #ep_len=SEQ_LEN - INIT_LEN
 		agent_training_time -= time.time()
-		if round % 2 == 1:
-			agent = tune_agent(agent, num_steps=PPO_STEPS*2, env=dream_env) # codes changed so we train more PPO
-		else:
-			agent = tune_agent(agent, num_steps=PPO_STEPS, env=dream_env)
+		agent = tune_agent(agent, num_steps=PPO_STEPS, env=dream_env) # codes changed so we train more PPO
 		agent_training_time += time.time()
 
 		collecting_time -= time.time()
@@ -117,7 +114,7 @@ def tune_vq(model:VQVAE, num_epocs:int=20, lr:float=1e-3, wd:float=1e-3, reg:flo
 			print(f"{colors[-1]}  New best model saved!{reset}")
 		else:
 			no_improvements += 1
-			if no_improvements >= 5:
+			if no_improvements >= 3:
 				break
 		for i, key in enumerate(tr_loss):
 			color = colors[i % len(colors)]

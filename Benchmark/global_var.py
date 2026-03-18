@@ -36,7 +36,7 @@ LATENT_DIM = 4
 CODE_DEPTH = 16
 CODEBOOK_SIZE = 64
 SMOOTH = 5
-VQ_EPOCS = 5 # used in learning loop for the initial training, then 1 epoch for each round
+VQ_EPOCS = 20 # used in learning loop for the initial training, then 1 epoch for each round
 VQ_LR = 1e-3
 VQ_WD = 0.001
 
@@ -49,4 +49,4 @@ LSTM_LR = 5e-5
 LSTM_WD = 1e-3
 
 N_ROUNDS = 390 # starts with 10_000 interacitons, then add 1_000 each round, N_rounds=(total_interactions-10_000)/1_000
-PPO_STEPS = 100000
+PPO_STEPS = 300000

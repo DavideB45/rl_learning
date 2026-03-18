@@ -53,10 +53,18 @@ class VQVAE(AbstractVAE):
 			ResidualBlockUp(64, 32, upsample=True),		# 16x16 -> 32x32
 			ResidualBlockUp(32, 8, upsample=True), 		# 32x32 -> 64x64
 			#ResidualBlockUp(8, 8, upsample=True), 		# 64x64 -> 128x128
-			ResidualBlockUp(8, 3, upsample=False), 		# 64x64 -> 128x128
-			nn.Conv2d(3, 3, 3, 1, 1),					# final conv layer
+			ResidualBlockUp(8, 8, upsample=False), 		# 64x64 -> 128x128
+		)
+
+		self.pred_robot = nn.Sequential(
+			nn.Conv2d(8, 3, 3, 1, 1),					# final conv layer
 			nn.Sigmoid()
 		)
+		self.pred_mask = nn.Sequential(
+			nn.Conv2d(8, 1, 3, 1, 1),					# final conv layer
+			nn.Sigmoid()
+		)
+		self.backgorund = nn.Parameter(torch.ones([3, 64, 64], device=device))
 		self.to(device)
 
 	def param_count(self) -> int:
@@ -103,7 +111,10 @@ class VQVAE(AbstractVAE):
 		Returns:
 			torch.Tensor: Reconstructed tensor of shape (batch, 3, 64, 64)
 		"""
-		return self.decoder(z)
+		dec = self.decoder(z)
+		pred = self.pred_robot(dec)
+		mask = self.pred_mask(dec)
+		return nn.functional.sigmoid(self.backgorund)*mask + (1-mask)*pred
 	
 	def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
 		"""

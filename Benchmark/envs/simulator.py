@@ -85,6 +85,7 @@ class MetaDreamEnv(VecEnv):
 			hidden_flat = self.hidden_state[0].reshape(self.num_envs, -1)
 
 			representation = torch.cat([latent_flat, hidden_flat], dim=-1).cpu().numpy()
+			#representation = latent_flat.cpu().numpy()
 		self.step_count = 0
 		return representation
 
@@ -110,6 +111,7 @@ class MetaDreamEnv(VecEnv):
 			latent_flat = (self.current_latent.reshape(self.num_envs, -1)-self.mu)/self.std
 			hidden_flat = self.hidden_state[0].reshape(self.num_envs, -1)
 			representation = torch.cat([latent_flat, hidden_flat], dim=-1).cpu().numpy()
+			#representation = latent_flat.cpu().numpy()
 
 			terminateds = np.array([self.step_count >= self.max_len] * self.num_envs, dtype=bool)
 			infos = [
