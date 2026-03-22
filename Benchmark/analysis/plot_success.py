@@ -65,7 +65,7 @@ ax.spines[["top", "right"]].set_visible(False)
 plt.xticks(ticks=np.arange(-10, len(grouped)-10, 100), labels=np.arange(0, len(grouped), 100)/100)
 
 plt.tight_layout()
-out_path = './images/' + CSV_PATH.rsplit(".", 1)[0] + "_success_rate.png"
+out_path = CSV_PATH.rsplit(".", 1)[0] + "_success_rate.png"
 plt.savefig(out_path, dpi=400)
 print(f"Saved → {out_path}")
 plt.show()

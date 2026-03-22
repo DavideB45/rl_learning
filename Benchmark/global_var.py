@@ -30,7 +30,16 @@ DRAWER_OPEN = {
 	"camera_id": 1,
 }
 
-CURRENT_ENV = DRAWER_OPEN
+PEG_DATA_DIT = "data/peg-insert/"
+PEG_INSERT = {
+	"env_name": "peg-insert-side-v3",
+	"img_dir": PEG_DATA_DIT + IMG_DIR,
+	"models": PEG_DATA_DIT + MODELS_DIR,
+	"a_size": 4,
+	"camera_id": 2,
+}
+
+CURRENT_ENV = PEG_INSERT
 
 LATENT_DIM = 4
 CODE_DEPTH = 16

@@ -9,7 +9,7 @@ data = [float(x) for x in subprocess.check_output(
     shell=True
 ).decode().split()]
 data = [str(x) for x in subprocess.check_output(
-    "tail -n +2 res.csv | cut -d',' -f3",
+    "tail -n +2 res.csv | cut -d',' -f1",
     shell=True
 ).decode().split()]
 #data = [1 if x == "b'True'" else 0 for x in data]
@@ -32,7 +32,7 @@ data = [str(x) for x in subprocess.check_output(
 print(data)
 # Convert to pandas Series
 min_ = 0
-max_ = 30
+max_ = 3000
 series = pd.Series(data)
 
 # Compute rolling mean (window size = 3)

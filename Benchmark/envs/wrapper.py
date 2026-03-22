@@ -277,6 +277,9 @@ if __name__ == "__main__":
 			action, _states = agent.predict(observation, deterministic=True)
 		observation, reward, terminated, truncated, info = env.step(action)
 		print(f"Step {step_count} Reward: {reward}")
+		if(info['success'] == 1):
+			print(f'Win!! Total Reward: {total_reward}')
+			#break
 		frames.append(env.render().rotate(180))
 		done = terminated or truncated
 		total_reward += reward
