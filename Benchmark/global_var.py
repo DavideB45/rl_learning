@@ -39,23 +39,33 @@ PEG_INSERT = {
 	"camera_id": 2,
 }
 
-CURRENT_ENV = PEG_INSERT
+CURRENT_ENV = DRAWER_OPEN
 
 LATENT_DIM = 4
 CODE_DEPTH = 16
 CODEBOOK_SIZE = 64
 SMOOTH = 5
-VQ_EPOCS = 20 # used in learning loop for the initial training, then 1 epoch for each round
+VQ_EPOCS = 50 # used in learning loop for the initial training, then 1 epoch for each round
 VQ_LR = 1e-3
 VQ_WD = 0.001
 
 EP_ON_LOOP = 20
-HIDDEN_DIM = 1024
+
 SEQ_LEN = 25
 INIT_LEN = 15
+
+HIDDEN_DIM = 1024
 LSTM_EPOCS = 2 # used in learning loop for the initial training, then 1 epoch for each round
 LSTM_LR = 5e-5
 LSTM_WD = 1e-3
+
+TR_EPOCHS = 30
+TR_LR = 1e-5
+TR_WD = 1e-3
+EMB_SIZE = 512
+NUM_HEADS = 4
+NUM_LAYERS = 2
+
 
 N_ROUNDS = 390 # starts with 10_000 interacitons, then add 1_000 each round, N_rounds=(total_interactions-10_000)/1_000
 PPO_STEPS = 300000

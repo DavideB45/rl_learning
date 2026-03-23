@@ -74,7 +74,7 @@ if __name__ == "__main__":
 	
 	# Example of creating a dataset of transitions
 	print(f"Creating transition dataset for {CURRENT_ENV['env_name']} environment")
-	actions, rewards, proprioception = gather_data(n_samples=1000, path=path)
+	actions, rewards, proprioception = gather_data(n_samples=5000, path=path)
 	print(f"Generated {len(actions)} actions, and {len(rewards)} rewards.")
 
 
