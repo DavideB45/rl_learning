@@ -20,7 +20,7 @@ if __name__ == '__main__':
 	)
 	dev = best_device()
 	vq = load_vq_vae(CURRENT_ENV, CODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM, True, True if SMOOTH > 0 else False, dev)
-	model = TransformerArc(CURRENT_ENV['a_size'], vq, EMB_SIZE, SEQ_LEN + 1, NUM_HEADS, NUM_LAYERS, 0.1, dev)
+	model = TransformerArc(CURRENT_ENV['a_size'], vq, EMB_SIZE, 5, NUM_HEADS, NUM_LAYERS, 0.1, dev)
 	tr = make_seq_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], True, 0), vq, SEQ_LEN, max_ep=100000)
 	vl = make_seq_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], False, 0), vq, SEQ_LEN, max_ep=100000)
 	
@@ -32,7 +32,7 @@ if __name__ == '__main__':
 	#print(model)
 	#exit()
 	for i in range(200):
-		err_vl = model.train_epoch(tr, optim)
+		err_vl = model.train_rwm_style(tr, optim)
 		print(i, ':', err_vl)
 	end = time()
 	print(f'Time elapsed {end - begin}')

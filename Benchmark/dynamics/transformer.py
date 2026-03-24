@@ -11,6 +11,7 @@ sys.path.insert(1, os.path.join(sys.path[0], '../'))
 
 from vae.vqVae import VQVAE
 from dynamics.blocks_tr import Transformer, TransformerEncoder, TransformerDecoderRD
+from helpers.metrics import weighted_mse
 
 class TransformerArc(nn.Module):
 	'''
@@ -45,6 +46,7 @@ class TransformerArc(nn.Module):
 		self.cd = vq.code_depth
 		self.cs = vq.codebook_size
 		in_size = self.w_h*self.w_h*self.cd + act_size
+		self.max_seq_len = max_seq_len
 
 		self.encode = TransformerEncoder(
 			in_size=in_size,
@@ -130,58 +132,125 @@ class TransformerArc(nn.Module):
 	
 	def ar_forward(self, input:torch.Tensor, action:torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
 		'''
-		Do the forward pass taking as input 
-		'''
-		return
-
-	def train_epoch(self, loader:DataLoader, optim:Optimizer) -> dict:
-		'''
-		There is not much to say about this funciton, it is used to train the model 
-		in an autoregressive way, using the special loss funciton
+		Do the forward pass taking as input a representation and a number of action that can be of different length
 		
-		:param loader: A dataloader for the data
-		:param optim: The optimizer to use in training
-		:return: Measurements about the errors in a dictionary (mse, qmse and acc)
+		:param input: Input rensor of shape (Batch, init_len, Depth, Width, Height)
+		:type input: torch.Tensor
+		:param action: a tensor representing the robot action
+		:type action: torch.Tensor
+		:return: the predicted sequence before quantization | the predicted sequence quantized (Batch, Seq_len, Depth, Width, Height)
+		:rtype: tuple[torch.Tensor, torch.Tensor]
 		'''
+		preds_q = []
+		preds = []
+
+		_, len, _ = action.shape
+		start = min(len - self.max_seq_len - 1, 0)
+		x = input[:, start:].detach()
+		action = action[:, start:]
+
+		_, len, _ = action.shape
+		_, init, _, _, _ = input.shape
+		#print(x.shape, action.shape)
+		for t in range(init-1 , len):
+			begin = max(t - self.max_seq_len + 2, 0)
+			#print(begin, t, len, self.max_seq_len)
+			# the full sequence should be used each time
+			out, q_out, _ = self.forward(x[:, begin:t+1, :], action[:, begin:t+1, :])
+			preds.append(out)
+			preds_q.append(q_out)
+			x = torch.cat([x, q_out], dim=1)
+
+		preds = torch.cat(preds, dim=1)
+		preds_q = torch.cat(preds_q, dim=1)
+		return preds, preds_q
+	
+	def compute_classification_target(self, target:torch.Tensor) -> torch.Tensor:
+		'''
+		Takes as input the unflattened target and encodes it into a one hot encoding vector
+
+		Args:
+			target (torc.Tensor): Input tensor shape (Batch, Seq_len, Depth, Width, Height)
+		Returns:
+			torch.Tensor: the flattened input (Batch, Seq_len, Width, Height, Classes)
+		'''
+		b = target.size(0)
+		s = target.size(1)
+		w = self.vq.latent_dim
+		h = w
+		c = self.vq.codebook_size
+		d = self.vq.code_depth # depth
+
+		target = target.contiguous().view(b*s, d, w, h) # (B*S, D, W, H)
+		target = self.vq.quantizer.get_index_probabilities(target)
+		target = target.view(b, s, c, w, h).contiguous() # (B, S, C, W, H)
+		target = target.permute(0, 1, 3, 4, 2) # (B, S, W, H, C)
+		return target
+	
+	def train_rwm_style(self, loader:DataLoader, optim:Optimizer, init_len:int=3, err_decay:float=0.9) -> dict:
 		self.train()
 		total_loss = 0
 		total_q_loss = 0
-		accuracy = 0
+		total_prop_loss = 0
+		total_reward_loss = 0
+		accuracy = 0.0
+		first_accuracy = 0
 		for batch in loader:
 			latent = batch['latent'].to(self.device).detach()
 			action = batch['action'].to(self.device).detach()
 			optim.zero_grad()
-			output, q_output, _ = self.forward(latent[:, :-1, :, :, :], action)
-			loss = change_mse(output, latent[:, -1:, :, :, :], latent[:, -2:-1, :, :, :])
+
+			output, q_output = self.ar_forward(latent[:, :init_len+1, :, :, :], action)
+			
+			lat_loss = weighted_mse(latent[:, init_len + 1:, :, :, :], output, err_decay)
 			with torch.no_grad():
-				total_q_loss += F.mse_loss(latent[:, -1:, :, :, :], output, reduction='mean')
-				target = self.compute_classification_target(latent[:, -1:, :, :, :])
+				q_loss = weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay)
+				target = self.compute_classification_target(latent[:, init_len + 1:, :, :, :])
 				pred = self.compute_classification_target(q_output)
 				accuracy += (target.argmax(dim=-1) == pred.argmax(dim=-1)).float().mean().item()
+				first_accuracy += (target[:, 0:1, :].argmax(dim=-1) == pred[:, 0:1, :].argmax(dim=-1)).float().mean().item()
+			loss = lat_loss
 			loss.backward()
 			optim.step()
-			total_loss += loss.item()
+
+			total_q_loss += q_loss.item()
+			total_loss += lat_loss.item()
 		return {
 			'mse': total_loss/len(loader),
 			'qmse': total_q_loss/len(loader),
 			'acc': accuracy*100/len(loader),
+			'prop_mse': total_prop_loss/len(loader),
+			'first_acc': first_accuracy*100/len(loader),
+			'reward_mse': total_reward_loss/len(loader)
 		}
+	
+	@torch.no_grad()
+	def eval_rwm_style(self, loader:DataLoader, init_len:int=3, err_decay:float=0.9) -> dict:
+		self.train()
+		total_loss = 0
+		total_q_loss = 0
+		total_prop_loss = 0
+		total_reward_loss = 0
+		accuracy = 0.0
+		first_accuracy = 0
+		for batch in loader:
+			latent = batch['latent'].to(self.device).detach()
+			action = batch['action'].to(self.device).detach()
 
-def change_mse(pred:torch.Tensor, target:torch.Tensor, prev_target:torch.Tensor) -> torch.Tensor:
-	'''
-	Special loss used to compute MSE error that is weighted based on the change of the 
-	value from one time stamp  to the next, more changes means the error will be valued more
+			output, q_output = self.ar_forward(latent[:, :init_len+1, :, :, :], action)
+			
+			total_loss += weighted_mse(latent[:, init_len + 1:, :, :, :], output, err_decay)
+			total_q_loss += weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay)
+			target = self.compute_classification_target(latent[:, init_len + 1:, :, :, :])
+			pred = self.compute_classification_target(q_output)
+			accuracy += (target.argmax(dim=-1) == pred.argmax(dim=-1)).float().mean().item()
+			first_accuracy += (target[:, 0:1, :].argmax(dim=-1) == pred[:, 0:1, :].argmax(dim=-1)).float().mean().item()
 
-	:param pred: the generated element (Batch, 1, Width,Height,Classes)
-	:param target: the original element (Batch, 1, Width,Height,Classes)
-	:param prev_target: the element before the predicted one (Batch, 1, Width,HeightClasses)
-	:return: the computed error based on input change
-	'''
-	err_weight = target - prev_target
-	err_weight = torch.abs(err_weight)
-	max_e = torch.max(err_weight)
-	max_e = max(max_e, 1)
-	err_weight = ((err_weight/max_e)*9 + 1).detach()
-	#loss = (((pred - target) ** 2)*err_weight).mean()
-	loss = (((pred - target) ** 2)).mean()
-	return loss
+		return {
+			'mse': total_loss/len(loader),
+			'qmse': total_q_loss/len(loader),
+			'acc': accuracy*100/len(loader),
+			'prop_mse': total_prop_loss/len(loader),
+			'first_acc': first_accuracy*100/len(loader),
+			'reward_mse': total_reward_loss/len(loader)
+		}

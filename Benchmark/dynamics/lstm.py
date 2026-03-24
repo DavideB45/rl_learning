@@ -1,9 +1,9 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.nn import LSTM
 from torch.utils.data import DataLoader
 from torch.optim import Optimizer
-import torch.nn.functional as F
 
 import os
 import sys
