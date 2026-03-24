@@ -15,6 +15,7 @@ sys.path.insert(1, os.path.join(sys.path[0], '../'))
 from helpers.data import get_data_path, make_seq_dataloader_safe
 from vae.vqVae import VQVAE
 from dynamics.lstmc import LSTMQClass
+from dynamics.transformer import TransformerArc
 from helpers.model_loader import load_vq_vae, load_lstm_quantized
 from helpers.general import best_device
 from global_var import *
@@ -27,7 +28,7 @@ class MetaDreamEnv(VecEnv):
 	"""
 
 
-	def __init__(self, vq:VQVAE, lstm:LSTMQClass, dataloader:DataLoader, init_len:int=1, ep_len:int=20, num_envs: int = 1):
+	def __init__(self, vq:VQVAE, dynamic:LSTMQClass | TransformerArc, dataloader:DataLoader, init_len:int=1, ep_len:int=20, num_envs: int = 1):
 		
 		self.num_envs = num_envs
 		self.max_len = ep_len # this way the model will learn only 20 steps, hopefully in the end he will manage to merge his knowledge
@@ -37,15 +38,16 @@ class MetaDreamEnv(VecEnv):
 		self.vq = vq
 		self.vq.eval()
 		self.vq_dim = self.vq.latent_dim**2*self.vq.code_depth
-		self.lstm = lstm
-		self.lstm.eval()
+		self.dyn = dynamic
+		self.using_tr = isinstance(dynamic, TransformerArc)
+		self.dyn.eval()
 		self.hidden_state = None # (num_envs, hidden_dim)
 		self.mu = vq.quantizer.embedding.weight.data.mean()
 		self.std = vq.quantizer.embedding.weight.data.std()
 
 		self.observation_space = spaces.Box(
 			low=-np.inf, high=np.inf, 
-			shape=(self.vq_dim + self.lstm.hidden_dim,), 
+			shape=(self.vq_dim + (self.dyn.hidden_dim if self.using_tr else 0),), 
 			dtype=np.float32
 		)
 		self.action_space = spaces.Box(
@@ -76,16 +78,20 @@ class MetaDreamEnv(VecEnv):
 			actions = torch.stack([init_data['action'][:self.i_len, :] for init_data in init_data_list]).to(self.vq.device)
 			props = torch.stack([init_data['proprioception'][:self.i_len, :] for init_data in init_data_list]).to(self.vq.device)
 
-			_, pred, prop, _, h = self.lstm.forward(latents, actions, props, None)
-
-			self.hidden_state = h
-			self.current_latent = pred[:, -1, :, :, :]
-			self.current_prop = prop[:, -1, :]
-			latent_flat = (self.current_latent.reshape(self.num_envs, -1)-self.mu)/self.std
-			hidden_flat = self.hidden_state[0].reshape(self.num_envs, -1)
-
-			representation = torch.cat([latent_flat, hidden_flat], dim=-1).cpu().numpy()
-			#representation = latent_flat.cpu().numpy()
+			if self.using_tr:
+				_, pred, _, _ = self.dyn.forward(latents, actions) # wrong because the length has a cap
+				self.current_latent = pred[:, -1, :, :, :]
+				latent_flat = (self.current_latent.reshape(self.num_envs, -1)-self.mu)/self.std # see comments below
+				representation = latent_flat.cpu().numpy()
+			else:
+				_, pred, prop, _, h = self.dyn.forward(latents, actions, props, None)
+				self.hidden_state = h
+				hidden_flat = self.hidden_state[0].reshape(self.num_envs, -1)
+				self.current_latent = pred[:, -1, :, :, :]
+				latent_flat = (self.current_latent.reshape(self.num_envs, -1)-self.mu)/self.std
+				self.current_prop = prop[:, -1, :]
+				representation = torch.cat([latent_flat, hidden_flat], dim=-1).cpu().numpy()
+			
 		self.step_count = 0
 		return representation
 
@@ -98,21 +104,28 @@ class MetaDreamEnv(VecEnv):
 		if actions.ndim == 1:
 			actions = actions[np.newaxis, :]
 		with torch.no_grad():
-			action_tensor = torch.tensor(actions, dtype=torch.float32).unsqueeze(1).to(self.vq.device)
-			latent_input = self.current_latent.unsqueeze(1).to(self.vq.device)
-			prop_input = self.current_prop.unsqueeze(1).to(self.vq.device)
-			_, pred, prop, rew, h = self.lstm.forward(latent_input, action_tensor, prop_input, self.hidden_state)
+			
+			if self.using_tr:
+				action_tensor = torch.tensor(actions, dtype=torch.float32).unsqueeze(1).to(self.vq.device) # change this to use old actions
+				latent_input = self.current_latent.unsqueeze(1).to(self.vq.device) # change this to a list of tensors
+				_, pred, _, _ = self.dyn.forward(latent_input, actions) # needs to be updatet because we are taking only 1 state now split in if else
+				latent_flat = (self.current_latent.reshape(self.num_envs, -1)-self.mu)/self.std
+				self.current_latent = pred[:, -1, :, :, :]# chage this keeping only crrect number of stuff
+				#also add action history
+				representation = latent_flat.cpu().numpy()
+			else:
+				action_tensor = torch.tensor(actions, dtype=torch.float32).unsqueeze(1).to(self.vq.device)
+				latent_input = self.current_latent.unsqueeze(1).to(self.vq.device)
+				prop_input = self.current_prop.unsqueeze(1).to(self.vq.device)
+				_, pred, prop, rew, h = self.dyn.forward(latent_input, action_tensor, prop_input, self.hidden_state)
+				self.hidden_state = h
+				hidden_flat = self.hidden_state[0].reshape(self.num_envs, -1)
+				latent_flat = (self.current_latent.reshape(self.num_envs, -1)-self.mu)/self.std
+				self.current_latent = pred[:, -1, :, :, :]
+				self.current_prop = prop[:, -1, :]
+				representation = torch.cat([latent_flat, hidden_flat], dim=-1).cpu().numpy()
 
 			self.step_count += 1
-			self.hidden_state = h
-			self.current_latent = pred[:, -1, :, :, :]
-			self.current_prop = prop[:, -1, :]
-
-			latent_flat = (self.current_latent.reshape(self.num_envs, -1)-self.mu)/self.std
-			hidden_flat = self.hidden_state[0].reshape(self.num_envs, -1)
-			representation = torch.cat([latent_flat, hidden_flat], dim=-1).cpu().numpy()
-			#representation = latent_flat.cpu().numpy()
-
 			terminateds = np.array([self.step_count >= self.max_len] * self.num_envs, dtype=bool)
 			infos = [
 				{'terminal_observation': representation[i]} for i in range(self.num_envs)
