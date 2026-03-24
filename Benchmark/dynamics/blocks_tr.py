@@ -241,10 +241,10 @@ class TransformerDecoderRD(TransformerDecoder):
 		super().__init__(in_size, out_size)
 		self.decode = nn.Sequential(
 			nn.LayerNorm(in_size),
-			nn.Linear(in_features=in_size, out_features=out_size),
+			nn.Linear(in_features=in_size, out_features=in_size),
 			nn.GELU(),
-			nn.LayerNorm(out_size),
-			nn.Linear(in_features=out_size, out_features=out_size),
+			nn.LayerNorm(in_size),
+			nn.Linear(in_features=in_size, out_features=out_size),
 		)
 
 	def forward(self, sequence:torch.Tensor) -> torch.Tensor:

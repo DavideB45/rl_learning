@@ -59,15 +59,21 @@ class TransformerArc(nn.Module):
 			*[Transformer(emb_size, n_heads, dropout, device) for _ in range(n_transformer)]
 		)
 
-		self.decode = TransformerDecoderRD(
+		self.decode_img = TransformerDecoderRD(
 			in_size=emb_size,
 			out_size=in_size - act_size
+		)
+
+		self.guess_reward = TransformerDecoderRD(
+			in_size=emb_size,
+			out_size=1
 		)
 
 		self.guess_token = nn.Parameter(torch.randn(1, 1, in_size))
 
 		self.device = device
 		self.to(device)
+		self.compile()
 
 	def flatten_rep(self, input:torch.Tensor) -> torch.Tensor:
 		'''
@@ -105,7 +111,7 @@ class TransformerArc(nn.Module):
 		target = target.permute(0, 1, 3, 4, 2) # (B, S, W, H, C)
 		return target
 	
-	def forward(self, sequence:torch.Tensor, action:torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+	def forward(self, sequence:torch.Tensor, action:torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
 		'''
 		Do a forward pass generating a single token
 		Since this architecture supports decoder only model, 
@@ -113,7 +119,7 @@ class TransformerArc(nn.Module):
 		
 		:param sequence: The sequence of perceptions (B,S,W,H,D)
 		:param action: The action done at each time step (B,S,W,H,D))
-		:return: The prediction, the prediction quantized, the last `embedding`
+		:return: The prediction, the prediction quantized, the predicted reward, the last `embedding`
 		'''
 		sequence = self.flatten_rep(sequence.detach())
 		sequence_ = torch.cat([sequence, action], dim=-1)
@@ -121,16 +127,17 @@ class TransformerArc(nn.Module):
 		sequence_ = torch.cat([sequence_, guess_token], dim=1)
 		sequence_ = self.transform(self.encode(sequence_))
 		last = sequence_[:, -1:, :] # hopefully (B,1,E)
-		decoded_last = self.decode.forward(last) + sequence[:, -1:, :]
+		decoded_last = self.decode_img.forward(last) + sequence[:, -1:, :]
+		reward = self.guess_reward(last)
 		decoded_last = self.unflatten_rep(decoded_last, 1)
 		decoded_last = decoded_last.squeeze()
 		quantiz_last = self.vq.quantizer.quantize_fixed_space(decoded_last)
 		warnings.warn('quantize fixed space')
 		decoded_last = decoded_last.unsqueeze(1)
 		quantiz_last = quantiz_last.unsqueeze(1)
-		return decoded_last, quantiz_last, last
+		return decoded_last, quantiz_last, reward, last
 	
-	def ar_forward(self, input:torch.Tensor, action:torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+	def ar_forward(self, input:torch.Tensor, action:torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
 		'''
 		Do the forward pass taking as input a representation and a number of action that can be of different length
 		
@@ -138,11 +145,12 @@ class TransformerArc(nn.Module):
 		:type input: torch.Tensor
 		:param action: a tensor representing the robot action
 		:type action: torch.Tensor
-		:return: the predicted sequence before quantization | the predicted sequence quantized (Batch, Seq_len, Depth, Width, Height)
-		:rtype: tuple[torch.Tensor, torch.Tensor]
+		:return: the predicted sequence before quantization | the predicted sequence quantized (Batch, Seq_len, Depth, Width, Height) | the reward
+		:rtype: tuple[torch.Tensor, torch.Tensor, torch.Tensor]
 		'''
 		preds_q = []
 		preds = []
+		rewards = []
 
 		_, len, _ = action.shape
 		start = min(len - self.max_seq_len - 1, 0)
@@ -156,14 +164,16 @@ class TransformerArc(nn.Module):
 			begin = max(t - self.max_seq_len + 2, 0)
 			#print(begin, t, len, self.max_seq_len)
 			# the full sequence should be used each time
-			out, q_out, _ = self.forward(x[:, begin:t+1, :], action[:, begin:t+1, :])
+			out, q_out, rew, _ = self.forward(x[:, begin:t+1, :], action[:, begin:t+1, :])
 			preds.append(out)
 			preds_q.append(q_out)
+			rewards.append(rew)
 			x = torch.cat([x, q_out], dim=1)
 
 		preds = torch.cat(preds, dim=1)
 		preds_q = torch.cat(preds_q, dim=1)
-		return preds, preds_q
+		rewards = torch.cat(rewards, dim=1)
+		return preds, preds_q, rewards
 	
 	def compute_classification_target(self, target:torch.Tensor) -> torch.Tensor:
 		'''
@@ -187,7 +197,7 @@ class TransformerArc(nn.Module):
 		target = target.permute(0, 1, 3, 4, 2) # (B, S, W, H, C)
 		return target
 	
-	def train_rwm_style(self, loader:DataLoader, optim:Optimizer, init_len:int=3, err_decay:float=0.9) -> dict:
+	def train_rwm_style(self, loader:DataLoader, optim:Optimizer, init_len:int=3, err_decay:float=0.95) -> dict:
 		self.train()
 		total_loss = 0
 		total_q_loss = 0
@@ -198,23 +208,26 @@ class TransformerArc(nn.Module):
 		for batch in loader:
 			latent = batch['latent'].to(self.device).detach()
 			action = batch['action'].to(self.device).detach()
+			rewards_target = batch['reward'].to(self.device)
 			optim.zero_grad()
 
-			output, q_output = self.ar_forward(latent[:, :init_len+1, :, :, :], action)
+			output, q_output, rewards = self.ar_forward(latent[:, :init_len+1, :, :, :], action)
 			
 			lat_loss = weighted_mse(latent[:, init_len + 1:, :, :, :], output, err_decay)
+			rew_loss = weighted_mse(rewards_target[:, init_len:].unsqueeze(-1), rewards, err_decay)
 			with torch.no_grad():
 				q_loss = weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay)
 				target = self.compute_classification_target(latent[:, init_len + 1:, :, :, :])
 				pred = self.compute_classification_target(q_output)
 				accuracy += (target.argmax(dim=-1) == pred.argmax(dim=-1)).float().mean().item()
 				first_accuracy += (target[:, 0:1, :].argmax(dim=-1) == pred[:, 0:1, :].argmax(dim=-1)).float().mean().item()
-			loss = lat_loss
+			loss = lat_loss + rew_loss
 			loss.backward()
 			optim.step()
 
 			total_q_loss += q_loss.item()
 			total_loss += lat_loss.item()
+			total_reward_loss += rew_loss.item()
 		return {
 			'mse': total_loss/len(loader),
 			'qmse': total_q_loss/len(loader),
@@ -225,7 +238,7 @@ class TransformerArc(nn.Module):
 		}
 	
 	@torch.no_grad()
-	def eval_rwm_style(self, loader:DataLoader, init_len:int=3, err_decay:float=0.9) -> dict:
+	def eval_rwm_style(self, loader:DataLoader, init_len:int=3, err_decay:float=0.95) -> dict:
 		self.train()
 		total_loss = 0
 		total_q_loss = 0
@@ -234,13 +247,15 @@ class TransformerArc(nn.Module):
 		accuracy = 0.0
 		first_accuracy = 0
 		for batch in loader:
-			latent = batch['latent'].to(self.device).detach()
-			action = batch['action'].to(self.device).detach()
+			latent = batch['latent'].to(self.device)
+			action = batch['action'].to(self.device)
+			rewards_target = batch['reward'].to(self.device)
 
-			output, q_output = self.ar_forward(latent[:, :init_len+1, :, :, :], action)
+			output, q_output, rewards = self.ar_forward(latent[:, :init_len+1, :, :, :], action)
 			
 			total_loss += weighted_mse(latent[:, init_len + 1:, :, :, :], output, err_decay)
 			total_q_loss += weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay)
+			total_reward_loss += weighted_mse(rewards_target[:, init_len:].unsqueeze(-1), rewards, err_decay).item()
 			target = self.compute_classification_target(latent[:, init_len + 1:, :, :, :])
 			pred = self.compute_classification_target(q_output)
 			accuracy += (target.argmax(dim=-1) == pred.argmax(dim=-1)).float().mean().item()
