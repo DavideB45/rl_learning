@@ -39,6 +39,24 @@ PEG_INSERT = {
 	"camera_id": 2,
 }
 
+HAMMER_DATA_DIR = "data/hammer/"
+HAMMER = {
+	"env_name": "hammer-v3",
+	"img_dir": HAMMER_DATA_DIR + IMG_DIR,
+	"models": HAMMER_DATA_DIR + MODELS_DIR,
+	"a_size": 4,
+	"camera_id": 1,
+}
+
+PICKB_DATA_DIR = "data/bin-pick/"
+PICK_BIN = {
+	"env_name": "bin-picking-v3",
+	"img_dir": PICKB_DATA_DIR + IMG_DIR,
+	"models": PICKB_DATA_DIR + MODELS_DIR,
+	"a_size": 4,
+	"camera_id": 1,
+}
+
 CURRENT_ENV = DRAWER_OPEN
 
 LATENT_DIM = 4
