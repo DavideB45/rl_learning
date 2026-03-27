@@ -5,6 +5,7 @@ sys.path.insert(1, os.path.join(sys.path[0], '../'))
 from vae.vqVae import VQVAE
 from dynamics.lstm import LSTMQuantized
 from dynamics.lstmc import LSTMQClass
+from dynamics.transformer import TransformerArc
 
 import torch
 
@@ -46,6 +47,22 @@ def load_lstm_quantized(env:dict, vq:VQVAE, device:torch.device, hidden_dim:int,
 	model.eval()
 	return model
 
+def load_transformer(env:dict, vq:VQVAE, device:torch.device, emb_size:int, max_seq_len:int, n_heads:int, n_transformer:int, dropout:float, cl:bool=False, kl:bool=False) -> TransformerArc:
+	model = TransformerArc(env['a_size'], vq, emb_size, max_seq_len, n_heads, n_transformer, dropout, device)
+	d = vq.code_depth
+	w_h = vq.latent_dim
+	s = vq.codebook_size
+	if cl:
+		model_path = env['models'] + f"trc_{model.emb_size}_{w_h}_{d}_{s}"
+	else:
+		model_path = env['models'] + f"trr_{model.emb_size}_{w_h}_{d}_{s}"
+	if kl:
+		model_path += '_kl'
+	model_path += ".pth"
+	model.load_state_dict(torch.load(model_path, map_location=device))
+	model.eval()
+	return model
+
 
 
 def save_vq_vae(env:dict, model:VQVAE, smooth:bool) -> str:
@@ -63,6 +80,20 @@ def save_lstm_quantized(env:dict, model:LSTMQuantized | LSTMQClass, tf:bool=Fals
 		model_path = env['models'] + f"lstmq_{model.hidden_dim}_{w_h}_{d}_{s}"
 	if tf:
 		model_path += '_tf' # teacher forcing
+	if kl:
+		model_path += '_kl' # kl usage as target
+	model_path += ".pth"
+	torch.save(model.state_dict(), model_path)
+	return model_path
+
+def save_transformer(env:dict, model:TransformerArc, cl:bool=False, kl:bool=False) -> str:
+	d = model.cd
+	w_h = model.w_h
+	s = model.cs
+	if cl:
+		model_path = env['models'] + f"trc_{model.emb_size}_{w_h}_{d}_{s}"
+	else:
+		model_path = env['models'] + f"trr_{model.emb_size}_{w_h}_{d}_{s}"
 	if kl:
 		model_path += '_kl' # kl usage as target
 	model_path += ".pth"

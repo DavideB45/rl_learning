@@ -47,6 +47,7 @@ class TransformerArc(nn.Module):
 		self.cs = vq.codebook_size
 		in_size = self.w_h*self.w_h*self.cd + act_size
 		self.max_seq_len = max_seq_len
+		self.emb_size = emb_size
 
 		self.encode = TransformerEncoder(
 			in_size=in_size,
