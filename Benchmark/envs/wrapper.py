@@ -30,13 +30,21 @@ class MetaWrapEnv(gym.Env):
 
 
 	def __init__(self, vq:VQVAE=None, lstm:LSTMQuantized=None):
+		'''
+		initialization of the wrapper to use the models trained in MetaDreamEnv
+
+		if lstm is None only the vq latent representation will be used in the representaiotn 
+		this is useful if the dynamic model is a transformer based model and does not have a
+		latent space that represents the past
+		'''
 		super(MetaWrapEnv, self).__init__()
 
 		self.vq = vq
 		self.vq.eval()
 		self.vq_dim = self.vq.latent_dim**2*self.vq.code_depth
 		self.lstm = lstm
-		self.lstm.eval()
+		if lstm is not None:
+			self.lstm.eval()
 
 		self.env = gym.make('Meta-World/MT1', env_name=CURRENT_ENV['env_name'],
 				render_mode='rgb_array', camera_id=CURRENT_ENV['camera_id'], width = 64, height = 64)
@@ -48,7 +56,7 @@ class MetaWrapEnv(gym.Env):
 			dtype=np.float32
 		)
 		self.observation_space = spaces.Box(
-			low=-np.inf, high=np.inf, shape=(self.vq_dim + self.lstm.hidden_dim,), dtype=np.float32
+			low=-np.inf, high=np.inf, shape=(self.vq_dim + (self.lstm.hidden_dim if lstm is not None else 0),), dtype=np.float32
 		)
 		self.to_tensor_ = T.ToTensor()
 
@@ -78,16 +86,17 @@ class MetaWrapEnv(gym.Env):
 		with torch.no_grad():
 			t_img = self.to_tensor_(img).unsqueeze(0).to(self.vq.device)
 			_, lat, _ = self.vq.quantize(self.vq.encode(t_img))
-			h = (torch.zeros(1, 1, self.lstm.hidden_dim).to(self.vq.device),
-				 torch.zeros(1, 1, self.lstm.hidden_dim).to(self.vq.device))
-		self.hidden_state = h
+			if self.lstm is not None:
+				h = (torch.zeros(1, 1, self.lstm.hidden_dim).to(self.vq.device),
+					torch.zeros(1, 1, self.lstm.hidden_dim).to(self.vq.device))
+				self.hidden_state = h
 		self.current_latent = lat
 		self.current_prop = torch.tensor(prop[:4], dtype=torch.float32).unsqueeze(0).unsqueeze(0)
 		self.current_render = img
-		normalized = (self.current_latent.flatten()-self.mu)/self.std
-		representation = torch.cat([normalized, self.hidden_state[0].flatten()], dim=-1).cpu().numpy()
-		#representation = normalized.cpu().numpy()
-		return representation, {}
+		representation = (self.current_latent.flatten()-self.mu)/self.std
+		if self.lstm is not None:
+			representation = torch.cat([representation, self.hidden_state[0].flatten()], dim=-1)
+		return representation.cpu().numpy(), {}
 
 	def step(self, action,) -> tuple:
 		'''
@@ -101,17 +110,18 @@ class MetaWrapEnv(gym.Env):
 		with torch.no_grad():
 			t_img = self.to_tensor_(img).unsqueeze(0).to(self.vq.device)
 			_, lat, _ = self.vq.quantize(self.vq.encode(t_img))
-			action_tensor = torch.tensor(action, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
-			_, _, _, _, h = self.lstm.forward(self.current_latent.unsqueeze(0).to(self.vq.device), action_tensor.to(self.vq.device), self.current_prop.unsqueeze(0).to(self.vq.device), self.hidden_state)
-		self.hidden_state = h
+			if self.lstm is not None:
+				action_tensor = torch.tensor(action, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+				_, _, _, _, h = self.lstm.forward(self.current_latent.unsqueeze(0).to(self.vq.device), action_tensor.to(self.vq.device), self.current_prop.unsqueeze(0).to(self.vq.device), self.hidden_state)
+				self.hidden_state = h
 		self.current_latent = lat
 		self.current_prop = torch.tensor(prop, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
 		self.current_render = img
-		normalized = (self.current_latent.flatten()-self.mu)/self.std
-		representation = torch.cat([normalized, self.hidden_state[0].flatten()], dim=-1).cpu().numpy()
-		#representation = normalized.cpu().numpy()
+		representation = (self.current_latent.flatten()-self.mu)/self.std
+		if self.lstm is not None:
+			representation = torch.cat([representation, self.hidden_state[0].flatten()], dim=-1)
 		return (
-			representation, # based on world model
+			representation.cpu().numpy(), # based on world model
 			reward, # from world model
 			terminated, # For now only based on step count
 			truncated, # Truncated
@@ -136,7 +146,7 @@ class MetaWrapEnv(gym.Env):
 		self.env.close()
 		pass
 
-def generate_data(vq:VQVAE, lstm:LSTMQuantized, n_sample:int=1000, policy:BaseAlgorithm=None, training_set:bool=True, round:int=0):
+def generate_data(vq:VQVAE, lstm:LSTMQuantized | None, n_sample:int=1000, policy:BaseAlgorithm=None, training_set:bool=True, round:int=0):
 	base_path = get_data_path(CURRENT_ENV['img_dir'], training_set, round)
 	action_path = base_path + TRANSITIONS
 	actions = []
@@ -195,7 +205,7 @@ def generate_data(vq:VQVAE, lstm:LSTMQuantized, n_sample:int=1000, policy:BaseAl
 			indent=4
 		)
 
-def evaluate_gathering(vq:VQVAE, lstm:LSTMQuantized, policy:BaseAlgorithm, n_sample:int=1000, training_set:bool=True, round:int=0) -> tuple[list[float], list[bool]]:
+def evaluate_gathering(vq:VQVAE, lstm:LSTMQuantized | None, policy:BaseAlgorithm, n_sample:int=1000, training_set:bool=True, round:int=0) -> tuple[list[float], list[bool]]:
 	"""
 	Evaluate the policy on the environment, gathering data and saving it in the same format as generate_data
 	Args:

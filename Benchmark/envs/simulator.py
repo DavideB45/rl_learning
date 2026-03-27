@@ -39,7 +39,8 @@ class MetaDreamEnv(VecEnv):
 		self.vq.eval()
 		self.vq_dim = self.vq.latent_dim**2*self.vq.code_depth
 		self.dyn = dynamic
-		self.using_tr = isinstance(dynamic, TransformerArc)
+		if isinstance(self.dyn, TransformerArc):
+			self.i_len = self.dyn.max_seq_len -1
 		self.dyn.eval()
 		self.hidden_state = None # (num_envs, hidden_dim)
 		self.mu = vq.quantizer.embedding.weight.data.mean()
@@ -47,7 +48,7 @@ class MetaDreamEnv(VecEnv):
 
 		self.observation_space = spaces.Box(
 			low=-np.inf, high=np.inf, 
-			shape=(self.vq_dim + (self.dyn.hidden_dim if self.using_tr else 0),), 
+			shape=(self.vq_dim + (self.dyn.hidden_dim if not isinstance(self.dyn, TransformerArc) else 0),), 
 			dtype=np.float32
 		)
 		self.action_space = spaces.Box(
@@ -78,10 +79,10 @@ class MetaDreamEnv(VecEnv):
 			actions = torch.stack([init_data['action'][:self.i_len, :] for init_data in init_data_list]).to(self.vq.device)
 			props = torch.stack([init_data['proprioception'][:self.i_len, :] for init_data in init_data_list]).to(self.vq.device)
 
-			if self.using_tr:
-				_, pred, _, _ = self.dyn.forward(latents, actions) # wrong because the length has a cap
-				self.current_latent = pred[:, -1, :, :, :]
-				latent_flat = (self.current_latent.reshape(self.num_envs, -1)-self.mu)/self.std # see comments below
+			if isinstance(self.dyn, TransformerArc):
+				self.current_latent = latents # keep a list of stuff
+				self.actions = actions[:, 1:, :] # remove last action because the agent will decide
+				latent_flat = (self.current_latent[:, -1, :, :, :].reshape(self.num_envs, -1)-self.mu)/self.std # use last image
 				representation = latent_flat.cpu().numpy()
 			else:
 				_, pred, prop, _, h = self.dyn.forward(latents, actions, props, None)
@@ -105,14 +106,14 @@ class MetaDreamEnv(VecEnv):
 			actions = actions[np.newaxis, :]
 		with torch.no_grad():
 			
-			if self.using_tr:
+			if isinstance(self.dyn, TransformerArc):
 				action_tensor = torch.tensor(actions, dtype=torch.float32).unsqueeze(1).to(self.vq.device) # change this to use old actions
-				latent_input = self.current_latent.unsqueeze(1).to(self.vq.device) # change this to a list of tensors
-				_, pred, _, _ = self.dyn.forward(latent_input, actions) # needs to be updatet because we are taking only 1 state now split in if else
-				latent_flat = (self.current_latent.reshape(self.num_envs, -1)-self.mu)/self.std
-				self.current_latent = pred[:, -1, :, :, :]# chage this keeping only crrect number of stuff
-				#also add action history
+				self.actions = torch.cat([self.actions, action_tensor], dim=1)
+				_, pred, rew, _ = self.dyn.forward(self.current_latent, self.actions) # needs to be updatet because we are taking only 1 state now split in if else
+				latent_flat = (pred.reshape(self.num_envs, -1)-self.mu)/self.std # use last image
 				representation = latent_flat.cpu().numpy()
+				self.current_latent = torch.cat([self.current_latent[:, 1:, :], pred], dim=1)
+				self.actions = self.actions[:, 1:, :]
 			else:
 				action_tensor = torch.tensor(actions, dtype=torch.float32).unsqueeze(1).to(self.vq.device)
 				latent_input = self.current_latent.unsqueeze(1).to(self.vq.device)
