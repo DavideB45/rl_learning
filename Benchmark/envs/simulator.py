@@ -16,7 +16,7 @@ from helpers.data import get_data_path, make_seq_dataloader_safe
 from vae.vqVae import VQVAE
 from dynamics.lstmc import LSTMQClass
 from dynamics.transformer import TransformerArc
-from helpers.model_loader import load_vq_vae, load_lstm_quantized
+from helpers.model_loader import load_vq_vae, load_lstm_quantized, load_transformer
 from helpers.general import best_device
 from global_var import *
 
@@ -80,10 +80,13 @@ class MetaDreamEnv(VecEnv):
 			props = torch.stack([init_data['proprioception'][:self.i_len, :] for init_data in init_data_list]).to(self.vq.device)
 
 			if isinstance(self.dyn, TransformerArc):
-				self.current_latent = latents # keep a list of stuff
-				self.actions = actions[:, 1:, :] # remove last action because the agent will decide
-				latent_flat = (self.current_latent[:, -1, :, :, :].reshape(self.num_envs, -1)-self.mu)/self.std # use last image
-				representation = latent_flat.cpu().numpy()
+				self.actions = actions[:, :-1, :] # remove last action because the agent will decide
+				_, _, _, h = self.dyn.forward(latents[:, :-1, :], self.actions)
+				representation = (latents[:, -1, :].reshape(self.num_envs, -1)-self.mu)/self.std # use last image
+				h = h.reshape(self.num_envs, -1)
+				#representation = torch.cat([representation, h], dim=-1)
+				self.current_latent = latents
+				#self.actions = self.actions[:, :-1, :]
 			else:
 				_, pred, prop, _, h = self.dyn.forward(latents, actions, props, None)
 				self.hidden_state = h
@@ -91,10 +94,10 @@ class MetaDreamEnv(VecEnv):
 				self.current_latent = pred[:, -1, :, :, :]
 				latent_flat = (self.current_latent.reshape(self.num_envs, -1)-self.mu)/self.std
 				self.current_prop = prop[:, -1, :]
-				representation = torch.cat([latent_flat, hidden_flat], dim=-1).cpu().numpy()
+				representation = torch.cat([latent_flat, hidden_flat], dim=-1)
 			
 		self.step_count = 0
-		return representation
+		return representation.cpu().numpy()
 
 	def step(self, actions) -> tuple:
 		'''
@@ -109,9 +112,10 @@ class MetaDreamEnv(VecEnv):
 			if isinstance(self.dyn, TransformerArc):
 				action_tensor = torch.tensor(actions, dtype=torch.float32).unsqueeze(1).to(self.vq.device) # change this to use old actions
 				self.actions = torch.cat([self.actions, action_tensor], dim=1)
-				_, pred, rew, _ = self.dyn.forward(self.current_latent, self.actions) # needs to be updatet because we are taking only 1 state now split in if else
-				latent_flat = (pred.reshape(self.num_envs, -1)-self.mu)/self.std # use last image
-				representation = latent_flat.cpu().numpy()
+				_, pred, rew, h = self.dyn.forward(self.current_latent, self.actions) # needs to be updatet because we are taking only 1 state now split in if else
+				h = h.reshape(self.num_envs, -1)
+				representation = (pred.reshape(self.num_envs, -1)-self.mu)/self.std # use last image
+				#representation = torch.cat([representation, h], dim=-1)
 				self.current_latent = torch.cat([self.current_latent[:, 1:, :], pred], dim=1)
 				self.actions = self.actions[:, 1:, :]
 			else:
@@ -124,15 +128,15 @@ class MetaDreamEnv(VecEnv):
 				latent_flat = (self.current_latent.reshape(self.num_envs, -1)-self.mu)/self.std
 				self.current_latent = pred[:, -1, :, :, :]
 				self.current_prop = prop[:, -1, :]
-				representation = torch.cat([latent_flat, hidden_flat], dim=-1).cpu().numpy()
+				representation = torch.cat([latent_flat, hidden_flat], dim=-1)
 
 			self.step_count += 1
 			terminateds = np.array([self.step_count >= self.max_len] * self.num_envs, dtype=bool)
 			infos = [
-				{'terminal_observation': representation[i]} for i in range(self.num_envs)
+				{'terminal_observation': representation[i].squeeze().cpu().numpy()} for i in range(self.num_envs)
 			]
 		return (
-			representation if not terminateds.any() else self.reset(), # based on world model
+			representation.cpu().numpy() if not terminateds.any() else self.reset(), # based on world model
 			np.array(rew.flatten().cpu()), # from world model
 			terminateds, # For now only based on step count
 			infos
@@ -143,7 +147,7 @@ class MetaDreamEnv(VecEnv):
 			print('[WARNING] trying to render vectorized env, you are not Doctor strange')
 			return
 		with torch.no_grad():
-			img = self.vq.decode(self.current_latent).squeeze(0).permute(1, 2, 0).cpu().numpy()
+			img = self.vq.decode(self.current_latent[:, -1, :, :, :]).squeeze(0).permute(1, 2, 0).cpu().numpy()
 			img = (img * 255).astype(np.uint8)
 			image = Image.fromarray(img)
 			image_resized = image.resize((512, 512), Image.NEAREST)
@@ -182,9 +186,10 @@ class MetaDreamEnv(VecEnv):
 if __name__ == "__main__":
 	SMOOTH = True if SMOOTH > 0 else False
 	vq = load_vq_vae(CURRENT_ENV, CODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM, True, SMOOTH, best_device())
-	lstm = load_lstm_quantized(CURRENT_ENV, vq, best_device(), HIDDEN_DIM, SMOOTH, False, False)
-	env = MetaDreamEnv(vq=vq, lstm=lstm, dataloader=make_seq_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], True, 0), vq, 100, 1), 
-					  num_envs=1, ep_len=50, init_len=1)
+	#lstm = load_lstm_quantized(CURRENT_ENV, vq, best_device(), HIDDEN_DIM, SMOOTH, False, False)
+	lstm = load_transformer(CURRENT_ENV, vq, best_device(), EMB_SIZE, MAX_SEQ_LEN, NUM_HEADS, NUM_LAYERS, DROPOUT, False, False)
+	env = MetaDreamEnv(vq=vq, dynamic=lstm, dataloader=make_seq_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], True, 0), vq, 100, 1), 
+					  num_envs=1, ep_len=100, init_len=10)
 	observation = env.reset()
 	frames = []
 	frames.append(env.render().rotate(180))
@@ -196,7 +201,7 @@ if __name__ == "__main__":
 		#action = env.action_space.sample()  # random action
 		action, _states = agent.predict(observation, deterministic=True)
 		observation, reward, terminated, info = env.step(action)
-		print(f"Step {step_count} Reward: {reward}")
+		print(f"Step {step_count} Reward: {reward} | Action: {action}")
 		frames.append(env.render().rotate(180))
 		done = terminated.any()
 		total_reward += reward

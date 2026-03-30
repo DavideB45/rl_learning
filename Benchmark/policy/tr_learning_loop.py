@@ -49,8 +49,8 @@ def main():
 			f.write(f'mrew,success,space\n')
 	
 	collecting_time -= time.time()
-	generate_data(vq, None, n_sample=2000, training_set=True)
-	generate_data(vq, None, n_sample=1000, training_set=False)
+	generate_data(vq, transformer, n_sample=10000, training_set=True)
+	generate_data(vq, transformer, n_sample=1000, training_set=False)
 	collecting_time += time.time()
 
 	for round in range(N_ROUNDS):
@@ -77,9 +77,9 @@ def main():
 		agent_training_time += time.time()
 
 		collecting_time -= time.time()
-		rew, succ = evaluate_gathering(vq, None, n_sample=1000, policy=agent, training_set=True)
+		rew, succ = evaluate_gathering(vq, transformer, n_sample=1000, policy=agent, training_set=True)
 		if round % 10 == 0:
-			generate_data(vq, None, n_sample=1000, policy=agent, training_set=False)
+			generate_data(vq, transformer, n_sample=1000, policy=agent, training_set=False)
 		print(f"Average reward: {(sum(rew) / len(rew)):.2f}, Success rate: {(sum(succ) / len(succ)):.2%}")
 		with open('res.csv', 'a') as f:
 			for i in range(len(rew)):
@@ -129,8 +129,8 @@ def tune_tr(model: TransformerArc, tr:DataLoader, vl:DataLoader, encoder: VQVAE,
 	best_val_loss = float('inf')
 	no_improvements = 0
 	for epoch in range(num_epocs):
-		err_tr = model.train_rwm_style(tr, optim, init_len=INIT_LEN, err_decay=0.99)#, useKL=USE_KL
-		err_vl = model.eval_rwm_style(vl, init_len=INIT_LEN, err_decay=0.99)#, useKL=USE_KL
+		err_tr = model.train_rwm_style(tr, optim, init_len=INIT_LEN, err_decay=0.9)#, useKL=USE_KL
+		err_vl = model.eval_rwm_style(vl, init_len=INIT_LEN, err_decay=0.9)#, useKL=USE_KL
 		if err_vl['mse'] < best_val_loss:
 			print_lstm_analytics(epoch, err_tr, err_vl)
 			best_val_loss = err_vl['mse']

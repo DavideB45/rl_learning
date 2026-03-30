@@ -37,6 +37,9 @@ if __name__ == '__main__':
 	best_q_mse = 10000
 	begin = time()
 	no_imporvemets = 0
+	print(f"Number of parameters: {lstm.param_count()/1e6:.2f}M")
+	print(lstm.param_count())
+	exit()
 	for i in range(LSTM_EPOCS):
 		err_tr = lstm.train_rwm_style(tr, optim, init_len=INIT_LEN, err_decay=0.99)
 		err_vl = lstm.eval_rwm_style(vl, init_len=INIT_LEN, err_decay=0.99)

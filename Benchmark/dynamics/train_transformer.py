@@ -21,18 +21,20 @@ if __name__ == '__main__':
 	dev = best_device()
 	vq = load_vq_vae(CURRENT_ENV, CODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM, True, True if SMOOTH > 0 else False, dev)
 	model = TransformerArc(CURRENT_ENV['a_size'], vq, EMB_SIZE, MAX_SEQ_LEN, NUM_HEADS, NUM_LAYERS, DROPOUT, dev)
-	tr = make_seq_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], True, 0), vq, SEQ_LEN, max_ep=100000)
-	vl = make_seq_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], False, 0), vq, SEQ_LEN, max_ep=100000)
+	tr = make_seq_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], True, 0), vq, SEQ_LEN, max_ep=20)
+	vl = make_seq_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], False, 0), vq, SEQ_LEN, max_ep=20)
 	
 
 	optim = Adam(model.parameters(), lr=TR_LR, weight_decay=TR_WD)
 	best_mse = 10000
 	begin = time()
 	no_imporvemets = 0
-	#print(model)
-	#exit()
+	print(model)
+	print(f"Number of parameters: {model.param_count()/1e6:.2f}M")
+	print(f"Number of parameters: {model.param_count()}")
+	exit()
 	for i in range(200):
-		err_vl = model.train_rwm_style(tr, optim)
+		err_vl = model.train_rwm_style(tr, optim, init_len=INIT_LEN, err_decay=0.9)
 		print(i, ':', err_vl)
 	end = time()
 	print(f'Time elapsed {end - begin}')

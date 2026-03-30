@@ -45,12 +45,24 @@ class TransformerArc(nn.Module):
 		self.w_h = vq.latent_dim
 		self.cd = vq.code_depth
 		self.cs = vq.codebook_size
-		in_size = self.w_h*self.w_h*self.cd + act_size
+		in_size = self.w_h*self.w_h*self.cd
 		self.max_seq_len = max_seq_len
 		self.emb_size = emb_size
 
+		self.rep_fc = nn.Sequential(
+			nn.Linear(in_size, emb_size),
+			nn.LeakyReLU()
+		)
+		self.act_fc = nn.Sequential(
+			nn.Linear(act_size, emb_size),
+			nn.LeakyReLU(),
+			nn.LayerNorm(emb_size),
+			nn.Linear(emb_size, emb_size),
+			nn.LeakyReLU(),
+			nn.LayerNorm(emb_size)
+		)
 		self.encode = TransformerEncoder(
-			in_size=in_size,
+			in_size=emb_size,
 			out_size=emb_size,
 			dropout=dropout,
 			max_len=max_seq_len
@@ -62,7 +74,7 @@ class TransformerArc(nn.Module):
 
 		self.decode_img = TransformerDecoderRD(
 			in_size=emb_size,
-			out_size=in_size - act_size
+			out_size=in_size
 		)
 
 		self.guess_reward = TransformerDecoderRD(
@@ -75,6 +87,9 @@ class TransformerArc(nn.Module):
 		self.device = device
 		self.to(device)
 		self.compile()
+	
+	def param_count(self) -> int:
+		return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
 	def flatten_rep(self, input:torch.Tensor) -> torch.Tensor:
 		'''
@@ -119,21 +134,23 @@ class TransformerArc(nn.Module):
 		only the generated token and it's decoding will be returned
 		
 		:param sequence: The sequence of perceptions (B,S,W,H,D)
-		:param action: The action done at each time step (B,S,W,H,D))
+		:param action: The action done at each time step (B,S,N))
 		:return: The prediction, the prediction quantized, the predicted reward, the last `embedding`
 		'''
-		sequence = self.flatten_rep(sequence.detach())
-		sequence_ = torch.cat([sequence, action], dim=-1)
-		guess_token = self.guess_token.expand(sequence_.size(0), -1, -1)
-		sequence_ = torch.cat([sequence_, guess_token], dim=1)
-		sequence_ = self.transform(self.encode(sequence_))
-		last = sequence_[:, -1:, :] # hopefully (B,1,E)
-		decoded_last = self.decode_img.forward(last) + sequence[:, -1:, :]
+		sequence_ = self.flatten_rep(sequence.detach())
+		sequence_ = self.rep_fc(sequence_)
+		#sequence_ = torch.cat([sequence, action], dim=-1)
+		#guess_token = self.guess_token.expand(sequence_.size(0), -1, -1)
+		guess_token = self.act_fc(action[:, -1, :])
+		sequence_ = torch.cat([sequence_, guess_token.unsqueeze(1)], dim=1)
+		skip = self.encode(sequence_)
+		sequence_ = self.transform(skip)
+		last = sequence_[:, -1:, :] + skip[:, -1:, :] # hopefully (B,1,E)
+		decoded_last = self.decode_img.forward(last)
 		reward = self.guess_reward(last)
 		decoded_last = self.unflatten_rep(decoded_last, 1)
-		decoded_last = decoded_last.squeeze()
+		decoded_last = decoded_last.squeeze(1)
 		quantiz_last = self.vq.quantizer.quantize_fixed_space(decoded_last)
-		warnings.warn('quantize fixed space')
 		decoded_last = decoded_last.unsqueeze(1)
 		quantiz_last = quantiz_last.unsqueeze(1)
 		return decoded_last, quantiz_last, reward, last
@@ -160,7 +177,6 @@ class TransformerArc(nn.Module):
 
 		_, len, _ = action.shape
 		_, init, _, _, _ = input.shape
-		#print(x.shape, action.shape)
 		for t in range(init-1 , len):
 			begin = max(t - self.max_seq_len + 2, 0)
 			#print(begin, t, len, self.max_seq_len)

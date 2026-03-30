@@ -126,15 +126,15 @@ class Transformer(nn.Module):
 		self.mha = MultiHeadAttention(size, size, size, size, nheads=n_heads, dropout=dropout, device=device)
 		self.norm2 = nn.LayerNorm(size) 
 		self.fnn = nn.Sequential(
+			nn.LeakyReLU(),
 			nn.Linear(size, size*n_heads),
-			nn.GELU(),
+			nn.LeakyReLU(),
 			nn.Linear(size*n_heads, size)
 		)
-		print('[WARNING] remember to compile')
 
 	def forward(self, sequence:torch.Tensor) -> torch.Tensor:
 		out = self.norm1(sequence)
-		out = self.mha(out, out, out, is_causal=True) + sequence
+		out = self.mha(out, out, out, is_causal=False) + sequence
 		out = self.norm2(out)
 		return self.fnn(out) + out
 
@@ -182,7 +182,9 @@ class TransformerEncoder(nn.Module):
 
 		self.transform = nn.Sequential(
 			nn.Linear(in_features=in_size, out_features=out_size),
-			nn.GELU(),
+			nn.LeakyReLU(),
+			nn.Linear(in_features=out_size, out_features=out_size),
+			nn.LeakyReLU(),
 			nn.LayerNorm(out_size),
 		)
 		self.project = nn.Linear(in_features=out_size, out_features=out_size)
@@ -242,7 +244,7 @@ class TransformerDecoderRD(TransformerDecoder):
 		self.decode = nn.Sequential(
 			nn.LayerNorm(in_size),
 			nn.Linear(in_features=in_size, out_features=in_size),
-			nn.GELU(),
+			nn.LeakyReLU(),
 			nn.LayerNorm(in_size),
 			nn.Linear(in_features=in_size, out_features=out_size),
 		)
