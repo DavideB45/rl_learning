@@ -137,6 +137,8 @@ class TransformerArc(nn.Module):
 		:param action: The action done at each time step (B,S,N))
 		:return: The prediction, the prediction quantized, the predicted reward, the last `embedding`
 		'''
+		if sequence.shape[1] != action.shape[1]:
+			raise IndexError(f'sequence len != action len {sequence.shape[1]} != {action.shape[1]}')
 		sequence_ = self.flatten_rep(sequence.detach())
 		sequence_ = self.rep_fc(sequence_)
 		#sequence_ = torch.cat([sequence, action], dim=-1)
@@ -145,7 +147,7 @@ class TransformerArc(nn.Module):
 		sequence_ = torch.cat([sequence_, guess_token.unsqueeze(1)], dim=1)
 		skip = self.encode(sequence_)
 		sequence_ = self.transform(skip)
-		last = sequence_[:, -1:, :] + skip[:, -1:, :] # hopefully (B,1,E)
+		last = sequence_[:, -1:, :] # + skip[:, -2:-1, :] # hopefully (B,1,E)
 		decoded_last = self.decode_img.forward(last)
 		reward = self.guess_reward(last)
 		decoded_last = self.unflatten_rep(decoded_last, 1)
@@ -170,23 +172,58 @@ class TransformerArc(nn.Module):
 		preds = []
 		rewards = []
 
-		_, len, _ = action.shape
-		start = min(len - self.max_seq_len - 1, 0)
-		x = input[:, start:].detach()
-		action = action[:, start:]
+		msl = self.max_seq_len
+		extra_len = input.shape[1] - msl + 1
+		if  extra_len > 0:
+			#print(f'throwing away {extra_len} initial steps to obtain len of {msl -1}')
+			input = input[:, extra_len:, :]
+			action = action[:, extra_len:, :]
+
 
 		_, len, _ = action.shape
-		_, init, _, _, _ = input.shape
-		for t in range(init-1 , len):
-			begin = max(t - self.max_seq_len + 2, 0)
-			#print(begin, t, len, self.max_seq_len)
+		for t in range(0, len-msl+2): # +1 i standard to get everything and +1 bocause later we subtract 1
+			first = t 
+			last = first+msl-1
+
+			#print(first, last, len, msl, input.shape[1])
 			# the full sequence should be used each time
-			out, q_out, rew, _ = self.forward(x[:, begin:t+1, :], action[:, begin:t+1, :])
+			out, q_out, rew, _ = self.forward(input[:, first:last, :], action[:, first:last, :])
 			preds.append(out)
 			preds_q.append(q_out)
 			rewards.append(rew)
-			x = torch.cat([x, q_out], dim=1)
+			input = torch.cat([input, q_out], dim=1)
+		preds = torch.cat(preds, dim=1)
+		preds_q = torch.cat(preds_q, dim=1)
+		rewards = torch.cat(rewards, dim=1)
+		return preds, preds_q, rewards
+	
+	def ar_forward_2(self, input:torch.Tensor, action:torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+		'''
+		Do the forward pass taking as input a representation and a number of action that can be of different length
+		
+		:param input: Input rensor of shape (Batch, init_len, Depth, Width, Height)
+		:type input: torch.Tensor
+		:param action: a tensor representing the robot action
+		:type action: torch.Tensor
+		:return: the predicted sequence before quantization | the predicted sequence quantized (Batch, Seq_len, Depth, Width, Height) | the reward
+		:rtype: tuple[torch.Tensor, torch.Tensor, torch.Tensor]
+		'''
+		preds_q = []
+		preds = []
+		rewards = []
 
+		_, len, _ = action.shape
+		_, init, _, _, _ = input.shape
+		for t in range(init + 1, len):
+			begin = max(t - self.max_seq_len, 0)
+			print(begin, t, len, self.max_seq_len, init)
+			# the full sequence should be used each time
+			out, q_out, rew, _ = self.forward(input[:, begin:, :], action[:, begin:t, :])
+			preds.append(out)
+			preds_q.append(q_out)
+			rewards.append(rew)
+			input = torch.cat([input, q_out], dim=1)
+		raise NotImplementedError("Using a non tested version of ar forward")
 		preds = torch.cat(preds, dim=1)
 		preds_q = torch.cat(preds_q, dim=1)
 		rewards = torch.cat(rewards, dim=1)
@@ -270,8 +307,8 @@ class TransformerArc(nn.Module):
 
 			output, q_output, rewards = self.ar_forward(latent[:, :init_len+1, :, :, :], action)
 			
-			total_loss += weighted_mse(latent[:, init_len + 1:, :, :, :], output, err_decay)
-			total_q_loss += weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay)
+			total_loss += weighted_mse(latent[:, init_len + 1:, :, :, :], output, err_decay).item()
+			total_q_loss += weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay).item()
 			total_reward_loss += weighted_mse(rewards_target[:, init_len:].unsqueeze(-1), rewards, err_decay).item()
 			target = self.compute_classification_target(latent[:, init_len + 1:, :, :, :])
 			pred = self.compute_classification_target(q_output)

@@ -40,7 +40,7 @@ class MetaDreamEnv(VecEnv):
 		self.vq_dim = self.vq.latent_dim**2*self.vq.code_depth
 		self.dyn = dynamic
 		if isinstance(self.dyn, TransformerArc):
-			self.i_len = self.dyn.max_seq_len -1
+			self.i_len = self.dyn.max_seq_len - 1
 		self.dyn.eval()
 		self.hidden_state = None # (num_envs, hidden_dim)
 		self.mu = vq.quantizer.embedding.weight.data.mean()
@@ -48,7 +48,7 @@ class MetaDreamEnv(VecEnv):
 
 		self.observation_space = spaces.Box(
 			low=-np.inf, high=np.inf, 
-			shape=(self.vq_dim + (self.dyn.hidden_dim if not isinstance(self.dyn, TransformerArc) else 0),), 
+			shape=(self.vq_dim + (self.dyn.hidden_dim if not isinstance(self.dyn, TransformerArc) else self.dyn.emb_size),), 
 			dtype=np.float32
 		)
 		self.action_space = spaces.Box(
@@ -84,7 +84,7 @@ class MetaDreamEnv(VecEnv):
 				_, _, _, h = self.dyn.forward(latents[:, :-1, :], self.actions)
 				representation = (latents[:, -1, :].reshape(self.num_envs, -1)-self.mu)/self.std # use last image
 				h = h.reshape(self.num_envs, -1)
-				#representation = torch.cat([representation, h], dim=-1)
+				representation = torch.cat([representation, h], dim=-1)
 				self.current_latent = latents
 				#self.actions = self.actions[:, :-1, :]
 			else:
@@ -115,7 +115,7 @@ class MetaDreamEnv(VecEnv):
 				_, pred, rew, h = self.dyn.forward(self.current_latent, self.actions) # needs to be updatet because we are taking only 1 state now split in if else
 				h = h.reshape(self.num_envs, -1)
 				representation = (pred.reshape(self.num_envs, -1)-self.mu)/self.std # use last image
-				#representation = torch.cat([representation, h], dim=-1)
+				representation = torch.cat([representation, h], dim=-1)
 				self.current_latent = torch.cat([self.current_latent[:, 1:, :], pred], dim=1)
 				self.actions = self.actions[:, 1:, :]
 			else:
@@ -151,8 +151,9 @@ class MetaDreamEnv(VecEnv):
 			img = (img * 255).astype(np.uint8)
 			image = Image.fromarray(img)
 			image_resized = image.resize((512, 512), Image.NEAREST)
-			cv2.imshow('DreamEnv', np.array(image_resized))
-			cv2.waitKey(100)
+			#cv2.imshow('DreamEnv', np.array(image_resized))
+			#cv2.waitKey(100)
+			#print(self.current_latent.shape, self.actions.shape)
 			return image_resized
 			#return img
 		
@@ -196,10 +197,10 @@ if __name__ == "__main__":
 	done = False
 	total_reward = 0
 	step_count = 0
-	agent = PPO.load(CURRENT_ENV['models'] + 'agent', env)
+	#agent = PPO.load(CURRENT_ENV['models'] + 'agent', env)
 	while not done:
-		#action = env.action_space.sample()  # random action
-		action, _states = agent.predict(observation, deterministic=True)
+		action = env.action_space.sample()  # random action
+		#action, _states = agent.predict(observation, deterministic=True)
 		observation, reward, terminated, info = env.step(action)
 		print(f"Step {step_count} Reward: {reward} | Action: {action}")
 		frames.append(env.render().rotate(180))
