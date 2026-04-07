@@ -35,6 +35,8 @@ colors = ['\033[91m', '\033[95m', '\033[92m', '\033[93m', '\033[96m']
 reset = '\033[0m'
 
 def main():
+	if 'MUJOCO_GL' not in os.environ:
+		os.environ['MUJOCO_GL'] = 'egl'
 	collecting_time = 0
 	vq_training_time = 0
 	tr_training_time = 0
@@ -68,10 +70,10 @@ def main():
 		vl_seq = make_seq_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], False, 0), vq, SEQ_LEN, 128, max_ep=15)
 		dataset_generation_time += time.time()
 		tr_training_time -= time.time()
-		transformer = tune_tr(transformer, tr=tr_seq, vl=vl_seq, encoder=vq, num_epocs=TR_EPOCHS if round == 0 else 1, lr=TR_LR, wd=TR_WD)
+		transformer = tune_tr(transformer, tr=tr_seq, vl=vl_seq, encoder=vq, num_epocs=TR_EPOCHS if round == 0 else 2, lr=TR_LR, wd=TR_WD)
 		tr_training_time += time.time()
 		
-		dream_env = MetaDreamEnv(vq, transformer, vl_seq, init_len=INIT_LEN, ep_len=30, num_envs=50) #ep_len=SEQ_LEN - INIT_LEN
+		dream_env = MetaDreamEnv(vq, transformer, vl_seq, init_len=INIT_LEN, ep_len=20, num_envs=50) #ep_len=SEQ_LEN - INIT_LEN
 		agent_training_time -= time.time()
 		agent = tune_agent(agent, num_steps=PPO_STEPS, env=dream_env) # codes changed so we train more PPO
 		agent_training_time += time.time()
@@ -145,7 +147,7 @@ def tune_tr(model: TransformerArc, tr:DataLoader, vl:DataLoader, encoder: VQVAE,
 	
 def tune_agent(agent:PPO, env:MetaDreamEnv, num_steps:int=100000) -> PPO:
 	if agent is None:
-		agent = PPO(MlpPolicy, env, policy_kwargs=policy_kwargs, n_steps=500, batch_size=1000, learning_rate=0.0003, ent_coef=0.01, sde_sample_freq=10, use_sde=True)
+		agent = PPO(MlpPolicy, env, policy_kwargs=policy_kwargs, n_steps=2048, batch_size=128, learning_rate=0.0003, ent_coef=0.01, sde_sample_freq=10, use_sde=True)
 	else:
 		agent = PPO.load(CURRENT_ENV['models'] + 'agent', env)
 	agent = agent.learn(num_steps, progress_bar=False, reset_num_timesteps=False)

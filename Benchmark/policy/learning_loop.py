@@ -35,6 +35,8 @@ colors = ['\033[91m', '\033[95m', '\033[92m', '\033[93m', '\033[96m']
 reset = '\033[0m'
 
 def main():
+	if 'MUJOCO_GL' not in os.environ:
+		os.environ['MUJOCO_GL'] = 'egl'
 	collecting_time = 0
 	vq_training_time = 0
 	lstm_training_time = 0
