@@ -4,7 +4,7 @@ sys.path.insert(1, os.path.join(sys.path[0], '../'))
 
 from dynamics.transformer import TransformerArc
 from helpers.data import make_seq_dataloader_safe, get_data_path
-from helpers.model_loader import load_vq_vae
+from helpers.model_loader import load_vq_vae, save_transformer
 from helpers.general import best_device
 from global_var import *
 
@@ -29,12 +29,14 @@ if __name__ == '__main__':
 	best_mse = 10000
 	begin = time()
 	no_imporvemets = 0
-	print(model)
 	print(f"Number of parameters: {model.param_count()/1e6:.2f}M")
 	print(f"Number of parameters: {model.param_count()}")
-	exit()
 	for i in range(200):
-		err_vl = model.train_rwm_style(tr, optim, init_len=INIT_LEN, err_decay=0.9)
+		err_tr = model.train_rwm_style(tr, optim, init_len=INIT_LEN, err_decay=0.9)
+		print(i, ':', err_tr)
+		err_vl = model.eval_rwm_style(vl, init_len=INIT_LEN, err_decay=0.9)
+		if best_mse > err_vl['mse']:
+			save_transformer(CURRENT_ENV, model)
 		print(i, ':', err_vl)
 	end = time()
 	print(f'Time elapsed {end - begin}')

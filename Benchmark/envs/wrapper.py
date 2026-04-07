@@ -56,7 +56,7 @@ class MetaWrapEnv(gym.Env):
 			dtype=np.float32
 		)
 		self.observation_space = spaces.Box(
-			low=-np.inf, high=np.inf, shape=(self.vq_dim + (self.dyn.hidden_dim if not isinstance(self.dyn, TransformerArc) else 0),), dtype=np.float32
+			low=-np.inf, high=np.inf, shape=(self.vq_dim + (self.dyn.hidden_dim if not isinstance(self.dyn, TransformerArc) else self.dyn.emb_size),), dtype=np.float32
 		)
 		self.to_tensor_ = T.ToTensor()
 
@@ -95,7 +95,7 @@ class MetaWrapEnv(gym.Env):
 			self.current_latent = lat.unsqueeze(1)
 			h = torch.zeros(self.dyn.emb_size, device=self.dyn.device)
 			representation = (lat.flatten()-self.mu)/self.std
-			#representation = torch.cat([representation, h.flatten()], dim=-1)
+			representation = torch.cat([representation, h.flatten()], dim=-1)
 			self.actions = None
 		else:
 			self.current_latent = lat
@@ -124,7 +124,7 @@ class MetaWrapEnv(gym.Env):
 					self.actions = action_tensor
 				_, _, _, h = self.dyn.forward(self.current_latent, self.actions) # needs to be updatet because we are taking only 1 state now split in if else
 				representation = (lat.flatten()-self.mu)/self.std
-				#representation = torch.cat([representation, h.flatten()], dim=-1)
+				representation = torch.cat([representation, h.flatten()], dim=-1)
 				if self.actions.shape[1] >= self.dyn.max_seq_len-1:
 					self.current_latent = torch.cat([self.current_latent[:, 1:, :], lat.unsqueeze(1)], dim=1)
 					self.actions = self.actions[:, 1:, :]
