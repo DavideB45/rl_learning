@@ -16,6 +16,7 @@ from helpers.data import get_data_path, make_seq_dataloader_safe
 from vae.vqVae import VQVAE
 from dynamics.lstmc import LSTMQClass
 from dynamics.transformer import TransformerArc
+from dynamics.transformerc import TransformerArcC
 from helpers.model_loader import load_vq_vae, load_lstm_quantized, load_transformer
 from helpers.general import best_device
 from global_var import *
@@ -28,7 +29,7 @@ class MetaDreamEnv(VecEnv):
 	"""
 
 
-	def __init__(self, vq:VQVAE, dynamic:LSTMQClass | TransformerArc, dataloader:DataLoader, init_len:int=1, ep_len:int=20, num_envs: int = 1):
+	def __init__(self, vq:VQVAE, dynamic:LSTMQClass | TransformerArc | TransformerArcC, dataloader:DataLoader, init_len:int=1, ep_len:int=20, num_envs: int = 1):
 		
 		self.num_envs = num_envs
 		self.max_len = ep_len # this way the model will learn only 20 steps, hopefully in the end he will manage to merge his knowledge
@@ -39,7 +40,7 @@ class MetaDreamEnv(VecEnv):
 		self.vq.eval()
 		self.vq_dim = self.vq.latent_dim**2*self.vq.code_depth
 		self.dyn = dynamic
-		if isinstance(self.dyn, TransformerArc):
+		if isinstance(self.dyn, TransformerArc) or isinstance(TransformerArcC):
 			self.i_len = self.dyn.max_seq_len - 1
 		self.dyn.eval()
 		self.hidden_state = None # (num_envs, hidden_dim)
@@ -48,7 +49,7 @@ class MetaDreamEnv(VecEnv):
 
 		self.observation_space = spaces.Box(
 			low=-np.inf, high=np.inf, 
-			shape=(self.vq_dim + (self.dyn.hidden_dim if not isinstance(self.dyn, TransformerArc) else self.dyn.emb_size),), 
+			shape=(self.vq_dim + (self.dyn.hidden_dim if not (isinstance(self.dyn, TransformerArc) or isinstance(TransformerArcC)) else self.dyn.emb_size),), 
 			dtype=np.float32
 		)
 		self.action_space = spaces.Box(
@@ -79,7 +80,7 @@ class MetaDreamEnv(VecEnv):
 			actions = torch.stack([init_data['action'][:self.i_len, :] for init_data in init_data_list]).to(self.vq.device)
 			props = torch.stack([init_data['proprioception'][:self.i_len, :] for init_data in init_data_list]).to(self.vq.device)
 
-			if isinstance(self.dyn, TransformerArc):
+			if isinstance(self.dyn, TransformerArc) or isinstance(TransformerArcC):
 				self.actions = actions[:, :-1, :] # remove last action because the agent will decide
 				_, _, _, h = self.dyn.forward(latents[:, :-1, :], self.actions)
 				representation = (latents[:, -1, :].reshape(self.num_envs, -1)-self.mu)/self.std # use last image
@@ -109,7 +110,7 @@ class MetaDreamEnv(VecEnv):
 			actions = actions[np.newaxis, :]
 		with torch.no_grad():
 			
-			if isinstance(self.dyn, TransformerArc):
+			if isinstance(self.dyn, TransformerArc) or isinstance(TransformerArcC):
 				action_tensor = torch.tensor(actions, dtype=torch.float32).unsqueeze(1).to(self.vq.device) # change this to use old actions
 				self.actions = torch.cat([self.actions, action_tensor], dim=1)
 				_, pred, rew, h = self.dyn.forward(self.current_latent, self.actions) # needs to be updatet because we are taking only 1 state now split in if else
@@ -147,7 +148,7 @@ class MetaDreamEnv(VecEnv):
 			print('[WARNING] trying to render vectorized env, you are not Doctor strange')
 			return
 		with torch.no_grad():
-			img = self.vq.decode(self.current_latent[:, -1, :, :, :]).squeeze(0).permute(1, 2, 0).cpu().numpy()
+			img = self.vq.decode(self.current_latent[:, :, :, :]).squeeze(0).permute(1, 2, 0).cpu().numpy()
 			img = (img * 255).astype(np.uint8)
 			image = Image.fromarray(img)
 			image_resized = image.resize((512, 512), Image.NEAREST)
@@ -187,8 +188,8 @@ class MetaDreamEnv(VecEnv):
 if __name__ == "__main__":
 	SMOOTH = True if SMOOTH > 0 else False
 	vq = load_vq_vae(CURRENT_ENV, CODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM, True, SMOOTH, best_device())
-	#lstm = load_lstm_quantized(CURRENT_ENV, vq, best_device(), HIDDEN_DIM, SMOOTH, False, False)
-	lstm = load_transformer(CURRENT_ENV, vq, best_device(), EMB_SIZE, MAX_SEQ_LEN, NUM_HEADS, NUM_LAYERS, DROPOUT, False, False)
+	lstm = load_lstm_quantized(CURRENT_ENV, vq, best_device(), HIDDEN_DIM, SMOOTH, True, True)
+	#lstm = load_transformer(CURRENT_ENV, vq, best_device(), EMB_SIZE, MAX_SEQ_LEN, NUM_HEADS, NUM_LAYERS, DROPOUT, False, False)
 	env = MetaDreamEnv(vq=vq, dynamic=lstm, dataloader=make_seq_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], True, 0), vq, 100, 1), 
 					  num_envs=1, ep_len=100, init_len=10)
 	observation = env.reset()
@@ -197,10 +198,10 @@ if __name__ == "__main__":
 	done = False
 	total_reward = 0
 	step_count = 0
-	#agent = PPO.load(CURRENT_ENV['models'] + 'agent', env)
+	agent = PPO.load(CURRENT_ENV['models'] + 'agent', env)
 	while not done:
-		action = env.action_space.sample()  # random action
-		#action, _states = agent.predict(observation, deterministic=True)
+		#action = env.action_space.sample()  # random action
+		action, _states = agent.predict(observation, deterministic=True)
 		observation, reward, terminated, info = env.step(action)
 		print(f"Step {step_count} Reward: {reward} | Action: {action}")
 		frames.append(env.render().rotate(180))
