@@ -31,7 +31,7 @@ def gather_data(n_samples=1000, path=0):
 	returns: list of images
 	'''
 	env = gym.make('Meta-World/MT1', env_name=CURRENT_ENV['env_name'],
-				render_mode='rgb_array', camera_id=CURRENT_ENV['camera_id'], width = 64, height = 64,
+				render_mode='rgb_array', camera_id=CURRENT_ENV['camera_id'], width = 96, height = 96,
 		)
 	
 	proprioception = [[]]
@@ -46,6 +46,8 @@ def gather_data(n_samples=1000, path=0):
 		step += 1
 		action = env.action_space.sample()
 		obs, reward, terminated, truncated, info = env.step(action)
+		if not (terminated or truncated):
+			obs, reward, terminated, truncated, info = env.step(action)
 		proprioception[-1].append(obs.tolist()[0:4])
 		get_img(env).save(f"{path}/img_{episode}_{step}.png")
 		actions[-1].append(action.tolist())
@@ -65,8 +67,9 @@ def gather_data(n_samples=1000, path=0):
 	return actions, rewards, proprioception
 
 if __name__ == "__main__":
-
-	path = get_data_path(CURRENT_ENV['img_dir'], False, 0)
+	if 'MUJOCO_GL' not in os.environ:
+		os.environ['MUJOCO_GL'] = 'egl'
+	path = get_data_path(CURRENT_ENV['img_dir'], True, 0)
 	if not os.path.exists(path):
 		os.makedirs(path)
 	if not os.path.exists(CURRENT_ENV['models']):
@@ -74,7 +77,7 @@ if __name__ == "__main__":
 	
 	# Example of creating a dataset of transitions
 	print(f"Creating transition dataset for {CURRENT_ENV['env_name']} environment")
-	actions, rewards, proprioception = gather_data(n_samples=5000, path=path)
+	actions, rewards, proprioception = gather_data(n_samples=500, path=path)
 	print(f"Generated {len(actions)} actions, and {len(rewards)} rewards.")
 
 

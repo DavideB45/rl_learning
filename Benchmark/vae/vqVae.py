@@ -38,9 +38,11 @@ class VQVAE(AbstractVAE):
 
 		self.quantizer = VectorQuantizer(codebook_size, code_depth, commitment_cost, ema=ema_mode)
 		self.encoder = nn.Sequential(
-			ResidualBlock(3, 8, downsample=False),		# 128x128 -> 128x128
-			#ResidualBlock(8, 8, downsample=True),		# 128x128 -> 64x64
-			ResidualBlock(8, 32, downsample=True),		# 64x64 -> 32x32
+			nn.Conv2d(3, 8, 5),
+			nn.Conv2d(8, 16, 5),
+			nn.AdaptiveAvgPool2d(64),
+			ResidualBlock(16, 16, downsample=False),		# 64x64 -> 64x64
+			ResidualBlock(16, 32, downsample=True),		# 64x64 -> 32x32
 			ResidualBlock(32, 64, downsample=True),		# 32x32 -> 16x16
 			ResidualBlock(64, 128, downsample=True),	# 16x16 -> 8x8
 			ResidualBlock(128, code_depth, downsample=(latent_dim==4)), # 8x8 -> latent_dimxlatent_dim
@@ -51,9 +53,12 @@ class VQVAE(AbstractVAE):
 			ResidualBlockUp(code_depth, 128, upsample=(latent_dim==4)), # latent_dimxlatent_dim -> 8x8
 			ResidualBlockUp(128, 64, upsample=True),	# 8x8 -> 16x16
 			ResidualBlockUp(64, 32, upsample=True),		# 16x16 -> 32x32
-			ResidualBlockUp(32, 8, upsample=True), 		# 32x32 -> 64x64
-			#ResidualBlockUp(8, 8, upsample=True), 		# 64x64 -> 128x128
-			ResidualBlockUp(8, 8, upsample=False), 		# 64x64 -> 128x128
+			ResidualBlockUp(32, 16, upsample=True), 		# 32x32 -> 64x64
+			ResidualBlockUp(16, 16, upsample=False), 		# 64x64 -> 64x64
+			nn.Upsample((96, 96), mode='bilinear'),
+			nn.Conv2d(16, 8, 3, padding=1),
+			nn.Conv2d(8, 8, 3, padding=1),
+
 		)
 
 		self.pred_robot = nn.Sequential(
@@ -64,7 +69,7 @@ class VQVAE(AbstractVAE):
 			nn.Conv2d(8, 1, 3, 1, 1),					# final conv layer
 			nn.Sigmoid()
 		)
-		self.backgorund = nn.Parameter(torch.ones([3, 64, 64], device=device))
+		self.backgorund = nn.Parameter(torch.ones([3, 96, 96], device=device))
 		self.to(device)
 
 	def param_count(self) -> int:

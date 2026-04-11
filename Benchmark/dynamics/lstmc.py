@@ -279,10 +279,10 @@ class LSTMQClass(nn.Module):
 			total_reward_loss += rew_loss.item()
 		return {
 			'ce': total_ce/len(loader),
-			'acc': accuracy/len(loader),
+			'acc': accuracy*100/len(loader),
 			'mse': total_q_loss/len(loader),
 			'prop_mse': total_prop_loss/len(loader),
-			'first_acc': first_accuracy/len(loader),
+			'first_acc': first_accuracy*100/len(loader),
 			'reward_mse': total_reward_loss/len(loader)
 		}
 
@@ -317,9 +317,9 @@ class LSTMQClass(nn.Module):
 			
 		return {
 			'ce': total_ce/len(loader),
-			'acc': accuracy/len(loader),
+			'acc': accuracy*100/len(loader),
 			'mse': total_q_loss/len(loader),
 			'prop_mse': total_prop_loss/len(loader),
-			'first_acc': first_accuracy/len(loader),
+			'first_acc': first_accuracy*100/len(loader),
 			'reward_mse': total_reward_loss/len(loader)
 		}
