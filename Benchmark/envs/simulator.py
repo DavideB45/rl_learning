@@ -40,7 +40,7 @@ class MetaDreamEnv(VecEnv):
 		self.vq.eval()
 		self.vq_dim = self.vq.latent_dim**2*self.vq.code_depth
 		self.dyn = dynamic
-		if isinstance(self.dyn, TransformerArc) or isinstance(TransformerArcC):
+		if isinstance(self.dyn, TransformerArc) or isinstance(self.dyn, TransformerArcC):
 			self.i_len = self.dyn.max_seq_len - 1
 		self.dyn.eval()
 		self.hidden_state = None # (num_envs, hidden_dim)
@@ -49,7 +49,7 @@ class MetaDreamEnv(VecEnv):
 
 		self.observation_space = spaces.Box(
 			low=-np.inf, high=np.inf, 
-			shape=(self.vq_dim + (self.dyn.hidden_dim if not (isinstance(self.dyn, TransformerArc) or isinstance(TransformerArcC)) else self.dyn.emb_size),), 
+			shape=(self.vq_dim + (self.dyn.hidden_dim if not (isinstance(self.dyn, TransformerArc) or isinstance(self.dyn, TransformerArcC)) else self.dyn.emb_size),), 
 			dtype=np.float32
 		)
 		self.action_space = spaces.Box(
@@ -80,7 +80,7 @@ class MetaDreamEnv(VecEnv):
 			actions = torch.stack([init_data['action'][:self.i_len, :] for init_data in init_data_list]).to(self.vq.device)
 			props = torch.stack([init_data['proprioception'][:self.i_len, :] for init_data in init_data_list]).to(self.vq.device)
 
-			if isinstance(self.dyn, TransformerArc) or isinstance(TransformerArcC):
+			if isinstance(self.dyn, TransformerArc) or isinstance(self.dyn, TransformerArcC):
 				self.actions = actions[:, :-1, :] # remove last action because the agent will decide
 				_, _, _, h = self.dyn.forward(latents[:, :-1, :], self.actions)
 				representation = (latents[:, -1, :].reshape(self.num_envs, -1)-self.mu)/self.std # use last image
@@ -110,7 +110,7 @@ class MetaDreamEnv(VecEnv):
 			actions = actions[np.newaxis, :]
 		with torch.no_grad():
 			
-			if isinstance(self.dyn, TransformerArc) or isinstance(TransformerArcC):
+			if isinstance(self.dyn, TransformerArc) or isinstance(self.dyn, TransformerArcC):
 				action_tensor = torch.tensor(actions, dtype=torch.float32).unsqueeze(1).to(self.vq.device) # change this to use old actions
 				self.actions = torch.cat([self.actions, action_tensor], dim=1)
 				_, pred, rew, h = self.dyn.forward(self.current_latent, self.actions) # needs to be updatet because we are taking only 1 state now split in if else

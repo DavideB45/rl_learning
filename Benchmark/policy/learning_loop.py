@@ -79,9 +79,9 @@ def main():
 		agent_training_time += time.time()
 
 		collecting_time -= time.time()
-		rew, succ = evaluate_gathering(vq, lstm, n_sample=500, policy=agent, training_set=True)
+		rew, succ = evaluate_gathering(vq, lstm, n_sample=500 if ACTION_REPEAT else 1000, policy=agent, training_set=True)
 		if round % 10 == 0:
-			generate_data(vq, lstm, n_sample=500, policy=agent, training_set=False)
+			generate_data(vq, lstm, n_sample=500 if ACTION_REPEAT else 1000, policy=agent, training_set=False)
 		print(f"Average reward: {(sum(rew) / len(rew)):.2f}, Success rate: {(sum(succ) / len(succ)):.2%}")
 		with open('res.csv', 'a') as f:
 			for i in range(len(rew)):
