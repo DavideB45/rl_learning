@@ -71,6 +71,7 @@ EP_ON_LOOP = 20
 
 SEQ_LEN = 25
 INIT_LEN = 10
+USE_KL = True
 
 HIDDEN_DIM = 1024
 LSTM_EPOCS = 2 # used in learning loop for the initial training, then 1 epoch for each round
@@ -80,12 +81,16 @@ LSTM_WD = 1e-3
 TR_EPOCHS = 10
 TR_LR = 1e-4
 TR_WD = 1e-3
-EMB_SIZE = 1024
-NUM_HEADS = 4
+EMB_SIZE = 128
+NUM_HEADS = 8
 NUM_LAYERS = 4
 MAX_SEQ_LEN = INIT_LEN + 1
 DROPOUT = 0.0
 
 
-N_ROUNDS = 490 # starts with 10_000 interacitons, then add 1_000 each round, N_rounds=(total_interactions-10_000)/1_000
-PPO_STEPS = 300000
+N_ROUNDS = 490 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/1000
+PPO_STEPS = 200000
+DREAM_LEN = 30
+PPO_LR = 0.0003
+ACTION_REPEAT = True
+INIT_GATHER = 5000

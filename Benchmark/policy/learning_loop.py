@@ -51,7 +51,7 @@ def main():
 			f.write(f'mrew,success,space\n')
 	
 	collecting_time -= time.time()
-	generate_data(vq, lstm, n_sample=10000, training_set=True)
+	generate_data(vq, lstm, n_sample=INIT_GATHER, training_set=True)
 	generate_data(vq, lstm, n_sample=1000, training_set=False)
 	collecting_time += time.time()
 
@@ -73,15 +73,15 @@ def main():
 		lstm = tune_lstm(lstm, tr=tr_seq, vl=vl_seq, encoder=vq, num_epocs=LSTM_EPOCS if round == 0 else 1, lr=LSTM_LR, wd=LSTM_WD)
 		lstm_training_time += time.time()
 		
-		dream_env = MetaDreamEnv(vq, lstm, vl_seq, init_len=INIT_LEN, ep_len=30, num_envs=50) #ep_len=SEQ_LEN - INIT_LEN
+		dream_env = MetaDreamEnv(vq, lstm, vl_seq, init_len=INIT_LEN, ep_len=DREAM_LEN, num_envs=50) #ep_len=SEQ_LEN - INIT_LEN
 		agent_training_time -= time.time()
 		agent = tune_agent(agent, num_steps=PPO_STEPS, env=dream_env) # codes changed so we train more PPO
 		agent_training_time += time.time()
 
 		collecting_time -= time.time()
-		rew, succ = evaluate_gathering(vq, lstm, n_sample=1000, policy=agent, training_set=True)
+		rew, succ = evaluate_gathering(vq, lstm, n_sample=500, policy=agent, training_set=True)
 		if round % 10 == 0:
-			generate_data(vq, lstm, n_sample=1000, policy=agent, training_set=False)
+			generate_data(vq, lstm, n_sample=500, policy=agent, training_set=False)
 		print(f"Average reward: {(sum(rew) / len(rew)):.2f}, Success rate: {(sum(succ) / len(succ)):.2%}")
 		with open('res.csv', 'a') as f:
 			for i in range(len(rew)):
@@ -147,7 +147,7 @@ def tune_lstm(model: LSTMQuantized, tr:DataLoader, vl:DataLoader, encoder: VQVAE
 	
 def tune_agent(agent:PPO, env:MetaDreamEnv, num_steps:int=100000) -> PPO:
 	if agent is None:
-		agent = PPO(MlpPolicy, env, policy_kwargs=policy_kwargs, n_steps=500, batch_size=1000, learning_rate=0.0003, ent_coef=0.01, sde_sample_freq=10, use_sde=True)
+		agent = PPO(MlpPolicy, env, policy_kwargs=policy_kwargs, n_steps=500, batch_size=1000, learning_rate=PPO_LR, ent_coef=0.01, sde_sample_freq=10, use_sde=True)
 	else:
 		agent = PPO.load(CURRENT_ENV['models'] + 'agent', env)
 	agent = agent.learn(num_steps, progress_bar=False, reset_num_timesteps=False)

@@ -18,6 +18,7 @@ sys.path.insert(1, os.path.join(sys.path[0], '../'))
 from vae.vqVae import VQVAE
 from dynamics.lstm import LSTMQuantized
 from dynamics.transformer import TransformerArc
+from dynamics.transformerc import TransformerArcC
 from helpers.model_loader import load_vq_vae, load_lstm_quantized, load_transformer
 from helpers.general import best_device
 from helpers.data import get_data_path
@@ -30,7 +31,7 @@ class MetaWrapEnv(gym.Env):
 	"""
 
 
-	def __init__(self, vq:VQVAE=None, dyn:LSTMQuantized | TransformerArc=None):
+	def __init__(self, vq:VQVAE=None, dyn:LSTMQuantized | TransformerArc | TransformerArcC=None):
 		'''
 		initialization of the wrapper to use the models trained in MetaDreamEnv
 
@@ -47,7 +48,7 @@ class MetaWrapEnv(gym.Env):
 		self.dyn.eval()
 
 		self.env = gym.make('Meta-World/MT1', env_name=CURRENT_ENV['env_name'],
-				render_mode='rgb_array', camera_id=CURRENT_ENV['camera_id'], width = 64, height = 64)
+				render_mode='rgb_array', camera_id=CURRENT_ENV['camera_id'], width = 96, height = 96)
 		self.mu = vq.quantizer.embedding.weight.data.mean()
 		self.std = vq.quantizer.embedding.weight.data.std()
 		self.action_space = spaces.Box(
@@ -56,7 +57,7 @@ class MetaWrapEnv(gym.Env):
 			dtype=np.float32
 		)
 		self.observation_space = spaces.Box(
-			low=-np.inf, high=np.inf, shape=(self.vq_dim + (self.dyn.hidden_dim if not isinstance(self.dyn, TransformerArc) else self.dyn.emb_size),), dtype=np.float32
+			low=-np.inf, high=np.inf, shape=(self.vq_dim + (self.dyn.hidden_dim if not (isinstance(self.dyn, TransformerArc) or isinstance(self.dyn, TransformerArcC)) else self.dyn.emb_size),), dtype=np.float32
 		)
 		self.to_tensor_ = T.ToTensor()
 
@@ -86,12 +87,12 @@ class MetaWrapEnv(gym.Env):
 		with torch.no_grad():
 			t_img = self.to_tensor_(img).unsqueeze(0).to(self.vq.device)
 			_, lat, _ = self.vq.quantize(self.vq.encode(t_img))
-			if not isinstance(self.dyn, TransformerArc):
+			if not (isinstance(self.dyn, TransformerArc) or isinstance(self.dyn, TransformerArcC)):
 				h = (torch.zeros(1, 1, self.dyn.hidden_dim).to(self.vq.device),
 					torch.zeros(1, 1, self.dyn.hidden_dim).to(self.vq.device))
 				self.hidden_state = h
 		self.current_render = img
-		if isinstance(self.dyn, TransformerArc):
+		if isinstance(self.dyn, TransformerArc) or isinstance(self.dyn, TransformerArcC):
 			self.current_latent = lat.unsqueeze(1)
 			h = torch.zeros(self.dyn.emb_size, device=self.dyn.device)
 			representation = (lat.flatten()-self.mu)/self.std
@@ -111,12 +112,14 @@ class MetaWrapEnv(gym.Env):
 		returns: observation (np.array), reward (float), terminated (bool), truncated (bool), info (dict)
 		'''
 		prop, reward, terminated, truncated, info = self.env.step(action)
+		if not (terminated or truncated) and ACTION_REPEAT:
+			prop, reward, terminated, truncated, info = self.env.step(action)
 		prop = prop[0:4]
 		img = self.get_img()
 		with torch.no_grad():
 			t_img = self.to_tensor_(img).unsqueeze(0).to(self.vq.device)
 			_, lat, _ = self.vq.quantize(self.vq.encode(t_img))
-			if isinstance(self.dyn, TransformerArc):
+			if isinstance(self.dyn, TransformerArc) or isinstance(self.dyn, TransformerArcC):
 				action_tensor = torch.tensor(action, dtype=torch.float32).unsqueeze(0).unsqueeze(0).to(self.dyn.device)
 				if self.actions is not None:
 					self.actions = torch.cat([self.actions, action_tensor], dim=1)
