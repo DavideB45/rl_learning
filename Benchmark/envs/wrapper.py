@@ -153,13 +153,13 @@ class MetaWrapEnv(gym.Env):
 	def render(self):
 		if True:
 			with torch.no_grad():
-				img = self.vq.decode(self.current_latent[:, -1, :]).squeeze(0).permute(1, 2, 0).cpu().numpy()
+				img = self.vq.decode(self.current_latent[:, :, :]).squeeze(0).permute(1, 2, 0).cpu().numpy()
 				img = (img * 255).astype(np.uint8)
 				image = Image.fromarray(img)
 				image = self.get_img() 
 				image_resized = image.resize((512, 512), Image.NEAREST)
-				cv2.imshow('DreamEnv', np.array(image_resized))
-				cv2.waitKey(100)
+				#cv2.imshow('DreamEnv', np.array(image_resized))
+				#cv2.waitKey(100)
 				return image_resized
 		else:
 			return self.current_render
@@ -291,10 +291,12 @@ def evaluate_gathering(vq:VQVAE, lstm:LSTMQuantized | TransformerArc, policy:Bas
 
 if __name__ == "__main__":
 	from random import randint
+	if 'MUJOCO_GL' not in os.environ:
+		os.environ['MUJOCO_GL'] = 'egl'
 	SMOOTH = True if SMOOTH > 0 else False
 	vq = load_vq_vae(CURRENT_ENV, CODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM, True, SMOOTH, best_device())
-	#lstm = load_lstm_quantized(CURRENT_ENV, vq, best_device(), HIDDEN_DIM, SMOOTH, False, False)
-	lstm = load_transformer(CURRENT_ENV, vq, best_device(), EMB_SIZE, MAX_SEQ_LEN, NUM_HEADS, NUM_LAYERS, DROPOUT, False, False)
+	lstm = load_lstm_quantized(CURRENT_ENV, vq, best_device(), HIDDEN_DIM, SMOOTH, False, False)
+	#lstm = load_transformer(CURRENT_ENV, vq, best_device(), EMB_SIZE, MAX_SEQ_LEN, NUM_HEADS, NUM_LAYERS, DROPOUT, False, False)
 	env = MetaWrapEnv(vq, lstm)
 	observation, _ = env.reset()
 	frames = []
@@ -307,7 +309,7 @@ if __name__ == "__main__":
 		if randint(0, 9) < -1:
 			action = env.action_space.sample()  # random action
 		else:
-			action, _states = agent.predict(observation, deterministic=False)
+			action, _states = agent.predict(observation, deterministic=True)
 		observation, reward, terminated, truncated, info = env.step(action)
 		print(f"Step {step_count} Reward: {reward} | action: {action}")
 		if(info['success'] == 1):

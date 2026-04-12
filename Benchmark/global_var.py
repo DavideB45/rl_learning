@@ -57,7 +57,16 @@ PICK_BIN = {
 	"camera_id": 1,
 }
 
-CURRENT_ENV = DRAWER_OPEN
+PICKP_DATA_DIR = "data/pick-place/"
+PICK_PLACE = {
+	"env_name": "pick-place-v3",
+	"img_dir": PICKP_DATA_DIR + IMG_DIR,
+	"models": PICKP_DATA_DIR + MODELS_DIR,
+	"a_size": 4,
+	"camera_id": 1,
+}
+
+CURRENT_ENV = PICK_PLACE
 
 LATENT_DIM = 4
 CODE_DEPTH = 16
@@ -88,7 +97,7 @@ MAX_SEQ_LEN = INIT_LEN + 1
 DROPOUT = 0.0
 
 
-N_ROUNDS = 490 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/1000
+N_ROUNDS = 990 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/1000
 PPO_STEPS = 200000
 DREAM_LEN = 30
 PPO_LR = 0.0003

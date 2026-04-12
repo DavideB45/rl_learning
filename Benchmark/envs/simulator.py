@@ -188,7 +188,7 @@ class MetaDreamEnv(VecEnv):
 if __name__ == "__main__":
 	SMOOTH = True if SMOOTH > 0 else False
 	vq = load_vq_vae(CURRENT_ENV, CODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM, True, SMOOTH, best_device())
-	lstm = load_lstm_quantized(CURRENT_ENV, vq, best_device(), HIDDEN_DIM, SMOOTH, True, True)
+	lstm = load_lstm_quantized(CURRENT_ENV, vq, best_device(), HIDDEN_DIM, SMOOTH, False, False)
 	#lstm = load_transformer(CURRENT_ENV, vq, best_device(), EMB_SIZE, MAX_SEQ_LEN, NUM_HEADS, NUM_LAYERS, DROPOUT, False, False)
 	env = MetaDreamEnv(vq=vq, dynamic=lstm, dataloader=make_seq_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], True, 0), vq, 100, 1), 
 					  num_envs=1, ep_len=100, init_len=10)
