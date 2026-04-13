@@ -20,7 +20,8 @@ def get_img(renderer) -> Image.Image:
 		Image.Image: resized image
 	'''
 	img = renderer.render()
-	img = Image.fromarray(img)
+	img = Image.fromarray(img).crop((80, 80, 176, 176))
+	print(img.size)
 	return img
 
 def gather_data(n_samples=1000, path=0):
@@ -31,7 +32,7 @@ def gather_data(n_samples=1000, path=0):
 	returns: list of images
 	'''
 	env = gym.make('Meta-World/MT1', env_name=CURRENT_ENV['env_name'],
-				render_mode='rgb_array', camera_id=CURRENT_ENV['camera_id'], width = 96, height = 96,
+				render_mode='rgb_array', camera_id=CURRENT_ENV['camera_id'], width = 256, height = 256,
 		)
 	
 	proprioception = [[]]
@@ -77,7 +78,7 @@ if __name__ == "__main__":
 	
 	# Example of creating a dataset of transitions
 	print(f"Creating transition dataset for {CURRENT_ENV['env_name']} environment")
-	actions, rewards, proprioception = gather_data(n_samples=500, path=path)
+	actions, rewards, proprioception = gather_data(n_samples=10, path=path)
 	print(f"Generated {len(actions)} actions, and {len(rewards)} rewards.")
 
 

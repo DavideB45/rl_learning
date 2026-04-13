@@ -9,6 +9,7 @@ BUTTON = {
 	"img_dir": BUTTON_DATA_DIR + IMG_DIR,
 	"models": BUTTON_DATA_DIR + MODELS_DIR,
 	"a_size": 4,
+	"render_size": 96,
 	"camera_id": 1,
 }
 
@@ -18,6 +19,7 @@ PUSH = {
 	"img_dir": PUSH_DATA_DIR + IMG_DIR,
 	"models": PUSH_DATA_DIR + MODELS_DIR,
 	"a_size": 4,
+	"render_size": 96,
 	"camera_id": 1,
 }
 
@@ -27,6 +29,7 @@ DRAWER_OPEN = {
 	"img_dir": DRAWERO_DATA_DIR + IMG_DIR,
 	"models": DRAWERO_DATA_DIR + MODELS_DIR,
 	"a_size": 4,
+	"render_size": 96,
 	"camera_id": 1,
 }
 
@@ -36,6 +39,7 @@ PEG_INSERT = {
 	"img_dir": PEG_DATA_DIT + IMG_DIR,
 	"models": PEG_DATA_DIT + MODELS_DIR,
 	"a_size": 4,
+	"render_size": 256,
 	"camera_id": 2,
 }
 
@@ -45,6 +49,7 @@ HAMMER = {
 	"img_dir": HAMMER_DATA_DIR + IMG_DIR,
 	"models": HAMMER_DATA_DIR + MODELS_DIR,
 	"a_size": 4,
+	"render_size": 96,
 	"camera_id": 1,
 }
 
@@ -54,6 +59,7 @@ PICK_BIN = {
 	"img_dir": PICKB_DATA_DIR + IMG_DIR,
 	"models": PICKB_DATA_DIR + MODELS_DIR,
 	"a_size": 4,
+	"render_size": 96,
 	"camera_id": 1,
 }
 
@@ -63,10 +69,11 @@ PICK_PLACE = {
 	"img_dir": PICKP_DATA_DIR + IMG_DIR,
 	"models": PICKP_DATA_DIR + MODELS_DIR,
 	"a_size": 4,
+	"render_size": 96,
 	"camera_id": 1,
 }
 
-CURRENT_ENV = PICK_PLACE
+CURRENT_ENV = PEG_INSERT
 
 LATENT_DIM = 4
 CODE_DEPTH = 16
@@ -98,8 +105,8 @@ DROPOUT = 0.0
 
 
 N_ROUNDS = 990 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/1000
-PPO_STEPS = 200000
+PPO_STEPS = 300000
 DREAM_LEN = 30
 PPO_LR = 0.0003
-ACTION_REPEAT = True
-INIT_GATHER = 5000
+ACTION_REPEAT = False
+INIT_GATHER = 10000

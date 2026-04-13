@@ -48,7 +48,8 @@ class MetaWrapEnv(gym.Env):
 		self.dyn.eval()
 
 		self.env = gym.make('Meta-World/MT1', env_name=CURRENT_ENV['env_name'],
-				render_mode='rgb_array', camera_id=CURRENT_ENV['camera_id'], width = 96, height = 96)
+				render_mode='rgb_array', camera_id=CURRENT_ENV['camera_id'],
+				width = CURRENT_ENV['render_size'], height = CURRENT_ENV['render_size'])
 		self.mu = vq.quantizer.embedding.weight.data.mean()
 		self.std = vq.quantizer.embedding.weight.data.std()
 		self.action_space = spaces.Box(
@@ -72,6 +73,8 @@ class MetaWrapEnv(gym.Env):
 		'''
 		img = self.env.render()
 		img = Image.fromarray(img)
+		if CURRENT_ENV['env_name'] == 'peg-insert-side-v3':
+			img = img.crop((80, 80, 176, 176))
 		return img
 	
 	def reset(self, seed=None, options=None):
@@ -269,7 +272,7 @@ def evaluate_gathering(vq:VQVAE, lstm:LSTMQuantized | TransformerArc, policy:Bas
 		step += 1
 		if step % 10 == 0: # SB3 does not do this automatically since we are evaluating the model
 			policy.policy.reset_noise()
-		action, _ = policy.predict(obs, deterministic=False)
+		action, _ = policy.predict(obs, deterministic=True)
 		obs, rew, ter, trunc, info = env.step(action)
 		proprioception[-1].append(env.current_prop.flatten().tolist()), actions[-1].append(action.tolist()), rewards[-1].append(float(rew))
 		env.current_render.save(base_path + f'img_{episode}_{step}.png')
