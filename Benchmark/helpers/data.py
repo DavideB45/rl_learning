@@ -25,6 +25,10 @@ class PNGDataset(Dataset):
 	def __init__(self, path:str, max_size:int=10000):
 
 		self.files = glob.glob(path + 'img_*.png')
+		apr_path = path + 'action_reward_data.json'
+		with open(apr_path, 'r') as f:
+			apr_json = json.load(f)
+			self.rew = apr_json["reward"]
 		if len(self.files) > max_size:
 			random.shuffle(self.files)
 			self.files = self.files[:max_size]
@@ -38,8 +42,12 @@ class PNGDataset(Dataset):
 	def __getitem__(self, idx):
 		with Image.open(self.files[idx]) as im:
 			img = im.convert('RGB')
+		parts = self.files[idx].split('_')
+		episode = int(parts[2])
+		step = int(parts[3].split('.')[0]) - 1
+			
 		img = self.transform(img)
-		return img
+		return img, self.rew[episode][step]
 
 def make_image_dataloader_safe(data_dir:str, batch_size:int=256, max_size:int=10000) -> DataLoader:
 	print(f'Creating dataloaded from {data_dir}')

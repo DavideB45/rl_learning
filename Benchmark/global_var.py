@@ -20,7 +20,7 @@ PUSH = {
 	"models": PUSH_DATA_DIR + MODELS_DIR,
 	"a_size": 4,
 	"render_size": 96,
-	"camera_id": 1,
+	"camera_id": 2,
 }
 
 DRAWERO_DATA_DIR = "data/drawer-open/"
@@ -29,8 +29,8 @@ DRAWER_OPEN = {
 	"img_dir": DRAWERO_DATA_DIR + IMG_DIR,
 	"models": DRAWERO_DATA_DIR + MODELS_DIR,
 	"a_size": 4,
-	"render_size": 96,
-	"camera_id": 1,
+	"render_size": 64,
+	"camera_id": 2,
 }
 
 PEG_DATA_DIT = "data/peg-insert/"
@@ -39,7 +39,7 @@ PEG_INSERT = {
 	"img_dir": PEG_DATA_DIT + IMG_DIR,
 	"models": PEG_DATA_DIT + MODELS_DIR,
 	"a_size": 4,
-	"render_size": 256,
+	"render_size": 64,
 	"camera_id": 2,
 }
 
@@ -50,7 +50,7 @@ HAMMER = {
 	"models": HAMMER_DATA_DIR + MODELS_DIR,
 	"a_size": 4,
 	"render_size": 96,
-	"camera_id": 1,
+	"camera_id": 2,
 }
 
 PICKB_DATA_DIR = "data/bin-pick/"
@@ -60,7 +60,7 @@ PICK_BIN = {
 	"models": PICKB_DATA_DIR + MODELS_DIR,
 	"a_size": 4,
 	"render_size": 96,
-	"camera_id": 1,
+	"camera_id": 2,
 }
 
 PICKP_DATA_DIR = "data/pick-place/"
@@ -70,10 +70,13 @@ PICK_PLACE = {
 	"models": PICKP_DATA_DIR + MODELS_DIR,
 	"a_size": 4,
 	"render_size": 96,
-	"camera_id": 1,
+	"camera_id": 2,
 }
 
-CURRENT_ENV = PEG_INSERT
+CURRENT_ENV = DRAWER_OPEN
+LOG_NAME = 'res_moving_avg_loss_draw64'
+GPU_ID = "3"
+EXP_ID = 0
 
 LATENT_DIM = 4
 CODE_DEPTH = 16
@@ -86,7 +89,8 @@ VQ_WD = 0.001
 EP_ON_LOOP = 20
 
 SEQ_LEN = 25
-INIT_LEN = 10
+INIT_LEN = 15
+REW_WEIGHT = 1
 USE_KL = True
 
 HIDDEN_DIM = 1024
@@ -104,9 +108,9 @@ MAX_SEQ_LEN = INIT_LEN + 1
 DROPOUT = 0.0
 
 
-N_ROUNDS = 990 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/1000
-PPO_STEPS = 300000
-DREAM_LEN = 30
-PPO_LR = 0.0003
-ACTION_REPEAT = False
-INIT_GATHER = 10000
+N_ROUNDS = 995 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/1000
+PPO_STEPS = 100000
+DREAM_LEN = 20
+PPO_LR = 0.0001
+ACTION_REPEAT = True
+INIT_GATHER = 5000

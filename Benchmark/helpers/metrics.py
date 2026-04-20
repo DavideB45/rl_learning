@@ -2,11 +2,6 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor
 
-import os
-import sys
-sys.path.insert(1, os.path.join(sys.path[0], '../'))
-from vae.vqVae import VQVAE
-
 def weighted_mse(x:Tensor, y:Tensor, error_decay:float=0.9) -> Tensor:
 		'''
 		Compute the mean square error for each time step and weight it by the decay factor
@@ -136,3 +131,14 @@ def change_mse(pred:torch.Tensor, target:torch.Tensor) -> torch.Tensor:
 	err_weight = F.softmax(err_weight, dim=-1)
 	loss = (((pred - target[:, 1:, :]) ** 2).mean(dim=(2, 3, 4))).mean()
 	return loss
+
+def symlog(x):
+		return torch.sign(x) * torch.log1p(torch.abs(x))
+	
+def reward_loss(preds, rewards):
+	'''
+	*WARNING* The order in this function is really important
+	'''
+	targets = symlog(rewards)
+	loss = (preds - targets) ** 2
+	return loss.mean()

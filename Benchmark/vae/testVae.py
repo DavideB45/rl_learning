@@ -31,7 +31,7 @@ if __name__ == "__main__":
 	test_loader = make_image_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], False, 0))
 
 	dataiter = iter(test_loader)
-	images = next(dataiter).to(device)
+	images = next(dataiter)[0].to(device)
 	
 	with torch.no_grad():
 		vq_images, _, _ = vq_vae.forward(images)
@@ -72,7 +72,7 @@ if __name__ == "__main__":
 
 	indexes_array = [0 for _ in range(vq_vae.codebook_size)]
 	avg_error = 0.0
-	for batch in tqdm(test_loader):
+	for batch, _ in tqdm(test_loader):
 		batch = batch.to(device)
 		with torch.no_grad():
 			rec, _, indexes = vq_vae.forward(batch)

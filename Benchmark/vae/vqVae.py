@@ -4,6 +4,7 @@ sys.path.insert(1, os.path.join(sys.path[0], '../'))
 
 from vae.abstractVAE import AbstractVAE
 from vae.blocks import ResidualBlock, VectorQuantizer, ResidualBlockUp
+from helpers.metrics import reward_loss
 
 import torch
 import torch.nn.functional as F
@@ -38,10 +39,7 @@ class VQVAE(AbstractVAE):
 
 		self.quantizer = VectorQuantizer(codebook_size, code_depth, commitment_cost, ema=ema_mode)
 		self.encoder = nn.Sequential(
-			nn.Conv2d(3, 8, 5),
-			nn.Conv2d(8, 16, 5),
-			nn.AdaptiveAvgPool2d(64),
-			ResidualBlock(16, 16, downsample=False),		# 64x64 -> 64x64
+			ResidualBlock(3, 16, downsample=False),		# 64x64 -> 64x64
 			ResidualBlock(16, 32, downsample=True),		# 64x64 -> 32x32
 			ResidualBlock(32, 64, downsample=True),		# 32x32 -> 16x16
 			ResidualBlock(64, 128, downsample=True),	# 16x16 -> 8x8
@@ -55,10 +53,7 @@ class VQVAE(AbstractVAE):
 			ResidualBlockUp(64, 32, upsample=True),		# 16x16 -> 32x32
 			ResidualBlockUp(32, 16, upsample=True), 		# 32x32 -> 64x64
 			ResidualBlockUp(16, 16, upsample=False), 		# 64x64 -> 64x64
-			nn.Upsample((96, 96), mode='bilinear'),
-			nn.Conv2d(16, 8, 3, padding=1),
-			nn.Conv2d(8, 8, 3, padding=1),
-
+			ResidualBlockUp(16, 8, upsample=False), 		# 64x64 -> 64x64
 		)
 
 		self.pred_robot = nn.Sequential(
@@ -69,7 +64,13 @@ class VQVAE(AbstractVAE):
 			nn.Conv2d(8, 1, 3, 1, 1),					# final conv layer
 			nn.Sigmoid()
 		)
-		self.backgorund = nn.Parameter(torch.ones([3, 96, 96], device=device))
+		self.pred_rew = nn.Sequential(
+			nn.Flatten(),
+			nn.Linear(self.code_depth*latent_dim*latent_dim, self.code_depth*latent_dim),
+			nn.LeakyReLU(),
+			nn.Linear(self.code_depth*latent_dim, 1)
+		)
+		self.backgorund = nn.Parameter(torch.ones([3, 64, 64], device=device))
 		self.to(device)
 
 	def param_count(self) -> int:
@@ -120,7 +121,7 @@ class VQVAE(AbstractVAE):
 		pred = self.pred_robot(dec)
 		mask = self.pred_mask(dec)
 		return nn.functional.sigmoid(self.backgorund)*mask + (1-mask)*pred
-	
+
 	def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
 		"""
 		Standard forward pass returning reconstruction, commitment_loss, codebook_indices.
@@ -160,7 +161,7 @@ class VQVAE(AbstractVAE):
 		Returns:
 			loss (torch.Tensor): average size (somewhat like l2 reg)
 		'''
-		return torch.mean(z)**2
+		return torch.mean(torch.square(z))
 	
 	def train_epoch(self, loader:DataLoader, optim:torch.optim.Optimizer, reg:float = 0) -> dict:
 		'''
@@ -181,7 +182,8 @@ class VQVAE(AbstractVAE):
 		}
 		used_codes = set()
 		self.train()
-		for data in loader:
+		for data, rew in loader:
+			rew = rew.float().unsqueeze(1).to(self.device)
 			data = data.to(self.device)
 			optim.zero_grad()
 
@@ -196,13 +198,14 @@ class VQVAE(AbstractVAE):
 				recon_batch = self.decode(quantized)
 
 			rec_loss = self.reconstruction_loss(data, recon_batch)
-			loss = rec_loss + emb_loss + reg*flatness_loss
+			rew_loss = reward_loss(self.pred_rew(z), rew)
+			loss = rec_loss + reg*flatness_loss + rew_loss + self.contraction_loss(z)*1 + emb_loss
 			loss.backward()
 			optim.step()
 			used_codes.update(indexes.view(-1).cpu().numpy().tolist())
 			losses["total_loss"] += loss.item()
 			losses["recon_loss"] += rec_loss.item()
-			losses["commit_loss"] += emb_loss.item()
+			losses["commit_loss"] += rew_loss.item() #emb_loss.item()
 			losses["flatness_loss"] += flatness_loss.item()
 		for key in losses:
 			losses[key] /= len(loader)
@@ -229,7 +232,7 @@ class VQVAE(AbstractVAE):
 		used_codes = set()
 		self.eval()
 		with torch.no_grad():
-			for data in loader:
+			for data, _ in loader:
 				data = data.to(self.device)
 				z = self.encode(data)
 				usage = self.quantizer.get_index_probabilities(z)

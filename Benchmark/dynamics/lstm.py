@@ -9,7 +9,7 @@ import os
 import sys
 sys.path.insert(1, os.path.join(sys.path[0], '../'))
 from vae.vqVae import VQVAE
-from helpers.metrics import weighted_mse, change_mse
+from helpers.metrics import weighted_mse, change_mse, reward_loss
 
 class LSTMQuantized(nn.Module):
 	def __init__(self, quantizer:VQVAE, device:torch.device, action_dim:int, prop_dim:int, hidden_dim:int=512):
@@ -49,6 +49,13 @@ class LSTMQuantized(nn.Module):
 			nn.LeakyReLU()
 		)
 		self.lstm = LSTM(hidden_dim, hidden_dim, batch_first=True, num_layers=1)
+		self.mid_layer = nn.Sequential(
+			nn.LayerNorm(hidden_dim),
+			nn.Linear(hidden_dim, hidden_dim),
+			nn.LeakyReLU(),
+			nn.Linear(hidden_dim, hidden_dim),
+			nn.LeakyReLU()
+		)
 		self.out_fc = nn.Sequential(
 			nn.LayerNorm(hidden_dim),
 			nn.Linear(hidden_dim, hidden_dim),
@@ -140,8 +147,9 @@ class LSTMQuantized(nn.Module):
 			h = (torch.zeros(1, input.size(0), self.hidden_dim).to(input.device),
 				 torch.zeros(1, input.size(0), self.hidden_dim).to(input.device))
 		output, h = self.lstm(skip_output, h)
-
-		output = output + skip_output #(B, Seq_len, Hidden_dim)
+		skip_output = output + skip_output #(B, Seq_len, Hidden_dim)
+		output = self.mid_layer(skip_output)
+		output = output + skip_output
 		latent = self.out_fc(output) #(B, Seq_len, Height*Width*Depth)
 		latent = self.unflatten_rep(latent, input.size(1)) # (B, Seq_len, Depth, Height, Width)
 		prop_out = self.out_prop_fc(output.detach()) #(B, Seq_len, Prop_dim)
@@ -152,7 +160,7 @@ class LSTMQuantized(nn.Module):
 		
 		return latent, latent_q, prop_out, reward, h
 	
-	def ar_forward(self, input:torch.Tensor, action:torch.Tensor, prop:torch.Tensor, h=None) -> tuple[torch.Tensor, torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
+	def ar_forward(self, input:torch.Tensor, action:torch.Tensor, prop:torch.Tensor, h=None) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
 		'''
 		Do the forward pass in an LSTM architecture in an autoregressive fashion
 		
@@ -215,7 +223,7 @@ class LSTMQuantized(nn.Module):
 		return target
 	
 
-	def train_rwm_style(self, loader:DataLoader, optim:Optimizer, init_len:int=3, err_decay:float=0.9) -> dict:
+	def train_rwm_style(self, loader:DataLoader, optim:Optimizer, init_len:int=3, err_decay:float=0.9, rew_weight:int=1) -> dict:
 		self.train()
 		total_loss = 0
 		total_q_loss = 0
@@ -235,7 +243,8 @@ class LSTMQuantized(nn.Module):
 			
 			lat_loss = weighted_mse(latent[:, init_len + 1:, :, :, :], output, err_decay)
 			prop_loss = weighted_mse(proprioception[:, init_len + 1:, :], prop_out, err_decay)
-			rew_loss = weighted_mse(rewards_target[:, init_len:].unsqueeze(-1), rewards, err_decay)
+			rew_loss = reward_loss(rewards, rewards_target[:, init_len:].unsqueeze(-1))*rew_weight
+			#rew_loss = weighted_mse(rewards_target[:, init_len:].unsqueeze(-1), rewards, err_decay)*rew_weight
 			with torch.no_grad():
 				q_loss = weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay)
 				target = self.compute_classification_target(latent[:, init_len + 1:, :, :, :])
@@ -255,12 +264,12 @@ class LSTMQuantized(nn.Module):
 			'qmse': total_q_loss/len(loader),
 			'acc': accuracy*100/len(loader),
 			'prop_mse': total_prop_loss/len(loader),
-			'first_acc': first_accuracy/len(loader),
+			'first_acc': first_accuracy*100/len(loader),
 			'reward_mse': total_reward_loss/len(loader)
 		}
 
 	@torch.no_grad()
-	def eval_rwm_style(self, loader: DataLoader, init_len: int = 3, err_decay:float=0.9) -> dict:
+	def eval_rwm_style(self, loader: DataLoader, init_len: int = 3, err_decay:float=0.9, rew_weight:int=1) -> dict:
 		self.eval()
 		total_loss = 0.0
 		total_q_loss = 0.0
@@ -279,7 +288,8 @@ class LSTMQuantized(nn.Module):
 			total_q_loss += weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay).item()
 			total_loss += weighted_mse(latent[:, init_len + 1:, :, :, :], output, err_decay).item()
 			total_prop_loss += weighted_mse(proprioception[:, init_len + 1:, :], prop_output, err_decay).item()
-			total_reward_loss += weighted_mse(rewards_target[:, init_len:].unsqueeze(-1), rewards, err_decay).item()
+			total_reward_loss += reward_loss(rewards_target[:, init_len:].unsqueeze(-1), rewards)*rew_weight
+			#total_reward_loss += weighted_mse(rewards_target[:, init_len:].unsqueeze(-1), rewards, err_decay).item()*rew_weight
 			target = self.compute_classification_target(latent[:, init_len + 1:, :, :, :])
 			pred = self.compute_classification_target(q_output)
 			accuracy += (target.argmax(dim=-1) == pred.argmax(dim=-1)).float().mean().item()
@@ -289,6 +299,6 @@ class LSTMQuantized(nn.Module):
 			'qmse': total_q_loss / len(loader),
 			'acc': accuracy*100 / len(loader),
 			'prop_mse': total_prop_loss/len(loader),
-			'first_acc': first_accuracy/len(loader),
+			'first_acc': first_accuracy*100/len(loader),
 			'reward_mse': total_reward_loss/len(loader)
 		}

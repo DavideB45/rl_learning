@@ -21,6 +21,29 @@ from helpers.model_loader import load_vq_vae, load_lstm_quantized, load_transfor
 from helpers.general import best_device
 from global_var import *
 
+class RewardNormalizer:
+	def __init__(self, momentum=0.99, eps=1e-8):
+		self.mean = 0.0
+		self.std = 1.0
+		self.momentum = momentum
+		self.eps = eps
+		self.rewards_list = []
+
+	def insert(self, rewards:torch.Tensor):
+		self.rewards_list.extend(list(rewards.cpu().flatten().numpy()))
+
+	def update(self):
+		if(len(self.rewards_list) > 10):
+			rew = np.array(self.rewards_list)
+			batch_mean = rew.mean()
+			batch_std = rew.std()
+			self.mean = self.momentum * self.mean + (1 - self.momentum) * batch_mean
+			self.var  = self.momentum * self.std  + (1 - self.momentum) * batch_std
+
+	def normalize(self, rewards):
+		return reward
+		return (rewards - self.mean) / (self.std + self.eps)
+
 class MetaDreamEnv(VecEnv):
 	"""
 	Completely simulated environment using the VAE and MDRNN models
@@ -43,6 +66,7 @@ class MetaDreamEnv(VecEnv):
 		if isinstance(self.dyn, TransformerArc) or isinstance(self.dyn, TransformerArcC):
 			self.i_len = self.dyn.max_seq_len - 1
 		self.dyn.eval()
+		self.normalizer = RewardNormalizer()
 		self.hidden_state = None # (num_envs, hidden_dim)
 		self.mu = vq.quantizer.embedding.weight.data.mean()
 		self.std = vq.quantizer.embedding.weight.data.std()
@@ -96,7 +120,7 @@ class MetaDreamEnv(VecEnv):
 				latent_flat = (self.current_latent.reshape(self.num_envs, -1)-self.mu)/self.std
 				self.current_prop = prop[:, -1, :]
 				representation = torch.cat([latent_flat, hidden_flat], dim=-1)
-			
+		self.normalizer.update()
 		self.step_count = 0
 		return representation.cpu().numpy()
 
@@ -136,6 +160,8 @@ class MetaDreamEnv(VecEnv):
 			infos = [
 				{'terminal_observation': representation[i].squeeze().cpu().numpy()} for i in range(self.num_envs)
 			]
+			self.normalizer.insert(rew)
+			rew = self.normalizer.normalize(rew)
 		return (
 			representation.cpu().numpy() if not terminateds.any() else self.reset(), # based on world model
 			np.array(rew.flatten().cpu()), # from world model
@@ -198,7 +224,7 @@ if __name__ == "__main__":
 	done = False
 	total_reward = 0
 	step_count = 0
-	agent = PPO.load(CURRENT_ENV['models'] + 'agent', env)
+	agent = PPO.load(CURRENT_ENV['models'] + 'agent' + f'{EXP_ID}', env)
 	while not done:
 		#action = env.action_space.sample()  # random action
 		action, _states = agent.predict(observation, deterministic=True)

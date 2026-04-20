@@ -76,6 +76,8 @@ class LSTMQClass(nn.Module):
 		)
 
 		self.device = device
+		self.obs_loss = 1
+		self.rew_loss = 1
 		self.to(device)
 
 	def param_count(self) -> int:
@@ -242,7 +244,7 @@ class LSTMQClass(nn.Module):
 		target_indices = torch.argmax(target, dim=-1).view(b * s * w * h)
 		return F.cross_entropy(pred, target_indices, reduction='mean')
 	
-	def train_rwm_style(self, loader:DataLoader, optim:Optimizer, init_len:int=3, err_decay:float=0.9, useKL:bool=False) -> dict:
+	def train_rwm_style(self, loader:DataLoader, optim:Optimizer, init_len:int=3, err_decay:float=0.9, useKL:bool=False, rew_weight:int=1) -> dict:
 		self.train()
 		total_ce = 0
 		total_q_loss = 0
@@ -266,12 +268,14 @@ class LSTMQClass(nn.Module):
 			else:
 				class_loss = weighted_ce(output, target, self.w_h, self.classes, err_decay)
 			prop_loss = weighted_mse(proprioception[:, init_len + 1:, :], prop_out, err_decay)
-			rew_loss = weighted_mse(rewards_target[:, init_len:].unsqueeze(-1), rewards, err_decay)
+			rew_loss = weighted_mse(rewards_target[:, init_len:].unsqueeze(-1), rewards, err_decay)*rew_weight
 			with torch.no_grad():
 				total_q_loss += weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay).item()
 				accuracy += pred_accuracy(output, target, self.w_h, self.classes).item()
 				first_accuracy += pred_accuracy(output[:, 0:1, :], target[:, 0:1, :], self.w_h, self.classes).item()
-			loss = class_loss + prop_loss + rew_loss
+			self.rew_loss = self.rew_loss*0.9 + rew_loss.item()*0.1
+			self.obs_loss = self.obs_loss*0.9 + class_loss.item()*0.1
+			loss = class_loss/self.obs_loss + prop_loss/self.obs_loss + rew_loss
 			loss.backward()
 			optim.step()
 			total_ce += class_loss.item()
@@ -287,7 +291,7 @@ class LSTMQClass(nn.Module):
 		}
 
 	@torch.no_grad()
-	def eval_rwm_style(self, loader: DataLoader, init_len: int = 3, err_decay:float=0.9, useKL:bool=False) -> dict:
+	def eval_rwm_style(self, loader: DataLoader, init_len: int = 3, err_decay:float=0.9, useKL:bool=False, rew_weight:int=1) -> dict:
 		self.eval()
 		total_ce = 0
 		total_q_loss = 0
@@ -306,7 +310,7 @@ class LSTMQClass(nn.Module):
 
 			target = self.compute_classification_target(latent[:, init_len + 1:, :, :, :])
 			total_prop_loss += weighted_mse(proprioception[:, init_len + 1:, :], prop_output, err_decay).item()
-			total_reward_loss += weighted_mse(rewards_target[:, init_len:].unsqueeze(-1), rewards, err_decay).item()
+			total_reward_loss += weighted_mse(rewards_target[:, init_len:].unsqueeze(-1), rewards, err_decay).item()*rew_weight
 			if useKL:
 				total_ce += weighted_categorical_kl(output, target, self.w_h, self.classes, err_decay).item()
 			else:

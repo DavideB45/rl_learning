@@ -49,11 +49,11 @@ def main():
 	lstm = LSTMQClass(vq, best_device(), CURRENT_ENV['a_size'], 4, HIDDEN_DIM)
 	lstm.compile()
 	agent = None
-	with open('res.csv', 'w') as f:
+	with open(LOG_NAME + '.csv', 'w') as f:
 			f.write(f'mrew,success,space\n')
 	
 	collecting_time -= time.time()
-	generate_data(vq, lstm, n_sample=10000, training_set=True)
+	generate_data(vq, lstm, n_sample=INIT_GATHER, training_set=True)
 	generate_data(vq, lstm, n_sample=1000, training_set=False)
 	collecting_time += time.time()
 
@@ -68,7 +68,7 @@ def main():
 		vq_training_time += time.time()
 
 		dataset_generation_time -= time.time()
-		tr_seq = make_seq_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], True, 0), vq, SEQ_LEN, 128, max_ep=EP_ON_LOOP)
+		tr_seq = make_seq_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], True, 0), vq, SEQ_LEN, 128, max_ep=EP_ON_LOOP*2 if ACTION_REPEAT else EP_ON_LOOP)
 		vl_seq = make_seq_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], False, 0), vq, SEQ_LEN, 128, max_ep=15)
 		dataset_generation_time += time.time()
 		lstm_training_time -= time.time()
@@ -81,17 +81,17 @@ def main():
 		agent_training_time += time.time()
 
 		collecting_time -= time.time()
-		rew, succ = evaluate_gathering(vq, lstm, n_sample=1000, policy=agent, training_set=True)
+		rew, succ = evaluate_gathering(vq, lstm, n_sample=500 if ACTION_REPEAT else 1000, policy=agent, training_set=True)
 		if round % 10 == 0:
-			generate_data(vq, lstm, n_sample=1000, policy=agent, training_set=False)
+			generate_data(vq, lstm, n_sample=500 if ACTION_REPEAT else 1000, policy=agent, training_set=False)
 		print(f"Average reward: {(sum(rew) / len(rew)):.2f}, Success rate: {(sum(succ) / len(succ)):.2%}")
-		with open('res.csv', 'a') as f:
+		with open(LOG_NAME + '.csv', 'a') as f:
 			for i in range(len(rew)):
 				f.write(f'{rew[i]},{succ[i]},{torch.mean(torch.abs(vq.quantizer.embedding.weight.data))}\n')
 		collecting_time += time.time()
 
 		print(f"\033[1;31m--- {time.strftime('%H:%M:%S', time.gmtime(time.time()-start_time))} ---\033[0m")
-	with open('time.json', 'w') as f:
+	with open(LOG_NAME + 'time.json', 'w') as f:
 		json.dump({
 			'collecting_time': collecting_time,
 			'vq_training_time': vq_training_time,
@@ -137,13 +137,13 @@ def tune_lstm(model: LSTMQClass, tr:DataLoader, vl:DataLoader, encoder: VQVAE, n
 	best_val_loss = float('inf')
 	no_improvements = 0
 	for epoch in range(num_epocs):
-		err_tr = model.train_rwm_style(tr, optim, init_len=INIT_LEN, err_decay=0.99)#, useKL=USE_KL
-		err_vl = model.eval_rwm_style(vl, init_len=INIT_LEN, err_decay=0.99)#, useKL=USE_KL
+		err_tr = model.train_rwm_style(tr, optim, init_len=INIT_LEN, err_decay=0.99, rew_weight=REW_WEIGHT, useKL=USE_KL)
+		err_vl = model.eval_rwm_style(vl, init_len=INIT_LEN, err_decay=0.99, rew_weight=REW_WEIGHT, useKL=USE_KL)
 		if err_vl['mse'] < best_val_loss:
 			print_lstmc_analytics(epoch, err_tr, err_vl)
 			best_val_loss = err_vl['mse']
 			no_improvements = 0
-			save_lstm_quantized(CURRENT_ENV, model, cl=True, kl=True, tf=SMOOTHING)
+			save_lstm_quantized(CURRENT_ENV, model, cl=True, kl=USE_KL, tf=SMOOTHING)
 		else:
 			no_improvements += 1
 			if no_improvements >= 5:
@@ -151,7 +151,7 @@ def tune_lstm(model: LSTMQClass, tr:DataLoader, vl:DataLoader, encoder: VQVAE, n
 	if num_epocs == 1:
 		return model
 	del model
-	model = load_lstm_quantized(CURRENT_ENV, encoder, best_device(), HIDDEN_DIM, SMOOTHING, cl=True, kl=True)
+	model = load_lstm_quantized(CURRENT_ENV, encoder, best_device(), HIDDEN_DIM, SMOOTHING, cl=True, kl=USE_KL)
 	model.compile()
 	return model
 	
