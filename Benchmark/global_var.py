@@ -73,14 +73,14 @@ PICK_PLACE = {
 	"camera_id": 2,
 }
 
-CURRENT_ENV = DRAWER_OPEN
-LOG_NAME = 'res_moving_avg_loss_draw64'
-GPU_ID = "3"
+CURRENT_ENV = PEG_INSERT
+LOG_NAME = 'res_peg'
+GPU_ID = "2"
 EXP_ID = 0
 
 LATENT_DIM = 4
 CODE_DEPTH = 16
-CODEBOOK_SIZE = 64
+CODEBOOK_SIZE = 32
 SMOOTH = 5
 VQ_EPOCS = 20 # used in learning loop for the initial training, then 1 epoch for each round
 VQ_LR = 1e-3
@@ -89,7 +89,7 @@ VQ_WD = 0.001
 EP_ON_LOOP = 20
 
 SEQ_LEN = 25
-INIT_LEN = 15
+INIT_LEN = 10
 REW_WEIGHT = 1
 USE_KL = True
 
@@ -108,9 +108,9 @@ MAX_SEQ_LEN = INIT_LEN + 1
 DROPOUT = 0.0
 
 
-N_ROUNDS = 995 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/1000
+N_ROUNDS = 3995 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/1000
 PPO_STEPS = 100000
-DREAM_LEN = 20
-PPO_LR = 0.0001
+DREAM_LEN = 30
+PPO_LR = 0.0003
 ACTION_REPEAT = True
 INIT_GATHER = 5000

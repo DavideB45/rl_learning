@@ -22,7 +22,9 @@ class LSTMQuantized(nn.Module):
 		self.quantizer = quantizer
 
 		self.rep_fc = nn.Sequential(
-			nn.Linear(self.latent_dim, hidden_dim),
+			nn.Linear(self.latent_dim, hidden_dim*2),
+			nn.LeakyReLU(),
+			nn.Linear(hidden_dim*2, hidden_dim),
 			nn.LeakyReLU()
 		)
 		self.pro_fc = nn.Sequential(
@@ -39,38 +41,31 @@ class LSTMQuantized(nn.Module):
 			nn.LayerNorm(self.latent_dim),
 			nn.Linear(self.latent_dim, hidden_dim),
 			nn.LeakyReLU(),
-			nn.LayerNorm(hidden_dim)
 		)
 		self.merge_fc = nn.Sequential(
-			nn.Linear(self.hidden_dim*2, hidden_dim),
+			nn.LayerNorm(hidden_dim*2),
+			nn.Linear(self.hidden_dim*2, hidden_dim*2),
 			nn.LeakyReLU(),
-			nn.LayerNorm(hidden_dim),
-			nn.Linear(self.hidden_dim, self.hidden_dim),
+			nn.LayerNorm(hidden_dim*2),
+			nn.Linear(self.hidden_dim*2, self.hidden_dim),
 			nn.LeakyReLU()
 		)
 		self.lstm = LSTM(hidden_dim, hidden_dim, batch_first=True, num_layers=1)
-		self.mid_layer = nn.Sequential(
-			nn.LayerNorm(hidden_dim),
-			nn.Linear(hidden_dim, hidden_dim),
-			nn.LeakyReLU(),
-			nn.Linear(hidden_dim, hidden_dim),
-			nn.LeakyReLU()
-		)
 		self.out_fc = nn.Sequential(
 			nn.LayerNorm(hidden_dim),
-			nn.Linear(hidden_dim, hidden_dim),
+			nn.Linear(hidden_dim, hidden_dim*2),
 			nn.LeakyReLU(),
-			nn.LayerNorm(hidden_dim),
-			nn.Linear(hidden_dim, hidden_dim),
+			nn.LayerNorm(hidden_dim*2),
+			nn.Linear(hidden_dim*2, hidden_dim),
 			nn.LeakyReLU(),
 			nn.Linear(hidden_dim, self.latent_dim)
 		)
 		self.out_prop_fc = nn.Sequential(
 			nn.LayerNorm(hidden_dim),
-			nn.Linear(hidden_dim, hidden_dim),
+			nn.Linear(hidden_dim, hidden_dim*2),
 			nn.LeakyReLU(),
-			nn.LayerNorm(hidden_dim),
-			nn.Linear(hidden_dim, prop_dim),
+			nn.LayerNorm(hidden_dim*2),
+			nn.Linear(hidden_dim*2, prop_dim),
 		)
 		self.out_reward = nn.Sequential(
 			nn.LayerNorm(hidden_dim),
@@ -147,9 +142,7 @@ class LSTMQuantized(nn.Module):
 			h = (torch.zeros(1, input.size(0), self.hidden_dim).to(input.device),
 				 torch.zeros(1, input.size(0), self.hidden_dim).to(input.device))
 		output, h = self.lstm(skip_output, h)
-		skip_output = output + skip_output #(B, Seq_len, Hidden_dim)
-		output = self.mid_layer(skip_output)
-		output = output + skip_output
+		output = output + skip_output #(B, Seq_len, Hidden_dim)
 		latent = self.out_fc(output) #(B, Seq_len, Height*Width*Depth)
 		latent = self.unflatten_rep(latent, input.size(1)) # (B, Seq_len, Depth, Height, Width)
 		prop_out = self.out_prop_fc(output.detach()) #(B, Seq_len, Prop_dim)

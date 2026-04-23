@@ -133,12 +133,13 @@ def change_mse(pred:torch.Tensor, target:torch.Tensor) -> torch.Tensor:
 	return loss
 
 def symlog(x):
-		return torch.sign(x) * torch.log1p(torch.abs(x))
+	return torch.sign(x) * torch.log(torch.abs(x) + 0.5)
 	
 def reward_loss(preds, rewards):
 	'''
 	*WARNING* The order in this function is really important
 	'''
+	return F.mse_loss(preds, rewards, reduction='mean')
 	targets = symlog(rewards)
 	loss = (preds - targets) ** 2
 	return loss.mean()

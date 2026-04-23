@@ -41,7 +41,7 @@ class RewardNormalizer:
 			self.var  = self.momentum * self.std  + (1 - self.momentum) * batch_std
 
 	def normalize(self, rewards):
-		return reward
+		return rewards
 		return (rewards - self.mean) / (self.std + self.eps)
 
 class MetaDreamEnv(VecEnv):
