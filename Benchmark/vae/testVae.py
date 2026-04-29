@@ -38,35 +38,46 @@ if __name__ == "__main__":
 		z = vq_vae.encode(images)
 		_, quantized, _ = vq_vae.quantize(z)
 		mask = vq_vae.pred_mask(vq_vae.decoder(z))
-		vq_images_2 = (vq_images*(1-mask)).cpu()
-		#vq_images_2 = torch.nn.functional.sigmoid(vq_vae.backgorund.data.cpu())
-		vq_images_2 = (1 - mask).squeeze().cpu()
+		backgorund = torch.nn.functional.sigmoid(vq_vae.backgorund.data.cpu())
+		robot = (vq_vae.pred_robot(vq_vae.decoder(z))*(1-mask)).cpu()
+		masks = (1 - mask).squeeze().cpu()
 		vq_images = vq_images.cpu()
 		images = images.cpu()
 
 	num_images = 6
-	plt.figure(figsize=(12, 6))
+	plt.figure(figsize=(12, 12))
 	for i in range(num_images):
 		# original image
-		plt.subplot(3, num_images, i + 1)
-		plt.imshow(images[i].permute(1, 2, 0).numpy())
+		plt.subplot(5, num_images, i + 1)
+		plt.imshow(images[i].permute(1, 2, 0).numpy()[::-1, ::-1])
 		plt.axis('off')
 		if i == 0:
 			plt.title('Original Images')
 		
 		# reconstructed image
-		plt.subplot(3, num_images, i + 1 + num_images)
-		plt.imshow(vq_images[i].permute(1, 2, 0).numpy())
+		plt.subplot(5, num_images, i + 1 + num_images)
+		plt.imshow(vq_images[i].permute(1, 2, 0).numpy()[::-1, ::-1])
 		plt.axis('off')
 		if i == 0:
-			plt.title('Flatten VQ Reconstructed Images')
+			plt.title('Reconstructed Images')
 
-		# VQ reconstructed image
-		plt.subplot(3, num_images, i + 1 + 2 * num_images)
-		plt.imshow(vq_images_2[i].numpy())
+		plt.subplot(5, num_images, i + 1 + 2 * num_images)
+		plt.imshow(masks[i].numpy()[::-1, ::-1])
 		plt.axis('off')
 		if i == 0:
-			plt.title('Flatten VQ Reconstructed Images')
+			plt.title('Masks')
+
+		plt.subplot(5, num_images, i + 1 + 3 * num_images)
+		plt.imshow(robot[i].permute(1, 2, 0).numpy()[::-1, ::-1])
+		plt.axis('off')
+		if i == 0:
+			plt.title('Robot')
+
+		plt.subplot(5, num_images, i + 1 + 4 * num_images)
+		plt.imshow(backgorund.permute(1, 2, 0).numpy()[::-1, ::-1])
+		plt.axis('off')
+		if i == 0:
+			plt.title('Background')
 	
 	plt.savefig('reconstructed_images.png', dpi=600)
 

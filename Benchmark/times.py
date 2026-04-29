@@ -16,14 +16,16 @@ if __name__ == '__main__':
 	"dataset_generation_time": 8425.21964931488,
 	"agent_training_time": 7343.691750526428
 	}
-	times = {# non smooth 
-	"collecting_time": 21829.277328252792,
-	"vq_training_time": 3924.2197391986847,
-	"lstm_training_time": 3690.4282279014587,
-	"dataset_generation_time": 6276.039235115051,
-	"agent_training_time": 5259.883051156998
-	}
+	times = {
+ "collecting_time": 23854.321676015854,
+ "vq_training_time": 9808.06747674942,
+ "lstm_training_time": 22046.566100358963,
+ "dataset_generation_time": 19469.181207180023,
+ "agent_training_time": 45044.86441373825
+}
 	for key in times:
 		tot += times[key]
-		print(f"{key} : {time.strftime('%H:%M:%S', time.gmtime(times[key]))}")
-	print(f"tot : {time.strftime('%H:%M:%S', time.gmtime(tot))}")
+		days = int(times[key] // 86400)
+		print(f"{key} : {days}d {time.strftime('%H:%M:%S', time.gmtime(times[key]))}")
+	days = int(tot // 86400)
+	print(f"tot : {days}d {time.strftime('%H:%M:%S', time.gmtime(tot))}")

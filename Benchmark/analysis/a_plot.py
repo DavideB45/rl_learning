@@ -8,7 +8,7 @@ data = [float(x) for x in subprocess.check_output(
     "tail -n +2 data/drawer-open/numbers/4_norm_lrdec_noinit/res.csv | cut -d',' -f1",
     shell=True
 ).decode().split()]
-data = [str(x) for x in subprocess.check_output(
+data = [float(str(x)) for x in subprocess.check_output(
     "tail -n +2 res_peg.csv | cut -d',' -f1",
     shell=True
 ).decode().split()]
@@ -29,14 +29,14 @@ data = [str(x) for x in subprocess.check_output(
 #     'grep -e "flat" data/drawer-open/numbers/4_norm_lrdec_noinit/log3.out | cut -d ":" -f3',
 #     shell=True
 # ).decode().split()]
-print(data)
 # Convert to pandas Series
 min_ = 0
-max_ = 200
+max_ = 3000
 series = pd.Series(data)
 
+print(max(data))
 # Compute rolling mean (window size = 3)
-rolling_mean = series.rolling(window=10).mean()
+rolling_mean = series.rolling(window=30).mean()
 
 # Plot only the rolling mean
 plt.plot(rolling_mean)

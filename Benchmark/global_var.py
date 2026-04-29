@@ -73,9 +73,20 @@ PICK_PLACE = {
 	"camera_id": 2,
 }
 
+WINDOWO_DATA_DIR = "data/window-open/"
+WINDOW_OPEN = {
+	"env_name": "window-open-v3",
+	"img_dir": WINDOWO_DATA_DIR + IMG_DIR,
+	#"models": WINDOWO_DATA_DIR + MODELS_DIR,
+	"models": WINDOWO_DATA_DIR + "manually_saved",
+	"a_size": 4,
+	"render_size": 64,
+	"camera_id": 2,
+}
+
 CURRENT_ENV = PEG_INSERT
 LOG_NAME = 'res_peg'
-GPU_ID = "2"
+GPU_ID = "3" # window 2 - peg 3
 EXP_ID = 0
 
 LATENT_DIM = 4
@@ -108,7 +119,7 @@ MAX_SEQ_LEN = INIT_LEN + 1
 DROPOUT = 0.0
 
 
-N_ROUNDS = 3995 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/1000
+N_ROUNDS = 2995 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/1000
 PPO_STEPS = 100000
 DREAM_LEN = 30
 PPO_LR = 0.0003
