@@ -68,11 +68,11 @@ class TrasitionDataset(Dataset):
 			prop = apr_json["proprioception"]
 			rew = apr_json["reward"]
 		if len(act) > max_ep:
-			episodes = list(range(len(act)))# - 1))
+			episodes = list(range(len(act) - 1))
 			weights = np.array([1 + i / len(episodes) for i in episodes])
 			weights = weights / weights.sum()  # normalize to probabilities
 			episodes = np.random.choice(episodes, size=max_ep, replace=False, p=weights)
-			episodes = list(episodes) #+ [len(act) - 1]  # always include the last episode because you never know...
+			episodes = list(episodes) + [len(act) - 1]  # always include the last episode because you never know...
 			act = [act[i] for i in episodes]
 			prop = [prop[i] for i in episodes]
 			rew = [rew[i] for i in episodes]
