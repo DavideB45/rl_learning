@@ -51,7 +51,7 @@ def main():
 	lstm = LSTMQuantized(vq, best_device(), CURRENT_ENV['a_size'], 4, HIDDEN_DIM)
 	agent = None
 	with open(LOG_NAME + '.csv', 'w') as f:
-			f.write(f'mrew,success,space\n')
+			f.write(f'mrew,success,space,max_space,min_space\n')
 	
 	collecting_time -= time.time()
 	generate_data(vq, lstm, n_sample=INIT_GATHER, training_set=True, round=EXP_ID)
@@ -64,7 +64,7 @@ def main():
 		vq_training_time -= time.time()
 		if round == 0:
 			vq = tune_vq(model=vq, num_epocs=VQ_EPOCS, lr=VQ_LR/np.log(round*5 + 4), reg=SMOOTH, wd=VQ_WD) # reg=-1 means no quantization
-		else: #if round % 2 == 1
+		elif round % 2 == 1:
 			vq = tune_vq(model=vq, num_epocs=1, lr=VQ_LR/np.log(round*5 + 4), reg=SMOOTH, wd=VQ_WD)
 		vq_training_time += time.time()
 
@@ -76,11 +76,7 @@ def main():
 		lstm = tune_lstm(lstm, tr=tr_seq, vl=vl_seq, encoder=vq, num_epocs=LSTM_EPOCS if round == 0 else 1, lr=LSTM_LR, wd=LSTM_WD)
 		lstm_training_time += time.time()
 		
-		#mu = dream_env.normalizer.mean if round > 0 else 0
-		#std = dream_env.normalizer.std if round > 0 else 1
 		dream_env = MetaDreamEnv(vq, lstm, vl_seq, init_len=INIT_LEN, ep_len=DREAM_LEN, num_envs=50) #ep_len=SEQ_LEN - INIT_LEN
-		#dream_env.normalizer.mean = mu
-		#dream_env.normalizer.std = std
 		agent_training_time -= time.time()
 		agent = tune_agent(agent, num_steps=PPO_STEPS, env=dream_env) # codes changed so we train more PPO
 		agent_training_time += time.time()
@@ -92,7 +88,7 @@ def main():
 		print(f"Average reward: {(sum(rew) / len(rew)):.2f}, Success rate: {(sum(succ) / len(succ)):.2%}")
 		with open(LOG_NAME + '.csv', 'a') as f:
 			for i in range(len(rew)):
-				f.write(f'{rew[i]},{succ[i]},{torch.mean(torch.abs(vq.quantizer.embedding.weight.data))}\n')
+				f.write(f'{rew[i]},{succ[i]},{torch.mean(torch.abs(vq.quantizer.embedding.weight.data)):.3f},{torch.max(vq.quantizer.embedding.weight.data):.3f},{torch.min(vq.quantizer.embedding.weight.data):.3f}\n')
 		collecting_time += time.time()
 
 		print(f"\033[1;31m--- {time.strftime('%H:%M:%S', time.gmtime(time.time()-start_time))} ---\033[0m")
