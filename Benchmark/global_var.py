@@ -77,8 +77,7 @@ WINDOWO_DATA_DIR = "data/window-open/"
 WINDOW_OPEN = {
 	"env_name": "window-open-v3",
 	"img_dir": WINDOWO_DATA_DIR + IMG_DIR,
-	#"models": WINDOWO_DATA_DIR + MODELS_DIR,
-	"models": WINDOWO_DATA_DIR + "manually_saved",
+	"models": WINDOWO_DATA_DIR + MODELS_DIR,
 	"a_size": 4,
 	"render_size": 64,
 	"camera_id": 2,
