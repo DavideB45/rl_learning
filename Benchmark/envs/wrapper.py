@@ -191,7 +191,7 @@ def generate_data(vq:VQVAE, lstm:LSTMQuantized | TransformerArc, n_sample:int=10
 		os.makedirs(CURRENT_ENV['models'])
 		
 	env = MetaWrapEnv(vq, lstm)
-	obs, _ = env.reset(seed=0)
+	obs, _ = env.reset()
 	step = 0
 	episode = len(actions)
 	print(episode)
@@ -205,7 +205,8 @@ def generate_data(vq:VQVAE, lstm:LSTMQuantized | TransformerArc, n_sample:int=10
 		if policy == None:
 			action = env.action_space.sample()
 		else:
-			# qui c'è un problema quando si usa gSDE
+			if step % 10 == 0: # SB3 does not do this automatically since we are evaluating the model
+				policy.policy.reset_noise()
 			action, _ = policy.predict(obs, deterministic=False)
 		obs, rew, ter, trunc, _ = env.step(action)
 		proprioception[-1].append(env.current_prop.flatten().tolist())
@@ -223,11 +224,7 @@ def generate_data(vq:VQVAE, lstm:LSTMQuantized | TransformerArc, n_sample:int=10
 				rewards.append([])
 	with open(action_path, "w") as f:
 		json.dump(
-			{
-				"actions": actions,
-				"reward": rewards,
-				"proprioception": proprioception
-			},
+			{ "actions": actions, "reward": rewards, "proprioception": proprioception },
 			f,
 			indent=4
 		)
@@ -272,9 +269,7 @@ def evaluate_gathering(vq:VQVAE, lstm:LSTMQuantized | TransformerArc, policy:Bas
 	tot_success = [False]
 	for i in range(n_sample):
 		step += 1
-		if step % 10 == 0: # SB3 does not do this automatically since we are evaluating the model
-			policy.policy.reset_noise()
-		action, _ = policy.predict(obs, deterministic=False)
+		action, _ = policy.predict(obs, deterministic=True)
 		obs, rew, ter, trunc, info = env.step(action)
 		proprioception[-1].append(env.current_prop.flatten().tolist()), actions[-1].append(action.tolist()), rewards[-1].append(float(rew))
 		env.current_render.save(base_path + f'img_{episode}_{step}.png')
