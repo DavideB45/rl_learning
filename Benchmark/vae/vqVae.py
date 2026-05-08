@@ -119,6 +119,7 @@ class VQVAE(AbstractVAE):
 		"""
 		dec = self.decoder(z)
 		pred = self.pred_robot(dec)
+		#return pred
 		mask = self.pred_mask(dec)
 		return nn.functional.sigmoid(self.backgorund)*mask + (1-mask)*pred
 
@@ -199,7 +200,7 @@ class VQVAE(AbstractVAE):
 
 			rec_loss = self.reconstruction_loss(data, recon_batch)
 			rew_loss = reward_loss(self.pred_rew(z), rew)
-			loss = rec_loss + reg*flatness_loss + self.contraction_loss(z)*0.001 + rew_loss# + emb_loss
+			loss = rec_loss + reg*flatness_loss + emb_loss + rew_loss# + self.contraction_loss(z)*0.001 + rew_loss
 			loss.backward()
 			optim.step()
 			used_codes.update(indexes.view(-1).cpu().numpy().tolist())
