@@ -1,3 +1,7 @@
+EXP_ID = 1
+LOG_NAME = f'res_{EXP_ID}'
+GPU_ID = f"{EXP_ID%4}" # window 2 - peg 3
+
 IMG_DIR = "imgs/"
 TRANSITIONS = "action_reward_data.json"
 MODELS_DIR = "models/"
@@ -7,19 +11,19 @@ BUTTON_DATA_DIR = "data/button-press/"
 BUTTON = {
 	"env_name": "button-press-v3",
 	"img_dir": BUTTON_DATA_DIR + IMG_DIR,
-	"models": BUTTON_DATA_DIR + MODELS_DIR,
+	"models": BUTTON_DATA_DIR + MODELS_DIR + f"{EXP_ID}/",
 	"a_size": 4,
-	"render_size": 96,
-	"camera_id": 1,
+	"render_size": 64,
+	"camera_id": 2,
 }
 
-PUSH_DATA_DIR = "data/push/"
-PUSH = {
-	"env_name": "push-v3",
-	"img_dir": PUSH_DATA_DIR + IMG_DIR,
-	"models": PUSH_DATA_DIR + MODELS_DIR,
+BUTTON_TD_DATA_DIR = "data/button-press-td/"
+BUTTON_TD = {
+	"env_name": "button-press-topdown-v3",
+	"img_dir": BUTTON_TD_DATA_DIR + IMG_DIR,
+	"models": BUTTON_TD_DATA_DIR + MODELS_DIR + f"{EXP_ID}/",
 	"a_size": 4,
-	"render_size": 96,
+	"render_size": 64,
 	"camera_id": 2,
 }
 
@@ -27,7 +31,7 @@ DRAWERO_DATA_DIR = "data/drawer-open/"
 DRAWER_OPEN = {
 	"env_name": "drawer-open-v3",
 	"img_dir": DRAWERO_DATA_DIR + IMG_DIR,
-	"models": DRAWERO_DATA_DIR + MODELS_DIR,
+	"models": DRAWERO_DATA_DIR + MODELS_DIR + f"{EXP_ID}/",
 	"a_size": 4,
 	"render_size": 64,
 	"camera_id": 2,
@@ -37,7 +41,7 @@ PEG_DATA_DIT = "data/peg-insert/"
 PEG_INSERT = {
 	"env_name": "peg-insert-side-v3",
 	"img_dir": PEG_DATA_DIT + IMG_DIR,
-	"models": PEG_DATA_DIT + MODELS_DIR,
+	"models": PEG_DATA_DIT + MODELS_DIR + f"{EXP_ID}/",
 	"a_size": 4,
 	"render_size": 64,
 	"camera_id": 2,
@@ -53,41 +57,17 @@ HAMMER = {
 	"camera_id": 2,
 }
 
-PICKB_DATA_DIR = "data/bin-pick/"
-PICK_BIN = {
-	"env_name": "bin-picking-v3",
-	"img_dir": PICKB_DATA_DIR + IMG_DIR,
-	"models": PICKB_DATA_DIR + MODELS_DIR,
-	"a_size": 4,
-	"render_size": 96,
-	"camera_id": 2,
-}
-
-PICKP_DATA_DIR = "data/pick-place/"
-PICK_PLACE = {
-	"env_name": "pick-place-v3",
-	"img_dir": PICKP_DATA_DIR + IMG_DIR,
-	"models": PICKP_DATA_DIR + MODELS_DIR,
-	"a_size": 4,
-	"render_size": 96,
-	"camera_id": 2,
-}
-
 WINDOWO_DATA_DIR = "data/window-open/"
 WINDOW_OPEN = {
 	"env_name": "window-open-v3",
 	"img_dir": WINDOWO_DATA_DIR + IMG_DIR,
-	#"models": WINDOWO_DATA_DIR + MODELS_DIR,
-	"models": WINDOWO_DATA_DIR + "manually_saved",
+	"models": WINDOWO_DATA_DIR + MODELS_DIR + f"{EXP_ID}/",
 	"a_size": 4,
 	"render_size": 64,
 	"camera_id": 2,
 }
 
-CURRENT_ENV = PEG_INSERT
-LOG_NAME = 'res_peg'
-GPU_ID = "3" # window 2 - peg 3
-EXP_ID = 0
+CURRENT_ENV = BUTTON_TD
 
 LATENT_DIM = 4
 CODE_DEPTH = 16
@@ -119,7 +99,7 @@ MAX_SEQ_LEN = INIT_LEN + 1
 DROPOUT = 0.0
 
 
-N_ROUNDS = 2995 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/1000
+N_ROUNDS = 400 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/500
 PPO_STEPS = 100000
 DREAM_LEN = 30
 PPO_LR = 0.0003
