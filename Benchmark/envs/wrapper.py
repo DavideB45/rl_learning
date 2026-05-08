@@ -269,7 +269,9 @@ def evaluate_gathering(vq:VQVAE, lstm:LSTMQuantized | TransformerArc, policy:Bas
 	tot_success = [False]
 	for i in range(n_sample):
 		step += 1
-		action, _ = policy.predict(obs, deterministic=True)
+		if step % 10 == 0:
+				policy.policy.reset_noise()
+		action, _ = policy.predict(obs, deterministic=False)
 		obs, rew, ter, trunc, info = env.step(action)
 		proprioception[-1].append(env.current_prop.flatten().tolist()), actions[-1].append(action.tolist()), rewards[-1].append(float(rew))
 		env.current_render.save(base_path + f'img_{episode}_{step}.png')
