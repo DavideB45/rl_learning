@@ -67,7 +67,7 @@ def process_algorithm(folder_path):
 
 
 def main():
-	plt.figure(figsize=(10, 6))
+	plt.figure(figsize=(10, 10))
 
 	algo_folders = sorted([
 		f for f in os.listdir(ROOT_FOLDER)
@@ -89,7 +89,7 @@ def main():
 		df = process_algorithm(folder_path)
 
 		# Plot mean
-		plt.plot(df["steps"], df["mean"], label=algo)
+		plt.plot(df["steps"], df["mean"], label=algo, linewidth=4)
 
 		# Plot variance (shaded)
 		plt.fill_between(
@@ -101,7 +101,7 @@ def main():
 
 	plt.xlabel("Environment Steps")
 	plt.ylabel("Success Rate")
-	plt.title("Algorithm Comparison (Mean ± Std)")
+	plt.title("Drawer open success rate (Mean ± Std)")
 	plt.legend()
 	plt.grid(True)
 	plt.ylim(0, 1)
