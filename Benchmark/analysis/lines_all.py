@@ -5,10 +5,42 @@ import glob
 import os
 
 # ==== CONFIG ====
-ROOT_FOLDER = "./data/drawer-open/full_experiments"   # folder containing all algorithm folders
+ROOT_FOLDER = "./data/drawer-open/full_experiments"
 EVAL_EPISODES = 5
 EVAL_FREQUENCY = 5000
+
+BOOTSTRAP_SAMPLES = 5000
+CONFIDENCE_INTERVAL = 95
+SMOOTH_WINDOW = 3
 # =================
+
+
+def bootstrap_ci(data, n_bootstrap=5000, ci=95):
+	"""
+	Compute bootstrap confidence interval.
+
+	Parameters
+	----------
+	data : np.ndarray
+		1D array of values.
+	n_bootstrap : int
+		Number of bootstrap samples.
+	ci : int
+		Confidence interval percentage.
+
+	Returns
+	-------
+	mean, lower, upper
+	"""
+	data = np.array(data, dtype=float)
+	data = data[~np.isnan(data)]
+	bootstrap_means = []
+	for _ in range(n_bootstrap):
+		sample = np.random.choice(data, size=len(data), replace=True)
+		bootstrap_means.append(np.mean(sample))
+	lower = np.percentile( bootstrap_means, (100 - ci) / 2 )
+	upper = np.percentile( bootstrap_means, 100 - (100 - ci) / 2 )
+	return np.mean(data), lower, upper
 
 
 def process_single_run(file_path):
@@ -16,7 +48,7 @@ def process_single_run(file_path):
 
 	df["success"] = df["success"].astype(int)
 
-	# Group every 5 rows (one evaluation)
+	# Group every evaluation block
 	df["eval_id"] = np.arange(len(df)) // EVAL_EPISODES
 	grouped = df.groupby("eval_id")["success"].mean().reset_index()
 
@@ -35,35 +67,58 @@ def process_algorithm(folder_path):
 		run_df = run_df.rename(columns={"success": os.path.basename(f)})
 		runs.append(run_df)
 
-	# Compute average success for each run
-	avgs = [run_df.iloc[:, 1].mean() for run_df in runs]  # success is the second column
+	# ==========================================================
+	# Remove best and worst runs (optional)
+	# ==========================================================
+	# avgs = [run_df.iloc[:, 1].mean() for run_df in runs]
+	# min_idx = avgs.index(min(avgs))
+	# max_idx = avgs.index(max(avgs))
+	# if len(runs) > 2:
+	# 	if min_idx != max_idx:
+	# 		runs.pop(max(min_idx, max_idx))
+	# 		runs.pop(min(min_idx, max_idx))
+	# 	else:
+	# 		runs.pop(min_idx)
 
-	# Find indices of worst and best
-	min_idx = avgs.index(min(avgs))
-	max_idx = avgs.index(max(avgs))
-
-	# Remove the worst and best runs
-	if min_idx != max_idx:
-		runs.pop(max(min_idx, max_idx))
-		runs.pop(min(min_idx, max_idx))
-	else:
-		runs.pop(min_idx)
-
-	# Merge all runs on steps
+	# ==========================================================
+	# Merge all runs
+	# ==========================================================
 	merged = runs[0]
-	#for df in runs[1:3] + runs[4:]:
 	for df in runs[1:]:
 		merged = pd.merge(merged, df, on="steps", how="inner")
-
-	print(merged.head())
 	success_cols = merged.columns.drop("steps")
 
-	merged["mean"] = merged[success_cols].mean(axis=1)
-	merged["mean"] = merged["mean"].rolling(3, min_periods=1).mean()
-	merged["std"] = merged[success_cols].std(axis=1)
-	merged["std"] = merged["std"].rolling(3, min_periods=1).mean()
+	# ==========================================================
+	# Bootstrap confidence intervals
+	# ==========================================================
+	means = []
+	lowers = []
+	uppers = []
 
-	return merged[["steps", "mean", "std"]]
+	for _, row in merged.iterrows():
+		values = row[success_cols].values.astype(float)
+
+		mean, lower, upper = bootstrap_ci(
+			values,
+			n_bootstrap=BOOTSTRAP_SAMPLES,
+			ci=CONFIDENCE_INTERVAL
+		)
+
+		means.append(mean)
+		lowers.append(lower)
+		uppers.append(upper)
+
+	merged["mean"] = means
+	merged["lower"] = lowers
+	merged["upper"] = uppers
+
+	# ==========================================================
+	# Optional smoothing
+	# ==========================================================
+	merged["mean"] = merged["mean"].rolling(SMOOTH_WINDOW, min_periods=1).mean()
+	merged["lower"] = merged["lower"].rolling(SMOOTH_WINDOW, min_periods=1).mean()
+	merged["upper"] = merged["upper"].rolling(SMOOTH_WINDOW, min_periods=1).mean()
+	return merged[["steps", "mean", "lower", "upper"]]
 
 
 def main():
@@ -74,38 +129,60 @@ def main():
 		if os.path.isdir(os.path.join(ROOT_FOLDER, f))
 	])
 
-	algo_folders.remove("models")
-	# algo_folders.remove("no_ds")
-	algo_folders.remove("contraction_loss")
-	# algo_folders.remove("no_kl")
-	algo_folders.remove("no_kl_no_rew")
-	algo_folders.remove("no_reward")
-	algo_folders.remove("no_ds")
-	algo_folders.remove("no_mask_no_double_step")
+	# ==========================================================
+	# Remove folders you don't want
+	# ==========================================================
+	for folder in [
+		#"default",
+		#"no_mask",
+		"models",
+		"contraction_loss",
+		#"no_kl",
+		"no_kl_no_rew",
+		"no_reward",
+		"no_ds",
+		"no_mask_no_double_step",
+	]:
+		if folder in algo_folders:
+			algo_folders.remove(folder)
+
+	# ==========================================================
+	# Plot each algorithm
+	# ==========================================================
 	for algo in algo_folders:
-		print(algo, len(glob.glob(os.path.join(ROOT_FOLDER + '/' + algo, "res_*.csv"))))
+
+		n_runs = len(
+			glob.glob(
+				os.path.join(ROOT_FOLDER, algo, "res_*.csv")
+			)
+		)
+
+		print(algo, n_runs)
+
 		folder_path = os.path.join(ROOT_FOLDER, algo)
 
 		df = process_algorithm(folder_path)
 
-		# Plot mean
+
 		plt.plot(df["steps"], df["mean"], label=algo, linewidth=4)
 
-		# Plot variance (shaded)
+		# Bootstrap confidence interval
 		plt.fill_between(
 			df["steps"],
-			df["mean"] - df["std"],
-			df["mean"] + df["std"],
-			alpha=0.2
+			df["lower"],
+			df["upper"],
+			alpha=0.15
 		)
 
-	plt.xlabel("Environment Steps")
-	plt.ylabel("Success Rate")
-	plt.title("Drawer open success rate (Mean ± Std)")
-	plt.legend()
-	plt.grid(True)
+	# ==========================================================
+	# Styling
+	# ==========================================================
+	plt.xlabel("Environment Steps", fontsize=14)
+	plt.ylabel("Success Rate", fontsize=14)
+	plt.title("Drawer Open Success Rate\n(Mean with Bootstrap 95% CI)",fontsize=16)
+	plt.legend(fontsize=11)
+	plt.grid(True, alpha=0.3)
 	plt.ylim(0, 1)
-
 	plt.tight_layout()
 	plt.savefig('fig_all.png', dpi=400)
 
