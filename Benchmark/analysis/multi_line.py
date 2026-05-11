@@ -4,8 +4,8 @@ import glob
 import os
 
 # ==== CONFIG ====
-ENV = 'drawer-open'
-CSV_FOLDER = f"./data/{ENV}/full_experiments"   # folder containing your CSV files
+ENV = 'peg-insert'
+CSV_FOLDER = f"./data/{ENV}/full_experiments/models/"   # folder containing your CSV files
 ROLLING_WINDOW = 50     # number of episodes for rolling mean
 INTERACTIONS_PER_EPISODE = 500
 
@@ -36,9 +36,9 @@ def load_and_process(file_path):
 
 
 def main():
-	plt.figure(figsize=(10, 6))
+	plt.figure(figsize=(10, 10))
 
-	csv_files = glob.glob(os.path.join(CSV_FOLDER, "*.csv"))
+	csv_files = sorted(glob.glob(os.path.join(CSV_FOLDER, "*.csv")))
 
 	dfs = []
 	min_len = None
@@ -56,7 +56,8 @@ def main():
 		plt.plot(
 			df["interactions"],
 			df["success_rate"],
-			label=label
+			label=label,
+			linewidth=4
 		)
 
 	plt.xlabel("Environment Interactions")
@@ -66,7 +67,7 @@ def main():
 	plt.grid(True)
 
 	plt.tight_layout()
-	plt.savefig('fig.png', dpi=400)
+	plt.savefig(f'{ENV}.png', dpi=400)
 
 
 if __name__ == "__main__":
