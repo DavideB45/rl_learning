@@ -5,7 +5,7 @@ import glob
 import os
 
 # ==== CONFIG ====
-ROOT_FOLDER = "./data/drawer-open/full_experiments"
+ROOT_FOLDER = "./data/button-press-td/full_experiments"
 EVAL_EPISODES = 5
 EVAL_FREQUENCY = 5000
 
