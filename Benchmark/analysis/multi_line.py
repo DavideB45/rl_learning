@@ -4,7 +4,7 @@ import glob
 import os
 
 # ==== CONFIG ====
-ENV = 'peg-insert'
+ENV = 'window-open'
 CSV_FOLDER = f"./data/{ENV}/full_experiments/models/"   # folder containing your CSV files
 ROLLING_WINDOW = 50     # number of episodes for rolling mean
 INTERACTIONS_PER_EPISODE = 500
@@ -53,6 +53,8 @@ def main():
 
 	for df, label in dfs:
 		df = df.iloc[:min_len]
+		max_success = df["success_rate"].max()
+		print(f"{label}: max success_rate = {max_success:.4f}")
 		plt.plot(
 			df["interactions"],
 			df["success_rate"],
@@ -60,14 +62,16 @@ def main():
 			linewidth=4
 		)
 
-	plt.xlabel("Environment Interactions")
-	plt.ylabel("Success Rate (Rolling Mean)")
-	plt.title(f"{ENV} Performance (window={ROLLING_WINDOW})")
-	plt.legend()
+	plt.xlabel("Environment Interactions", fontsize=20)
+	plt.ylabel("Success Rate (Rolling Mean)", fontsize=20)
+	plt.title(f"{ENV} Performance (window={ROLLING_WINDOW})", fontsize=25)
+	plt.xticks(fontsize=14)
+	plt.yticks(fontsize=14)
+	plt.legend(fontsize=14)
 	plt.grid(True)
 
 	plt.tight_layout()
-	plt.savefig(f'{ENV}.png', dpi=400)
+	plt.savefig(f'{ENV}.png', dpi=300)
 
 
 if __name__ == "__main__":
