@@ -73,6 +73,9 @@ class MetaWrapEnv(gym.Env):
 			Image.Image: resized image
 		'''
 		img = self.env.render()
+		if not np.isfinite(img).all():
+			print("BAD IMAGE")
+			raise RuntimeError()
 		img = Image.fromarray(img)
 		# if CURRENT_ENV['env_name'] == 'peg-insert-side-v3':
 		# 	img = img.crop((80, 80, 176, 176))
@@ -115,6 +118,13 @@ class MetaWrapEnv(gym.Env):
 		action: action to take
 		returns: observation (np.array), reward (float), terminated (bool), truncated (bool), info (dict)
 		'''
+		if not np.isfinite(action).all():
+			print("BAD ACTION")
+			print(action)
+			raise RuntimeError()
+		if np.max(np.abs(action)) > 20:
+			print("STRANGE ACTION")
+			print(action)
 		prop, reward, terminated, truncated, info = self.env.step(action)
 		if not (terminated or truncated) and ACTION_REPEAT:
 			prop, reward_, terminated, truncated, info = self.env.step(action)
@@ -147,6 +157,9 @@ class MetaWrapEnv(gym.Env):
 				representation = torch.cat([representation, self.hidden_state[0].flatten()], dim=-1)
 			self.current_render = img
 			self.current_prop = torch.tensor(prop, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+			if not torch.isfinite(representation).all():
+				print("OBS NAN")
+				raise RuntimeError()
 		return (
 			representation.cpu().numpy(), # based on world model
 			reward, # from world model

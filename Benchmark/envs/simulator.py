@@ -105,6 +105,13 @@ class MetaDreamEnv(VecEnv):
 		action: action to take
 		returns: observation (np.array), reward (float), terminated (bool), truncated (bool), info (dict)
 		'''
+		if not np.isfinite(actions).all():
+			print("BAD ACTION")
+			print(actions)
+			raise RuntimeError()
+		if np.max(np.abs(actions)) > 20:
+			print("STRANGE ACTION")
+			print(actions)
 		if actions.ndim == 1:
 			actions = actions[np.newaxis, :]
 		with torch.no_grad():
@@ -126,6 +133,14 @@ class MetaDreamEnv(VecEnv):
 				self.hidden_state = h
 				hidden_flat = self.hidden_state[0].reshape(self.num_envs, -1)
 				latent_flat = (self.current_latent.reshape(self.num_envs, -1)-self.mu)/self.std
+				if not torch.isfinite(latent_flat).all():
+					print("LATENT NORMALIZED")
+					print(latent_flat.abs().max())
+					raise RuntimeError()
+				if not torch.isfinite(hidden_flat).all():
+					print("LATENT NORMALIZED")
+					print(hidden_flat.abs().max())
+					raise RuntimeError()
 				self.current_latent = pred[:, -1, :, :, :]
 				self.current_prop = prop[:, -1, :]
 				representation = torch.cat([latent_flat, hidden_flat], dim=-1)

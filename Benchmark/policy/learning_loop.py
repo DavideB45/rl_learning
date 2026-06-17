@@ -51,7 +51,7 @@ def main():
 	lstm = LSTMQuantized(vq, best_device(), CURRENT_ENV['a_size'], 4, HIDDEN_DIM)
 	agent = None
 	with open(LOG_NAME + '.csv', 'w') as f:
-			f.write(f'mrew,success,space,max_space,min_space\n')
+			f.write(f'mrew,success,space,max_space,min_space,std\n')
 	
 	collecting_time -= time.time()
 	generate_data(vq, lstm, n_sample=INIT_GATHER, training_set=True, round=EXP_ID)
@@ -88,7 +88,10 @@ def main():
 		print(f"Average reward: {(sum(rew) / len(rew)):.2f}, Success rate: {(sum(succ) / len(succ)):.2%}")
 		with open(LOG_NAME + '.csv', 'a') as f:
 			for i in range(len(rew)):
-				f.write(f'{rew[i]},{succ[i]},{torch.mean(torch.abs(vq.quantizer.embedding.weight.data)):.3f},{torch.max(vq.quantizer.embedding.weight.data):.3f},{torch.min(vq.quantizer.embedding.weight.data):.3f}\n')
+				f.write(f'{rew[i]:.3f},{succ[i]},{torch.mean(torch.abs(vq.quantizer.embedding.weight.data)):.3f},{torch.max(vq.quantizer.embedding.weight.data):.3f},{torch.min(vq.quantizer.embedding.weight.data):.3f},{torch.std(vq.quantizer.embedding.weight.data):.5f}\n')
+				if not torch.isfinite(torch.mean(torch.abs(vq.quantizer.embedding.weight.data))):
+					print("Found nan for the first time in the main loop")
+					exit()
 		collecting_time += time.time()
 
 		print(f"\033[1;31m--- {time.strftime('%H:%M:%S', time.gmtime(time.time()-start_time))} ---\033[0m")

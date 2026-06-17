@@ -104,6 +104,11 @@ class VectorQuantizer(nn.Module):
 		input_shape = x.shape
 		flat_x = x.view(-1, 1, self.embedding_dim)  # (B*H*W, 1, D)
 		distances = (flat_x - self.embedding.weight.unsqueeze(0)).pow(2).mean(2)  # (B*H*W, K)
+		if not torch.isfinite(distances).all():
+			print("DISTANCE NAN")
+			print(flat_x.abs().max())
+			print(self.embedding.weight.abs().max())
+			raise RuntimeError()
 		encoding_indices = torch.argmin(distances, dim=1).unsqueeze(1)  # (B*H*W, 1)
 		quantized = self.embedding(encoding_indices).view(input_shape)  # (B, H, W, D)
 		
@@ -147,8 +152,12 @@ class VectorQuantizer(nn.Module):
 		flat_z = z.view(-1, 1, self.embedding_dim)
 		distances = (flat_z - self.embedding.weight.unsqueeze(0)).pow(2).mean(2)
 		encoding_indices = torch.argmin(distances, dim=1).unsqueeze(1)
-		quantized = self.embedding(encoding_indices).view(input_shape)
-		quantized = z + (quantized - z).detach()
+		if not torch.isfinite(distances).all():
+			print("DISTANCE NAN IN FIXED SPACE")
+			print(flat_z.abs().max())
+			print(self.embedding.weight.abs().max())
+			raise RuntimeError()
+		quantized = self.embedding(encoding_indices).view(input_shape).detach()
 		return quantized.permute(0, 3, 1, 2).contiguous()
 
 	def get_index_probabilities(self, x: torch.Tensor) -> torch.Tensor:

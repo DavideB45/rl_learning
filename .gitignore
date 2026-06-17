@@ -10,6 +10,8 @@ WorldModelExp/data/*/vl/
 rl_env/
 legacy/
 Benchmark/data/*
+Benchmark/*.out
+Benchmark/*.csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

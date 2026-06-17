@@ -84,7 +84,13 @@ class VQVAE(AbstractVAE):
 		Returns:
 			torch.Tensor: Latent representation of shape (batch, code_depth, latent_dim, latent_dim)
 		"""
-		return self.encoder(x)
+		z = self.encoder(x)
+		if not torch.isfinite(z).all():
+			print("ENCODER NAN")
+			print(z.abs().max())
+			raise RuntimeError()
+
+		return z
 	
 	def quantize(self, z: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
 		"""
@@ -201,6 +207,7 @@ class VQVAE(AbstractVAE):
 			rew_loss = reward_loss(self.pred_rew(z), rew)
 			loss = rec_loss + reg*flatness_loss + rew_loss + emb_loss# + self.contraction_loss(z)*0.005
 			loss.backward()
+			torch.nn.utils.clip_grad_norm_(self.parameters(), max_norm=1.0)
 			optim.step()
 			used_codes.update(indexes.view(-1).cpu().numpy().tolist())
 			losses["total_loss"] += loss.item()

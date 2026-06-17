@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from torch.nn import LSTM
 from torch.utils.data import DataLoader
 from torch.optim import Optimizer
+from typing_extensions import Self
 
 import os
 import sys
@@ -148,9 +149,11 @@ class LSTMQuantized(nn.Module):
 		prop_out = self.out_prop_fc(output.detach()) #(B, Seq_len, Prop_dim)
 		reward = self.out_reward(output)
 		
-		_, latent_q, _ = self.quantizer.quantize(latent.reshape(-1, self.d, self.w_h, self.w_h))
+		latent_q = self.quantizer.quantizer.quantize_fixed_space(latent.reshape(-1, self.d, self.w_h, self.w_h))
 		latent_q = latent_q.view(input.size(0), input.size(1), self.d, self.w_h, self.w_h)
-		
+		if not torch.isfinite(latent).all():
+			print("LSTM LATENT NAN")
+			raise RuntimeError()
 		return latent, latent_q, prop_out, reward, h
 	
 	def ar_forward(self, input:torch.Tensor, action:torch.Tensor, prop:torch.Tensor, h=None) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
@@ -218,6 +221,7 @@ class LSTMQuantized(nn.Module):
 
 	def train_rwm_style(self, loader:DataLoader, optim:Optimizer, init_len:int=3, err_decay:float=0.9, rew_weight:int=1) -> dict:
 		self.train()
+		self.quantizer.eval()
 		total_loss = 0
 		total_q_loss = 0
 		total_prop_loss = 0

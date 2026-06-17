@@ -1,3 +1,7 @@
+EXP_ID = 2
+LOG_NAME = f'res_{EXP_ID}'
+GPU_ID = f"{EXP_ID%4}" # window 2 - peg 3
+
 IMG_DIR = "imgs/"
 TRANSITIONS = "action_reward_data.json"
 MODELS_DIR = "models/"
@@ -37,7 +41,7 @@ PEG_DATA_DIT = "data/peg-insert/"
 PEG_INSERT = {
 	"env_name": "peg-insert-side-v3",
 	"img_dir": PEG_DATA_DIT + IMG_DIR,
-	"models": PEG_DATA_DIT + MODELS_DIR,
+	"models": PEG_DATA_DIT + MODELS_DIR + f"{EXP_ID}/",
 	"a_size": 4,
 	"render_size": 64,
 	"camera_id": 2,
@@ -84,9 +88,6 @@ WINDOW_OPEN = {
 }
 
 CURRENT_ENV = PEG_INSERT
-LOG_NAME = 'res_peg'
-GPU_ID = "3" # window 2 - peg 3
-EXP_ID = 0
 
 LATENT_DIM = 4
 CODE_DEPTH = 16
@@ -118,8 +119,8 @@ MAX_SEQ_LEN = INIT_LEN + 1
 DROPOUT = 0.0
 
 
-N_ROUNDS = 2995 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/1000
-PPO_STEPS = 100000
+N_ROUNDS = 3000 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/1000
+PPO_STEPS = 10000
 DREAM_LEN = 30
 PPO_LR = 0.0003
 ACTION_REPEAT = True
