@@ -101,7 +101,8 @@ class MetaWrapEnv(gym.Env):
 		representation = (self.current_latent.flatten()-self.mu)/self.std
 		
 		self.current_prop = torch.tensor(prop[:4], dtype=torch.float32).unsqueeze(0).unsqueeze(0)
-		representation = torch.cat([representation, self.hidden_state[0].flatten(), self.current_prop.flatten()], dim=-1)
+
+		representation = torch.cat([representation.cpu(), self.hidden_state[0].cpu().flatten(), self.current_prop.flatten()], dim=-1)
 		return representation.cpu().numpy(), {}
 
 	def step(self, action,) -> tuple:
@@ -128,14 +129,14 @@ class MetaWrapEnv(gym.Env):
 			_, lat, _ = self.vq.quantize(self.vq.encode(t_img))
 			
 			action_tensor = torch.tensor(action, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
-			_, _, _, _, h = self.dyn.forward(self.current_latent.unsqueeze(0).to(self.vq.device), action_tensor.to(self.vq.device), self.current_prop.unsqueeze(0).to(self.vq.device), self.hidden_state)
+			_, _, _, _, h = self.dyn.forward(self.current_latent.unsqueeze(0).to(self.vq.device), action_tensor.to(self.vq.device), self.current_prop.to(self.vq.device), self.hidden_state)
 			self.hidden_state = h
 			self.current_latent = lat
 			representation = (self.current_latent.flatten()-self.mu)/self.std
 			
 			self.current_render = img
 			self.current_prop = torch.tensor(prop, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
-			representation = torch.cat([representation, self.hidden_state[0].flatten(), self.current_prop.flatten()], dim=-1)
+			representation = torch.cat([representation.cpu(), self.hidden_state[0].cpu().flatten(), self.current_prop.flatten()], dim=-1)
 			if not torch.isfinite(representation).all():
 				print("OBS NAN")
 				raise RuntimeError()

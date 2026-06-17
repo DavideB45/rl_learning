@@ -46,7 +46,7 @@ class LSTMQuantized(nn.Module):
 		)
 		self.merge_fc = nn.Sequential(
 			nn.LayerNorm(hidden_dim*3),
-			nn.Linear(self.hidden_dim*2, hidden_dim*2),
+			nn.Linear(self.hidden_dim*3, hidden_dim*2),
 			nn.LeakyReLU(),
 			nn.LayerNorm(hidden_dim*2),
 			nn.Linear(self.hidden_dim*2, self.hidden_dim),
@@ -133,10 +133,12 @@ class LSTMQuantized(nn.Module):
 		:return: the predicted sequence before quantization | the predicted sequence quantized (Batch, Seq_len, Depth, Width, Height) |  the proprioception prediciton | the reward | the hidden state of the LSTM
 		:rtype: tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, tuple[torch.Tensor, torch.Tensor]]
 		'''
+		#print(action.shape, input.shape, prop.shape)
 		input = self.flatten_rep(input)
 		new_rep = self.rep_fc(input)
 		action = self.act_fc(action)
 		prop = self.pro_fc(prop)
+		#print(action.shape, new_rep.shape, prop.shape)
 		output = torch.cat([new_rep, action, prop], dim=-1)
 		skip_output = self.merge_fc(output) #(B, Seq_len, Hidden_dim)
 

@@ -2,7 +2,7 @@ import os
 import sys
 sys.path.insert(1, os.path.join(sys.path[0], '../'))
 from global_var import *
-if 'MUJOCO_GL' not in os.environ:
+if 'MUJOCO_GL' not in os.environ and False:
 	os.environ['MUJOCO_GL'] = 'egl'
 	os.environ['MUJOCO_EGL_DEVICE_ID'] = GPU_ID
 	os.environ['CUDA_VISIBLE_DEVICES'] = GPU_ID

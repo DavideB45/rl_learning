@@ -1,4 +1,4 @@
-EXP_ID = 2
+EXP_ID = 0
 LOG_NAME = f'res_{EXP_ID}'
 GPU_ID = f"{EXP_ID%4}" # window 2 - peg 3
 
@@ -13,7 +13,7 @@ BUTTON = {
 	"img_dir": BUTTON_DATA_DIR + IMG_DIR,
 	"models": BUTTON_DATA_DIR + MODELS_DIR,
 	"a_size": 4,
-	"render_size": 96,
+	"render_size": 64,
 	"camera_id": 1,
 }
 
@@ -124,4 +124,4 @@ PPO_STEPS = 10000
 DREAM_LEN = 30
 PPO_LR = 0.0003
 ACTION_REPEAT = True
-INIT_GATHER = 5000
+INIT_GATHER = 1000
