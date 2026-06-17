@@ -57,7 +57,7 @@ class MetaWrapEnv(gym.Env):
 			dtype=np.float32
 		)
 		self.observation_space = spaces.Box(
-			low=-np.inf, high=np.inf, shape=(self.vq_dim + self.dyn.hidden_dim,), dtype=np.float32
+			low=-np.inf, high=np.inf, shape=(self.vq_dim + self.dyn.hidden_dim + self.dyn.prop_dim,), dtype=np.float32
 		)
 		self.to_tensor_ = T.ToTensor()
 
@@ -99,9 +99,9 @@ class MetaWrapEnv(gym.Env):
 		
 		self.current_latent = lat
 		representation = (self.current_latent.flatten()-self.mu)/self.std
-		representation = torch.cat([representation, self.hidden_state[0].flatten()], dim=-1)
 		
 		self.current_prop = torch.tensor(prop[:4], dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+		representation = torch.cat([representation, self.hidden_state[0].flatten(), self.current_prop.flatten()], dim=-1)
 		return representation.cpu().numpy(), {}
 
 	def step(self, action,) -> tuple:
@@ -133,9 +133,9 @@ class MetaWrapEnv(gym.Env):
 			self.current_latent = lat
 			representation = (self.current_latent.flatten()-self.mu)/self.std
 			
-			representation = torch.cat([representation, self.hidden_state[0].flatten()], dim=-1)
 			self.current_render = img
 			self.current_prop = torch.tensor(prop, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+			representation = torch.cat([representation, self.hidden_state[0].flatten(), self.current_prop.flatten()], dim=-1)
 			if not torch.isfinite(representation).all():
 				print("OBS NAN")
 				raise RuntimeError()

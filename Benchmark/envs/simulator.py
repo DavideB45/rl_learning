@@ -45,7 +45,7 @@ class MetaDreamEnv(VecEnv):
 
 		self.observation_space = spaces.Box(
 			low=-np.inf, high=np.inf, 
-			shape=(self.vq_dim + self.dyn.hidden_dim,), 
+			shape=(self.vq_dim + self.dyn.hidden_dim + self.dyn.prop_dim,), 
 			dtype=np.float32
 		)
 		self.action_space = spaces.Box(
@@ -81,7 +81,7 @@ class MetaDreamEnv(VecEnv):
 			self.current_latent = pred[:, -1, :, :, :]
 			latent_flat = (self.current_latent.reshape(self.num_envs, -1)-self.mu)/self.std
 			self.current_prop = prop[:, -1, :]
-			representation = torch.cat([latent_flat, hidden_flat], dim=-1)
+			representation = torch.cat([latent_flat, hidden_flat, self.current_prop.reshape(self.num_envs, -1)], dim=-1)
 		self.step_count = 0
 		return representation.cpu().numpy()
 
@@ -119,7 +119,7 @@ class MetaDreamEnv(VecEnv):
 				raise RuntimeError()
 			self.current_latent = pred[:, -1, :, :, :]
 			self.current_prop = prop[:, -1, :]
-			representation = torch.cat([latent_flat, hidden_flat], dim=-1)
+			representation = torch.cat([latent_flat, hidden_flat, self.current_prop.reshape(self.num_envs, -1)], dim=-1)
 
 			self.step_count += 1
 			terminateds = np.array([self.step_count >= self.max_len] * self.num_envs, dtype=bool)

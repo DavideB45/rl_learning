@@ -87,7 +87,7 @@ WINDOW_OPEN = {
 	"camera_id": 2,
 }
 
-CURRENT_ENV = PEG_INSERT
+CURRENT_ENV = BUTTON
 
 LATENT_DIM = 4
 CODE_DEPTH = 16
@@ -119,7 +119,7 @@ MAX_SEQ_LEN = INIT_LEN + 1
 DROPOUT = 0.0
 
 
-N_ROUNDS = 3000 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/1000
+N_ROUNDS = 500 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/1000
 PPO_STEPS = 10000
 DREAM_LEN = 30
 PPO_LR = 0.0003

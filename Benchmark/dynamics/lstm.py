@@ -19,6 +19,7 @@ class LSTMQuantized(nn.Module):
 		self.d = quantizer.code_depth
 		self.latent_dim = self.w_h*self.w_h*self.d
 		self.action_dim = action_dim
+		self.prop_dim = prop_dim
 		self.hidden_dim = hidden_dim
 		self.quantizer = quantizer
 
@@ -44,7 +45,7 @@ class LSTMQuantized(nn.Module):
 			nn.LeakyReLU(),
 		)
 		self.merge_fc = nn.Sequential(
-			nn.LayerNorm(hidden_dim*2),
+			nn.LayerNorm(hidden_dim*3),
 			nn.Linear(self.hidden_dim*2, hidden_dim*2),
 			nn.LeakyReLU(),
 			nn.LayerNorm(hidden_dim*2),
@@ -136,7 +137,7 @@ class LSTMQuantized(nn.Module):
 		new_rep = self.rep_fc(input)
 		action = self.act_fc(action)
 		prop = self.pro_fc(prop)
-		output = torch.cat([new_rep, action], dim=-1)
+		output = torch.cat([new_rep, action, prop], dim=-1)
 		skip_output = self.merge_fc(output) #(B, Seq_len, Hidden_dim)
 
 		if h is None:
@@ -146,7 +147,7 @@ class LSTMQuantized(nn.Module):
 		output = output + skip_output #(B, Seq_len, Hidden_dim)
 		latent = self.out_fc(output) #(B, Seq_len, Height*Width*Depth)
 		latent = self.unflatten_rep(latent, input.size(1)) # (B, Seq_len, Depth, Height, Width)
-		prop_out = self.out_prop_fc(output.detach()) #(B, Seq_len, Prop_dim)
+		prop_out = self.out_prop_fc(output) #(B, Seq_len, Prop_dim)
 		reward = self.out_reward(output)
 		
 		latent_q = self.quantizer.quantizer.quantize_fixed_space(latent.reshape(-1, self.d, self.w_h, self.w_h))
@@ -231,7 +232,7 @@ class LSTMQuantized(nn.Module):
 		for batch in loader:
 			latent = batch['latent'].to(self.device).detach()
 			action = batch['action'].to(self.device).detach()
-			proprioception = batch['proprioception'].to(self.device)
+			proprioception = batch['proprioception'].to(self.device) # check the shapes
 			rewards_target = batch['reward'].to(self.device)
 			optim.zero_grad()
 
