@@ -18,11 +18,8 @@ if __name__ == "__main__":
 	truncated = False
 	while not (terminated or truncated):
 		action = env.action_space.sample()
-		action[3] = 1
-		action[2] = -1
-		action[1] = -1
 		obs, reward, terminated, truncated, info = env.step(action)
-		print(obs)
+		print(obs[4:8], reward)
 		env.render()
 		time.sleep(0.1)
 		
