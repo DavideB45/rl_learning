@@ -48,7 +48,7 @@ def main():
 
 	start_time = time.time()
 	vq = VQVAE(CODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM, 0.25, best_device(), True)
-	lstm = LSTMQuantized(vq, best_device(), CURRENT_ENV['a_size'], 4, HIDDEN_DIM)
+	lstm = LSTMQuantized(vq, best_device(), CURRENT_ENV['a_size'], PROP_SIZE, HIDDEN_DIM)
 	agent = None
 	with open(LOG_NAME + '.csv', 'w') as f:
 			f.write(f'mrew,success,space,max_space,min_space,std\n')

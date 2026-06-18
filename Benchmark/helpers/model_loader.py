@@ -4,6 +4,7 @@ sys.path.insert(1, os.path.join(sys.path[0], '../'))
 
 from vae.vqVae import VQVAE
 from dynamics.lstm import LSTMQuantized
+from global_var import PROP_SIZE
 
 import torch
 
@@ -28,7 +29,7 @@ def load_lstm_quantized(env:dict, vq:VQVAE, device:torch.device, hidden_dim:int,
 	if cl:
 		raise RuntimeError("Classifier lstm are not available in this version of the code")
 	else:
-		model = LSTMQuantized(vq, device, env['a_size'], 4, hidden_dim)
+		model = LSTMQuantized(vq, device, env['a_size'], PROP_SIZE, hidden_dim)
 	d = vq.code_depth
 	w_h = vq.latent_dim
 	s = vq.codebook_size

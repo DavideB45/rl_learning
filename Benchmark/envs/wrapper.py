@@ -100,7 +100,7 @@ class MetaWrapEnv(gym.Env):
 		self.current_latent = lat
 		representation = (self.current_latent.flatten()-self.mu)/self.std
 		
-		self.current_prop = torch.tensor(prop[:4], dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+		self.current_prop = torch.tensor(prop[:PROP_SIZE], dtype=torch.float32).unsqueeze(0).unsqueeze(0)
 
 		representation = torch.cat([representation.cpu(), self.hidden_state[0].cpu().flatten(), self.current_prop.flatten()], dim=-1)
 		return representation.cpu().numpy(), {}
@@ -122,7 +122,7 @@ class MetaWrapEnv(gym.Env):
 		if not (terminated or truncated) and ACTION_REPEAT:
 			prop, reward_, terminated, truncated, info = self.env.step(action)
 			reward += reward_
-		prop = prop[0:4]
+		prop = prop[0:PROP_SIZE]
 		img = self.get_img()
 		with torch.no_grad():
 			t_img = self.to_tensor_(img).unsqueeze(0).to(self.vq.device)
@@ -309,7 +309,7 @@ if __name__ == "__main__":
 		else:
 			action, _states = agent.predict(observation, deterministic=True)
 		observation, reward, terminated, truncated, info = env.step(action)
-		print(f"Step {step_count} Reward: {reward} | action: {action}")
+		print(f"Step {step_count} Reward: {reward} | action: {action} | obs: {observation}")
 		if(info['success'] == 1):
 			print(f'Win!! Total Reward: {total_reward}')
 			#break
