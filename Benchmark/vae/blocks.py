@@ -147,8 +147,7 @@ class VectorQuantizer(nn.Module):
 		flat_z = z.view(-1, 1, self.embedding_dim)
 		distances = (flat_z - self.embedding.weight.unsqueeze(0)).pow(2).mean(2)
 		encoding_indices = torch.argmin(distances, dim=1).unsqueeze(1)
-		quantized = self.embedding(encoding_indices).view(input_shape)
-		quantized = z + (quantized - z).detach()
+		quantized = self.embedding(encoding_indices).view(input_shape).detach()
 		return quantized.permute(0, 3, 1, 2).contiguous()
 
 	def get_index_probabilities(self, x: torch.Tensor) -> torch.Tensor:
