@@ -204,7 +204,7 @@ def generate_data(vq:VQVAE, lstm:LSTMQuantized | TransformerArc, n_sample:int=10
 		os.makedirs(CURRENT_ENV['models'])
 		
 	env = MetaWrapEnv(vq, lstm)
-	obs, _ = env.reset(seed=0)
+	obs, _ = env.reset()
 	step = 0
 	episode = len(actions)
 	print(episode)
