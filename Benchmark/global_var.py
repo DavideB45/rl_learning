@@ -97,7 +97,7 @@ VQ_EPOCS = 20 # used in learning loop for the initial training, then 1 epoch for
 VQ_LR = 1e-3
 VQ_WD = 0.001
 
-EP_ON_LOOP = 30
+EP_ON_LOOP = 20
 
 SEQ_LEN = 25
 INIT_LEN = 10
@@ -111,8 +111,8 @@ LSTM_WD = 1e-3
 PROP_SIZE = 8
 
 
-N_ROUNDS = 3000 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/1000
-PPO_STEPS = 40000
+N_ROUNDS = 400 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/1000
+PPO_STEPS = 100000
 DREAM_LEN = 30
 PPO_LR = 0.0003
 ACTION_REPEAT = True
