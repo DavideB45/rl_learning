@@ -239,7 +239,7 @@ class LSTMQuantized(nn.Module):
 			optim.zero_grad()
 
 			_, _, _, _, h = self.forward(latent[:, 0:init_len, :, :, :], action[:, 0:init_len :], proprioception[:, 0:init_len, :])
-			output, q_output, prop_out, rewards, _ = self.ar_forward(latent[:, init_len:init_len+1, :, :, :], action[:, init_len:, :], proprioception[:, init_len+1], h)
+			output, q_output, prop_out, rewards, _ = self.ar_forward(latent[:, init_len:init_len+1, :, :, :], action[:, init_len:, :], proprioception[:, init_len+1:init_len+2], h)
 			
 			lat_loss = weighted_mse(latent[:, init_len + 1:, :, :, :], output, err_decay)
 			prop_loss = weighted_mse(proprioception[:, init_len + 1:, :], prop_out, err_decay)
@@ -284,7 +284,7 @@ class LSTMQuantized(nn.Module):
 			rewards_target = batch['reward'].to(self.device)
 			
 			_, _, _, _, h = self.forward(latent[:, 0:init_len, :, :, :], action[:, 0:init_len, :], proprioception[:, 0:init_len, :])
-			output, q_output, prop_output, rewards, _ = self.ar_forward(latent[:, init_len:init_len + 1, :, :, :], action[:, init_len:, :], proprioception[:, init_len+1], h)
+			output, q_output, prop_output, rewards, _ = self.ar_forward(latent[:, init_len:init_len + 1, :, :, :], action[:, init_len:, :], proprioception[:, init_len+1:init_len+2], h)
 			total_q_loss += weighted_mse(latent[:, init_len + 1:, :, :, :], q_output, err_decay).item()
 			total_loss += weighted_mse(latent[:, init_len + 1:, :, :, :], output, err_decay).item()
 			total_prop_loss += weighted_mse(proprioception[:, init_len + 1:, :], prop_output, err_decay).item()

@@ -1,4 +1,4 @@
-EXP_ID = 0
+EXP_ID = 3
 LOG_NAME = f'res_{EXP_ID}'
 GPU_ID = f"{EXP_ID%4}" # window 2 - peg 3
 
@@ -87,7 +87,7 @@ WINDOW_OPEN = {
 	"camera_id": 2,
 }
 
-CURRENT_ENV = BUTTON
+CURRENT_ENV = PEG_INSERT
 
 LATENT_DIM = 4
 CODE_DEPTH = 16
@@ -97,7 +97,7 @@ VQ_EPOCS = 20 # used in learning loop for the initial training, then 1 epoch for
 VQ_LR = 1e-3
 VQ_WD = 0.001
 
-EP_ON_LOOP = 20
+EP_ON_LOOP = 40
 
 SEQ_LEN = 25
 INIT_LEN = 10
@@ -108,20 +108,12 @@ HIDDEN_DIM = 1024
 LSTM_EPOCS = 2 # used in learning loop for the initial training, then 1 epoch for each round
 LSTM_LR = 5e-5
 LSTM_WD = 1e-3
-
-TR_EPOCHS = 10
-TR_LR = 1e-4
-TR_WD = 1e-3
-EMB_SIZE = 128
-NUM_HEADS = 8
-NUM_LAYERS = 4
-MAX_SEQ_LEN = INIT_LEN + 1
-DROPOUT = 0.0
+PROP_SIZE = 8
 
 
-N_ROUNDS = 500 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/1000
-PPO_STEPS = 10000
+N_ROUNDS = 3000 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/1000
+PPO_STEPS = 30000
 DREAM_LEN = 30
 PPO_LR = 0.0003
 ACTION_REPEAT = True
-INIT_GATHER = 1000
+INIT_GATHER = 5000
