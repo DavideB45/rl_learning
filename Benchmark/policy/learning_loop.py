@@ -82,16 +82,16 @@ def main():
 		agent_training_time += time.time()
 
 		collecting_time -= time.time()
-		rew, succ = evaluate_gathering(vq, lstm, n_sample=250 if ACTION_REPEAT else 500, policy=agent, training_set=True, round=EXP_ID)
+		generate_data(vq, lstm, n_sample=250 if ACTION_REPEAT else 500, policy=agent, training_set=True, round=EXP_ID)
 		if round % 10 == 0:
-			generate_data(vq, lstm, n_sample=500 if ACTION_REPEAT else 1000, policy=agent, training_set=False, round=EXP_ID)
-		print(f"Average reward: {(sum(rew) / len(rew)):.2f}, Success rate: {(sum(succ) / len(succ)):.2%}")
-		with open(LOG_NAME + '.csv', 'a') as f:
-			for i in range(len(rew)):
-				f.write(f'{rew[i]:.3f},{succ[i]},{torch.mean(torch.abs(vq.quantizer.embedding.weight.data)):.3f},{torch.max(vq.quantizer.embedding.weight.data):.3f},{torch.min(vq.quantizer.embedding.weight.data):.3f},{torch.std(vq.quantizer.embedding.weight.data):.5f}\n')
-				if not torch.isfinite(torch.mean(torch.abs(vq.quantizer.embedding.weight.data))):
-					print("Found nan for the first time in the main loop")
-					exit()
+			rew, succ = evaluate_gathering(vq, lstm, n_sample=(250 if ACTION_REPEAT else 500)*10, policy=agent, training_set=False, round=EXP_ID)
+			print(f"Average reward: {(sum(rew) / len(rew)):.2f}, Success rate: {(sum(succ) / len(succ)):.2%}")
+			with open(LOG_NAME + '.csv', 'a') as f:
+				for i in range(len(rew)):
+					f.write(f'{rew[i]:.3f},{succ[i]},{torch.mean(torch.abs(vq.quantizer.embedding.weight.data)):.3f},{torch.max(vq.quantizer.embedding.weight.data):.3f},{torch.min(vq.quantizer.embedding.weight.data):.3f},{torch.std(vq.quantizer.embedding.weight.data):.5f}\n')
+					if not torch.isfinite(torch.mean(torch.abs(vq.quantizer.embedding.weight.data))):
+						print("Found nan for the first time in the main loop")
+						exit()
 		collecting_time += time.time()
 
 		print(f"\033[1;31m--- {time.strftime('%H:%M:%S', time.gmtime(time.time()-start_time))} ---\033[0m")
