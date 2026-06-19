@@ -5,8 +5,8 @@ import glob
 import os
 
 # ==== CONFIG ====
-ROOT_FOLDER = "./data/button-press-td/full_experiments"
-EVAL_EPISODES = 5
+ROOT_FOLDER = "./data/button-press/full_experiments"
+EVAL_EPISODES = 10
 EVAL_FREQUENCY = 5000
 
 BOOTSTRAP_SAMPLES = 5000
@@ -179,7 +179,7 @@ def main():
 	# ==========================================================
 	plt.xlabel("Environment Steps", fontsize=14)
 	plt.ylabel("Success Rate", fontsize=14)
-	plt.title("Drawer Open Success Rate\n(Mean with Bootstrap 95% CI)",fontsize=16)
+	plt.title("Button Press Success Rate\n(Mean with Bootstrap 95% CI)",fontsize=16)
 	plt.legend(fontsize=11)
 	plt.grid(True, alpha=0.3)
 	plt.ylim(0, 1)
