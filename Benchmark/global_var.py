@@ -11,7 +11,7 @@ BUTTON_DATA_DIR = "data/button-press/"
 BUTTON = {
 	"env_name": "button-press-v3",
 	"img_dir": BUTTON_DATA_DIR + IMG_DIR,
-	"models": BUTTON_DATA_DIR + MODELS_DIR,
+	"models": BUTTON_DATA_DIR + MODELS_DIR + f"{EXP_ID}/",
 	"a_size": 4,
 	"render_size": 64,
 	"camera_id": 1,
@@ -21,9 +21,9 @@ PUSH_DATA_DIR = "data/push/"
 PUSH = {
 	"env_name": "push-v3",
 	"img_dir": PUSH_DATA_DIR + IMG_DIR,
-	"models": PUSH_DATA_DIR + MODELS_DIR,
+	"models": PUSH_DATA_DIR + MODELS_DIR + f"{EXP_ID}/",
 	"a_size": 4,
-	"render_size": 96,
+	"render_size": 64,
 	"camera_id": 2,
 }
 
@@ -31,7 +31,7 @@ DRAWERO_DATA_DIR = "data/drawer-open/"
 DRAWER_OPEN = {
 	"env_name": "drawer-open-v3",
 	"img_dir": DRAWERO_DATA_DIR + IMG_DIR,
-	"models": DRAWERO_DATA_DIR + MODELS_DIR,
+	"models": DRAWERO_DATA_DIR + MODELS_DIR + f"{EXP_ID}/",
 	"a_size": 4,
 	"render_size": 64,
 	"camera_id": 2,
@@ -51,9 +51,9 @@ HAMMER_DATA_DIR = "data/hammer/"
 HAMMER = {
 	"env_name": "hammer-v3",
 	"img_dir": HAMMER_DATA_DIR + IMG_DIR,
-	"models": HAMMER_DATA_DIR + MODELS_DIR,
+	"models": HAMMER_DATA_DIR + MODELS_DIR + f"{EXP_ID}/",
 	"a_size": 4,
-	"render_size": 96,
+	"render_size": 64,
 	"camera_id": 2,
 }
 
@@ -61,9 +61,9 @@ PICKB_DATA_DIR = "data/bin-pick/"
 PICK_BIN = {
 	"env_name": "bin-picking-v3",
 	"img_dir": PICKB_DATA_DIR + IMG_DIR,
-	"models": PICKB_DATA_DIR + MODELS_DIR,
+	"models": PICKB_DATA_DIR + MODELS_DIR + f"{EXP_ID}/",
 	"a_size": 4,
-	"render_size": 96,
+	"render_size": 64,
 	"camera_id": 2,
 }
 
@@ -71,9 +71,9 @@ PICKP_DATA_DIR = "data/pick-place/"
 PICK_PLACE = {
 	"env_name": "pick-place-v3",
 	"img_dir": PICKP_DATA_DIR + IMG_DIR,
-	"models": PICKP_DATA_DIR + MODELS_DIR,
+	"models": PICKP_DATA_DIR + MODELS_DIR + f"{EXP_ID}/",
 	"a_size": 4,
-	"render_size": 96,
+	"render_size": 64,
 	"camera_id": 2,
 }
 
@@ -81,13 +81,13 @@ WINDOWO_DATA_DIR = "data/window-open/"
 WINDOW_OPEN = {
 	"env_name": "window-open-v3",
 	"img_dir": WINDOWO_DATA_DIR + IMG_DIR,
-	"models": WINDOWO_DATA_DIR + MODELS_DIR,
+	"models": WINDOWO_DATA_DIR + MODELS_DIR + f"{EXP_ID}/",
 	"a_size": 4,
 	"render_size": 64,
 	"camera_id": 2,
 }
 
-CURRENT_ENV = BUTTON
+CURRENT_ENV = DRAWER_OPEN
 
 LATENT_DIM = 4
 CODE_DEPTH = 16
@@ -111,7 +111,7 @@ LSTM_WD = 1e-3
 PROP_SIZE = 8
 
 
-N_ROUNDS = 400 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/1000
+N_ROUNDS = 1000 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/1000
 PPO_STEPS = 100000
 DREAM_LEN = 30
 PPO_LR = 0.0003
