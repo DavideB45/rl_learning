@@ -51,9 +51,9 @@ HAMMER_DATA_DIR = "data/hammer/"
 HAMMER = {
 	"env_name": "hammer-v3",
 	"img_dir": HAMMER_DATA_DIR + IMG_DIR,
-	"models": HAMMER_DATA_DIR + MODELS_DIR,
+	"models": HAMMER_DATA_DIR + MODELS_DIR + f"{EXP_ID}/",
 	"a_size": 4,
-	"render_size": 96,
+	"render_size": 64,
 	"camera_id": 2,
 }
 
