@@ -5,7 +5,7 @@ import glob
 import os
 
 # ==== CONFIG ====
-ROOT_FOLDER = "./data/button-press/full_experiments"
+ROOT_FOLDER = "./data/drawer-open/full_experiments"
 EVAL_EPISODES = 10
 EVAL_FREQUENCY = 5000
 
@@ -134,10 +134,10 @@ def main():
 	# ==========================================================
 	for folder in [
 		#"default",
-		#"no_mask",
+		"no_mask",
 		"models",
 		"contraction_loss",
-		#"no_kl",
+		"no_kl",
 		"no_kl_no_rew",
 		"no_reward",
 		"no_ds",
@@ -179,7 +179,7 @@ def main():
 	# ==========================================================
 	plt.xlabel("Environment Steps", fontsize=14)
 	plt.ylabel("Success Rate", fontsize=14)
-	plt.title("Button Press Success Rate\n(Mean with Bootstrap 95% CI)",fontsize=16)
+	plt.title("Drawer Open Success Rate\n(Mean with Bootstrap 95% CI)",fontsize=16)
 	plt.legend(fontsize=11)
 	plt.grid(True, alpha=0.3)
 	plt.ylim(0, 1)
