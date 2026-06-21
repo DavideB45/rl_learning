@@ -1,4 +1,4 @@
-EXP_ID = 3
+EXP_ID = 7
 LOG_NAME = f'res_{EXP_ID}'
 GPU_ID = f"{EXP_ID%4}" # window 2 - peg 3
 
@@ -87,7 +87,7 @@ WINDOW_OPEN = {
 	"camera_id": 2,
 }
 
-CURRENT_ENV = DRAWER_OPEN
+CURRENT_ENV = WINDOW_OPEN
 
 LATENT_DIM = 4
 CODE_DEPTH = 16

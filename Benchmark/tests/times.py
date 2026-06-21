@@ -17,11 +17,11 @@ if __name__ == '__main__':
 	"agent_training_time": 7343.691750526428
 	}
 	times = {
- "collecting_time": 23854.321676015854,
- "vq_training_time": 9808.06747674942,
- "lstm_training_time": 22046.566100358963,
- "dataset_generation_time": 19469.181207180023,
- "agent_training_time": 45044.86441373825
+ "collecting_time": 9111.88158750534,
+ "vq_training_time": 3857.5122294425964,
+ "lstm_training_time": 11892.542912721634,
+ "dataset_generation_time": 7641.496007680893,
+ "agent_training_time": 24671.919432640076
 }
 	for key in times:
 		tot += times[key]
