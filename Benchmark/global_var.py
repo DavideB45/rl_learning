@@ -1,4 +1,4 @@
-EXP_ID = 7
+EXP_ID = 3
 LOG_NAME = f'res_{EXP_ID}'
 GPU_ID = f"{EXP_ID%4}" # window 2 - peg 3
 
@@ -15,6 +15,16 @@ BUTTON = {
 	"a_size": 4,
 	"render_size": 64,
 	"camera_id": 1,
+}
+
+BUTTON_TD_DATA_DIR = "data/button-press-td/"
+BUTTON_TD = {
+	"env_name": "button-press-topdown-v3",
+	"img_dir": BUTTON_TD_DATA_DIR + IMG_DIR,
+	"models": BUTTON_TD_DATA_DIR + MODELS_DIR + f"{EXP_ID}/",
+	"a_size": 4,
+	"render_size": 64,
+	"camera_id": 2,
 }
 
 PUSH_DATA_DIR = "data/push/"
@@ -87,7 +97,7 @@ WINDOW_OPEN = {
 	"camera_id": 2,
 }
 
-CURRENT_ENV = WINDOW_OPEN
+CURRENT_ENV = BUTTON_TD
 
 LATENT_DIM = 4
 CODE_DEPTH = 16
@@ -111,7 +121,7 @@ LSTM_WD = 1e-3
 PROP_SIZE = 8
 
 
-N_ROUNDS = 1000 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/1000
+N_ROUNDS = 400 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/1000
 PPO_STEPS = 100000
 DREAM_LEN = 30
 PPO_LR = 0.0003
