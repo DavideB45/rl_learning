@@ -30,8 +30,8 @@ SMOOTHING = True if SMOOTH > 0 else False
 # PPO RELATED PARAMETERS
 policy_kwargs = dict(
 	net_arch=dict(
-		pi=[2048, 1024, 512],   # policy network layers
-		vf=[2048, 1024, 512]    # value network layers
+		pi=[1024, 1024, 1024],   # policy network layers
+		vf=[1024, 1024, 1024]    # value network layers
 	),
 	ortho_init=True
 )
