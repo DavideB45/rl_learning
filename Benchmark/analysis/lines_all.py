@@ -11,7 +11,7 @@ EVAL_FREQUENCY = 5000
 
 BOOTSTRAP_SAMPLES = 5000
 CONFIDENCE_INTERVAL = 95
-SMOOTH_WINDOW = 3
+SMOOTH_WINDOW = 5
 # =================
 
 
@@ -136,7 +136,7 @@ def main():
 		#"default",
 		"no_mask",
 		"models",
-		"contraction_loss",
+		#"contraction_loss",
 		"no_kl",
 		"no_kl_no_rew",
 		"no_reward",

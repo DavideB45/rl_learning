@@ -1,4 +1,4 @@
-EXP_ID = 3
+EXP_ID = 2
 LOG_NAME = f'res_{EXP_ID}'
 GPU_ID = f"{EXP_ID%4}" # window 2 - peg 3
 
