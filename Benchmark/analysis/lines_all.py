@@ -5,7 +5,7 @@ import glob
 import os
 
 # ==== CONFIG ====
-ROOT_FOLDER = "./data/drawer-open/full_experiments"
+ROOT_FOLDER = "./data/button-press/full_experiments"
 EVAL_EPISODES = 10
 EVAL_FREQUENCY = 5000
 
@@ -32,6 +32,10 @@ def bootstrap_ci(data, n_bootstrap=5000, ci=95):
 	-------
 	mean, lower, upper
 	"""
+	# if len(data) > 2:
+	# 	data = np.sort(data)
+	# 	data = data[1:-1]
+	print(data)
 	data = np.array(data, dtype=float)
 	data = data[~np.isnan(data)]
 	bootstrap_means = []
@@ -70,15 +74,16 @@ def process_algorithm(folder_path):
 	# ==========================================================
 	# Remove best and worst runs (optional)
 	# ==========================================================
-	# avgs = [run_df.iloc[:, 1].mean() for run_df in runs]
-	# min_idx = avgs.index(min(avgs))
-	# max_idx = avgs.index(max(avgs))
-	# if len(runs) > 2:
-	# 	if min_idx != max_idx:
-	# 		runs.pop(max(min_idx, max_idx))
-	# 		runs.pop(min(min_idx, max_idx))
-	# 	else:
-	# 		runs.pop(min_idx)
+	avgs = [run_df.iloc[:, 1].mean() for run_df in runs]
+	min_idx = avgs.index(min(avgs))
+	max_idx = avgs.index(max(avgs))
+	if len(runs) > 2:
+		if min_idx != max_idx:
+			runs.pop(max(min_idx, max_idx))
+			runs.pop(min(min_idx, max_idx))
+			#remove best and worst but per step ( so when sampling)
+		else:
+			runs.pop(min_idx)
 
 	# ==========================================================
 	# Merge all runs

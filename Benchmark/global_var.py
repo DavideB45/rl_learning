@@ -1,4 +1,4 @@
-EXP_ID = 2
+EXP_ID = 3
 LOG_NAME = f'res_{EXP_ID}'
 GPU_ID = f"{EXP_ID%4}" # window 2 - peg 3
 
@@ -67,7 +67,7 @@ WINDOW_OPEN = {
 	"camera_id": 2,
 }
 
-CURRENT_ENV = DRAWER_OPEN
+CURRENT_ENV = BUTTON_TD
 
 LATENT_DIM = 4
 CODE_DEPTH = 16
@@ -99,7 +99,7 @@ MAX_SEQ_LEN = INIT_LEN + 1
 DROPOUT = 0.0
 
 
-N_ROUNDS = 1000 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/500
+N_ROUNDS = 400 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/500
 PPO_STEPS = 100000
 DREAM_LEN = 30
 PPO_LR = 0.0003
