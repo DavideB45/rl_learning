@@ -97,7 +97,7 @@ WINDOW_OPEN = {
 	"camera_id": 2,
 }
 
-CURRENT_ENV = DRAWER_OPEN
+CURRENT_ENV = BUTTON
 
 LATENT_DIM = 4
 CODE_DEPTH = 16
@@ -121,7 +121,7 @@ LSTM_WD = 1e-3
 PROP_SIZE = 8
 
 
-N_ROUNDS = 1000 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/1000
+N_ROUNDS = 400 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/1000
 PPO_STEPS = 100000
 DREAM_LEN = 30
 PPO_LR = 0.0003
