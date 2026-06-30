@@ -5,13 +5,14 @@ import glob
 import os
 
 # ==== CONFIG ====
-ROOT_FOLDER = "./data/button-press/full_experiments"
+NAME='window-open'
+ROOT_FOLDER = f"./data/{NAME}/full_experiments"
 EVAL_EPISODES = 10
 EVAL_FREQUENCY = 5000
 
 BOOTSTRAP_SAMPLES = 5000
 CONFIDENCE_INTERVAL = 95
-SMOOTH_WINDOW = 5
+SMOOTH_WINDOW = 3
 # =================
 
 
@@ -32,9 +33,9 @@ def bootstrap_ci(data, n_bootstrap=5000, ci=95):
 	-------
 	mean, lower, upper
 	"""
-	# if len(data) > 2:
-	# 	data = np.sort(data)
-	# 	data = data[1:-1]
+	if len(data) > 2:
+		data = np.sort(data)
+		data = data[1:-1]
 	print(data)
 	data = np.array(data, dtype=float)
 	data = data[~np.isnan(data)]
@@ -74,16 +75,16 @@ def process_algorithm(folder_path):
 	# ==========================================================
 	# Remove best and worst runs (optional)
 	# ==========================================================
-	avgs = [run_df.iloc[:, 1].mean() for run_df in runs]
-	min_idx = avgs.index(min(avgs))
-	max_idx = avgs.index(max(avgs))
-	if len(runs) > 2:
-		if min_idx != max_idx:
-			runs.pop(max(min_idx, max_idx))
-			runs.pop(min(min_idx, max_idx))
-			#remove best and worst but per step ( so when sampling)
-		else:
-			runs.pop(min_idx)
+	# avgs = [run_df.iloc[:, 1].mean() for run_df in runs]
+	# min_idx = avgs.index(min(avgs))
+	# max_idx = avgs.index(max(avgs))
+	# if len(runs) > 2:
+	# 	if min_idx != max_idx:
+	# 		runs.pop(max(min_idx, max_idx))
+	# 		runs.pop(min(min_idx, max_idx))
+	# 		#remove best and worst but per step ( so when sampling)
+	# 	else:
+	# 		runs.pop(min_idx)
 
 	# ==========================================================
 	# Merge all runs
@@ -142,7 +143,7 @@ def main():
 		"no_mask",
 		"models",
 		#"contraction_loss",
-		"no_kl",
+		#"no_kl",
 		"no_kl_no_rew",
 		"no_reward",
 		"no_ds",
@@ -184,12 +185,12 @@ def main():
 	# ==========================================================
 	plt.xlabel("Environment Steps", fontsize=14)
 	plt.ylabel("Success Rate", fontsize=14)
-	plt.title("Drawer Open Success Rate\n(Mean with Bootstrap 95% CI)",fontsize=16)
+	plt.title(f"{NAME.replace('-', ' ').title()} Success Rate\n(Mean with Bootstrap 95% CI)",fontsize=16)
 	plt.legend(fontsize=11)
 	plt.grid(True, alpha=0.3)
 	plt.ylim(0, 1)
 	plt.tight_layout()
-	plt.savefig('fig_all.png', dpi=400)
+	plt.savefig(f'all_{NAME}.png', dpi=400)
 
 
 if __name__ == "__main__":
