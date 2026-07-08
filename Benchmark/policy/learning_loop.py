@@ -30,8 +30,8 @@ SMOOTHING = True if SMOOTH > 0 else False
 # PPO RELATED PARAMETERS
 policy_kwargs = dict(
 	net_arch=dict(
-		pi=[1024, 1024, 1024],   # policy network layers
-		vf=[1024, 1024, 1024]    # value network layers
+		pi=[1024, 512, 256],   # policy network layers
+		vf=[1024, 512, 256]    # value network layers
 	),
 	ortho_init=True
 )
@@ -157,7 +157,7 @@ def tune_lstm(model: LSTMQuantized, tr:DataLoader, vl:DataLoader, encoder: VQVAE
 	
 def tune_agent(agent:PPO, env:MetaDreamEnv, num_steps:int=100000) -> PPO:
 	if agent is None:
-		agent = PPO(MlpPolicy, env, policy_kwargs=policy_kwargs, n_steps=500, batch_size=1000, learning_rate=PPO_LR, ent_coef=0.01, sde_sample_freq=10, use_sde=True)
+		agent = PPO(MlpPolicy, env, policy_kwargs=policy_kwargs, n_steps=500, batch_size=1000, clip_range=PPO_CLIP, clip_range_vf=PPO_VF_CLIP, max_grad_norm=PPO_MAX_G_NORM, target_kl=PPO_KL,learning_rate=PPO_LR, ent_coef=0.01, sde_sample_freq=10, use_sde=True)
 	else:
 		agent = PPO.load(CURRENT_ENV['models'] + 'agent' + f'{EXP_ID}', env)
 	agent = agent.learn(num_steps, progress_bar=False, reset_num_timesteps=False)
