@@ -1,4 +1,4 @@
-EXP_ID = 7
+EXP_ID = 2
 LOG_NAME = f'res_{EXP_ID}'
 GPU_ID = f"{EXP_ID%4}" # window 2 - peg 3
 
@@ -103,5 +103,6 @@ N_ROUNDS = 1000 # starts with INIT_GATHER interacitons, then add 500 each round,
 PPO_STEPS = 100000
 DREAM_LEN = 30
 PPO_LR = 0.0003
+PPO_KL = 0.03
 ACTION_REPEAT = True
 INIT_GATHER = 5000
