@@ -12,6 +12,7 @@ legacy/
 Benchmark/data/*
 Benchmark/*.out
 Benchmark/*.csv
+Benchmark/tmp
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
