@@ -1,4 +1,4 @@
-EXP_ID = 7
+EXP_ID = 3
 LOG_NAME = f'res_{EXP_ID}'
 GPU_ID = f"{EXP_ID%4}" # window 2 - peg 3
 
@@ -97,7 +97,7 @@ WINDOW_OPEN = {
 	"camera_id": 2,
 }
 
-CURRENT_ENV = BUTTON_TD
+CURRENT_ENV = PEG_INSERT
 
 LATENT_DIM = 4
 CODE_DEPTH = 16
@@ -121,7 +121,7 @@ LSTM_WD = 1e-3
 PROP_SIZE = 8
 
 
-N_ROUNDS = 400 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/1000
+N_ROUNDS = 3000 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/1000
 PPO_STEPS = 100000
 DREAM_LEN = 30
 PPO_LR = 0.0003
