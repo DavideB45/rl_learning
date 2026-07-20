@@ -24,7 +24,7 @@ from vae.vqVae import VQVAE
 from dynamics.lstm import LSTMQuantized
 
 from envs.simulator import MetaDreamEnv
-from envs.wrapper import MetaWrapEnv, evaluate_gathering, generate_data
+from envs.wrapper import SoftWrapEnv, evaluate_gathering, generate_data
 
 SMOOTHING = True if SMOOTH > 0 else False
 # PPO RELATED PARAMETERS

@@ -1,4 +1,4 @@
-from control.controlBox import ControlBox
+from envs.physical.control.controlBox import ControlBox
 
 class MockControlBox(ControlBox):
 	def __init__(self, max_pressure=0.5, slope=0.013, offset=-0.0103):

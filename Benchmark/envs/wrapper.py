@@ -2,7 +2,6 @@ import cv2
 import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
-import metaworld
 import torch
 import torchvision.transforms as T
 import json
@@ -10,11 +9,14 @@ from PIL import Image
 from stable_baselines3.ppo import PPO
 from stable_baselines3.common.base_class import BaseAlgorithm
 from tqdm import tqdm
+import tkinter as tk
+from tkinter import messagebox
 
 import os
 import sys
 sys.path.insert(1, os.path.join(sys.path[0], '../'))
 
+from envs.physical.realWorld import RealWorld
 from vae.vqVae import VQVAE
 from dynamics.lstm import LSTMQuantized
 from helpers.model_loader import load_vq_vae, load_lstm_quantized
@@ -22,7 +24,7 @@ from helpers.general import best_device
 from helpers.data import get_data_path
 from global_var import *
 
-class MetaWrapEnv(gym.Env):
+class SoftWrapEnv(gym.Env):
 	"""
 	This environemt is a wrapper of the real environment used at inference time
 	Since the agent can't do inference directly on the data coming from the environment
@@ -37,7 +39,7 @@ class MetaWrapEnv(gym.Env):
 		this is useful if the dynamic model is a transformer based model and does not have a
 		latent space that represents the past
 		'''
-		super(MetaWrapEnv, self).__init__()
+		super(SoftWrapEnv, self).__init__()
 
 		self.vq = vq
 		self.vq.eval()
@@ -45,17 +47,10 @@ class MetaWrapEnv(gym.Env):
 		self.dyn = dyn
 		self.dyn.eval()
 
-		self.env = gym.make('Meta-World/MT1', env_name=CURRENT_ENV['env_name'],
-				render_mode='rgb_array', camera_id=CURRENT_ENV['camera_id'],
-				width = CURRENT_ENV['render_size'], height = CURRENT_ENV['render_size'])
-		self.env.env.env.env.env.env.env.env.model.cam_pos[2][:]=[0.75, 0.075, 0.7]
+		self.env = RealWorld()
 		self.mu = vq.quantizer.embedding.weight.data.mean()
 		self.std = vq.quantizer.embedding.weight.data.std()
-		self.action_space = spaces.Box(
-			low=-1, high=1, 
-			shape=(4,), 
-			dtype=np.float32
-		)
+		self.action_space = self.env.action_space
 		self.observation_space = spaces.Box(
 			low=-np.inf, high=np.inf, shape=(self.vq_dim + self.dyn.hidden_dim + self.dyn.prop_dim,), dtype=np.float32
 		)
@@ -75,8 +70,7 @@ class MetaWrapEnv(gym.Env):
 			print("BAD IMAGE")
 			raise RuntimeError()
 		img = Image.fromarray(img)
-		# if CURRENT_ENV['env_name'] == 'peg-insert-side-v3':
-		# 	img = img.crop((80, 80, 176, 176))
+		img = img.resize((CURRENT_ENV["render_size"], CURRENT_ENV["render_size"]))
 		return img
 	
 	def reset(self, seed=None, options=None):
@@ -100,7 +94,7 @@ class MetaWrapEnv(gym.Env):
 		self.current_latent = lat
 		representation = (self.current_latent.flatten()-self.mu)/self.std
 		
-		self.current_prop = torch.tensor(prop[:PROP_SIZE], dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+		self.current_prop = torch.tensor(prop, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
 
 		representation = torch.cat([representation.cpu(), self.hidden_state[0].cpu().flatten(), self.current_prop.flatten()], dim=-1)
 		return representation.cpu().numpy(), {}
@@ -119,10 +113,6 @@ class MetaWrapEnv(gym.Env):
 			print("STRANGE ACTION")
 			print(action)
 		prop, reward, terminated, truncated, info = self.env.step(action)
-		if not (terminated or truncated) and ACTION_REPEAT:
-			prop, reward_, terminated, truncated, info = self.env.step(action)
-			reward += reward_
-		prop = prop[0:PROP_SIZE]
 		img = self.get_img()
 		with torch.no_grad():
 			t_img = self.to_tensor_(img).unsqueeze(0).to(self.vq.device)
@@ -183,7 +173,7 @@ def generate_data(vq:VQVAE, lstm:LSTMQuantized, n_sample:int=1000, policy:BaseAl
 	if not os.path.exists(CURRENT_ENV['models']):
 		os.makedirs(CURRENT_ENV['models'])
 		
-	env = MetaWrapEnv(vq, lstm)
+	env = SoftWrapEnv(vq, lstm)
 	obs, _ = env.reset()
 	step = 0
 	episode = len(actions)
@@ -192,7 +182,6 @@ def generate_data(vq:VQVAE, lstm:LSTMQuantized, n_sample:int=1000, policy:BaseAl
 	rewards.append([])
 	proprioception.append([env.current_prop.flatten().tolist()])
 	env.current_render.save(base_path + f'img_{episode}_{step}.png')
-	#for i in tqdm(range(n_sample)):
 	for i in range(n_sample):
 		step += 1
 		if policy == None:
@@ -255,7 +244,7 @@ def evaluate_gathering(vq:VQVAE, lstm:LSTMQuantized, policy:BaseAlgorithm, n_sam
 	if not os.path.exists(CURRENT_ENV['models']):
 		os.makedirs(CURRENT_ENV['models'])
 		
-	env = MetaWrapEnv(vq, lstm)
+	env = SoftWrapEnv(vq, lstm)
 	obs, _ = env.reset()
 	step = 0
 	episode = len(actions)
@@ -288,6 +277,132 @@ def evaluate_gathering(vq:VQVAE, lstm:LSTMQuantized, policy:BaseAlgorithm, n_sam
 		)
 	return tot_rewards, tot_success
 
+def evaluate_gathering_safe(vq, lstm, policy, n_sample:int=1000, training_set:bool=True, round:int=0) -> tuple[list[float], list[bool]]:
+	"""
+	Evaluate the policy on the environment, gathering data and saving it in the same format as generate_data
+	Args:
+		vq: VQVAE model
+		lstm: LSTM model
+		n_sample: number of valid samples to gather
+		policy: policy to use for action selection, if None random actions will be taken
+		training_set: whether to use the training set or the test set path for data storage
+		round: round number for data storage (only zero should be used at the current moment and possibly forever)
+	Returns:
+		tuple[list[float], list[bool]]: total rewards and success flags for each episode
+	"""
+	base_path = get_data_path(CURRENT_ENV['img_dir'], training_set, round)
+	action_path = base_path + TRANSITIONS
+	actions = []
+	rewards = []
+	proprioception = []
+	if os.path.exists(action_path):
+		with open(action_path, "r") as f:
+			f = json.load(f)
+			actions = f['actions']
+			rewards = f['reward']
+			proprioception = f['proprioception']
+	if not os.path.exists(base_path):
+		os.makedirs(base_path)
+	if not os.path.exists(CURRENT_ENV['models']):
+		os.makedirs(CURRENT_ENV['models'])
+		
+	env = SoftWrapEnv(vq, lstm)
+	obs, _ = env.reset()
+	step = 0
+	episode = len(actions)
+	print("Number of episodes in history:", episode)
+	
+	actions.append([])
+	rewards.append([])
+	proprioception.append([env.current_prop.flatten().tolist()])
+	env.current_render.save(base_path + f'img_{episode}_{step}.png')
+	
+	tot_rewards = [0]
+	tot_success = [False]
+	
+	# Use a while loop so we can rollback the counter if an episode is discarded
+	i = 0
+	while i < n_sample:
+		step += 1
+		i += 1
+		
+		if step % 10 == 0: 
+			policy.policy.reset_noise()
+			
+		action, _ = policy.predict(obs, deterministic=False)
+		obs, rew, ter, trunc, info = env.step(action)
+		
+		proprioception[-1].append(env.current_prop.flatten().tolist())
+		actions[-1].append(action.tolist())
+		rewards[-1].append(float(rew))
+		env.current_render.save(base_path + f'img_{episode}_{step}.png')
+		
+		tot_rewards[-1] += rew
+		tot_success[-1] = (info['success'] == 1) or tot_success[-1]
+		
+		if ter or trunc:
+			# --- POPUP LOGIC ---
+			root = tk.Tk()
+			root.withdraw() # Hide the main window
+			root.attributes('-topmost', True) # Force popup to the front
+			
+			keep_episode = messagebox.askyesno(
+				"Keep Episode?", 
+				f"Episode {episode} finished in {step} steps.\n"
+				f"Reward: {tot_rewards[-1]:.2f}\n"
+				f"Success: {tot_success[-1]}\n\n"
+				"Keep this episode data?"
+			)
+			root.destroy()
+			
+			if keep_episode:
+				# Keep the data, prep the next episode normally
+				obs, info = env.reset()
+				if i < n_sample:
+					episode += 1
+					step = 0
+					proprioception.append([env.current_prop.flatten().tolist()])
+					actions.append([])
+					rewards.append([])
+					tot_rewards.append(0)
+					tot_success.append(False)
+					env.current_render.save(base_path + f'img_{episode}_{step}.png')
+			else:
+				# Discard the data: Rollback sample counter
+				i -= step
+				
+				# Delete images saved during this bad episode
+				for s in range(step + 1):
+					img_path = base_path + f'img_{episode}_{s}.png'
+					if os.path.exists(img_path):
+						os.remove(img_path)
+				
+				# Reset environment and overwrite current lists 
+				obs, info = env.reset()
+				step = 0
+				actions[-1] = []
+				rewards[-1] = []
+				proprioception[-1] = [env.current_prop.flatten().tolist()]
+				tot_rewards[-1] = 0
+				tot_success[-1] = False
+				env.current_render.save(base_path + f'img_{episode}_{step}.png')
+
+	# Failsafe: Cleanup if the loop terminated precisely on an empty initialized episode
+	if len(actions[-1]) == 0 and len(actions) > 1:
+		actions.pop()
+		rewards.pop()
+		proprioception.pop()
+		tot_rewards.pop()
+		tot_success.pop()
+
+	with open(action_path, "w") as f:
+		json.dump(
+			{ "actions": actions, "reward": rewards, "proprioception": proprioception },
+			f, indent=4
+		)
+		
+	return tot_rewards, tot_success
+
 if __name__ == "__main__":
 	from random import randint
 	if 'MUJOCO_GL' not in os.environ:
@@ -296,7 +411,7 @@ if __name__ == "__main__":
 	vq = load_vq_vae(CURRENT_ENV, CODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM, True, SMOOTH, best_device())
 	lstm = load_lstm_quantized(CURRENT_ENV, vq, best_device(), HIDDEN_DIM, SMOOTH, False, False)
 	#lstm = load_transformer(CURRENT_ENV, vq, best_device(), EMB_SIZE, MAX_SEQ_LEN, NUM_HEADS, NUM_LAYERS, DROPOUT, False, False)
-	env = MetaWrapEnv(vq, lstm)
+	env = SoftWrapEnv(vq, lstm)
 	observation, _ = env.reset()
 	frames = []
 	frames.append(env.render().rotate(180))
@@ -325,9 +440,9 @@ if __name__ == "__main__":
 	GIF_PATH = "output.gif"
 	FRAME_DURATION_MS = 2
 	frames[0].save(
-        GIF_PATH,
-        save_all=True,
-        append_images=frames[1:],
-        loop=0,                    # 0 = loop forever
-        duration=FRAME_DURATION_MS,
-    )
+		GIF_PATH,
+		save_all=True,
+		append_images=frames[1:],
+		loop=0,                    # 0 = loop forever
+		duration=FRAME_DURATION_MS,
+	)

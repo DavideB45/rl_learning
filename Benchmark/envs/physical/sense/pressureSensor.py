@@ -12,10 +12,26 @@ class PressureSensor:
 
 	def connect(self):
 		"""Attempts to connect to the Arduino. Returns True if successful."""
+		available_ports = self.get_available_ports()
+		if not available_ports:
+			print("No serial ports found! Check your USB connection.")
+			return False
+		if self.port in available_ports:
+			print(f"Found preferred port: {self.port}. Attempting connection...")
+		else:
+			print(f"Preferred port '{self.port}' not found.")
+			print("These are the currently available ports:")
+			for i, port in enumerate(available_ports):
+				print(f"[{i}] {port}")
+			try:
+				selection = input("Which port index is the Control Box connected to? ")
+				self.port = available_ports[int(selection)]
+			except (ValueError, IndexError):
+				print("Invalid selection. Aborting connection.")
+				return False
 		try:
-			print(f"Connecting to {self.port}...")
 			self.ser = serial.Serial(self.port, self.baudrate, timeout=1)
-			
+		
 			# Allow Arduino time to reboot
 			time.sleep(2) 
 			self.ser.reset_input_buffer()
@@ -23,9 +39,14 @@ class PressureSensor:
 			print("Connected successfully!")
 			return True
 		except serial.SerialException as e:
-			print(f"Connection failed: {e}")
-			self.ser = None
+			print(f"Error opening port {self.port}: {e}")
+			self.dev = None
 			return False
+			
+	def get_available_ports(self):
+		"""Returns a list of available serial port names."""
+		ports = serial.tools.list_ports.comports()
+		return [port.device for port in ports]
 	
 	def read(self):
 		"""
