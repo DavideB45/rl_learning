@@ -97,7 +97,17 @@ WINDOW_OPEN = {
 	"camera_id": 2,
 }
 
-CURRENT_ENV = PEG_INSERT
+REAL_SOFT_DATA_DIR = "data/real-soft/"
+REAL_SOFT = {
+	"env_name": "real-soft-v0",
+	"img_dir": REAL_SOFT_DATA_DIR + IMG_DIR,
+	"models": REAL_SOFT_DATA_DIR + MODELS_DIR + f"{EXP_ID}/",
+	"a_size": 4,
+	"render_size": 64,
+	"camera_id": 2,
+}
+
+CURRENT_ENV = REAL_SOFT
 
 LATENT_DIM = 4
 CODE_DEPTH = 16
