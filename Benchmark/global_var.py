@@ -102,9 +102,9 @@ REAL_SOFT = {
 	"env_name": "real-soft-v0",
 	"img_dir": REAL_SOFT_DATA_DIR + IMG_DIR,
 	"models": REAL_SOFT_DATA_DIR + MODELS_DIR + f"{EXP_ID}/",
-	"a_size": 4,
+	"a_size": 3,
 	"render_size": 64,
-	"camera_id": 2,
+	"camera_id": 0,
 }
 
 CURRENT_ENV = REAL_SOFT
