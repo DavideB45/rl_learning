@@ -19,9 +19,9 @@ from helpers.model_loader import load_vq_vae, load_lstm_quantized
 from helpers.general import best_device
 from global_var import *
 
-class MetaDreamEnv(VecEnv):
+class SoftDreamEnv(VecEnv):
 	"""
-	Completely simulated environment using the VAE and MDRNN models
+	Completely simulated environment using the VAE and LSTM models
 	The starting state is obtained from the real environment
 	Then the environment is simulated using only the world model
 	"""
@@ -30,7 +30,7 @@ class MetaDreamEnv(VecEnv):
 	def __init__(self, vq:VQVAE, dynamic:LSTMQuantized, dataloader:DataLoader, init_len:int=1, ep_len:int=20, num_envs: int = 1):
 		
 		self.num_envs = num_envs
-		self.max_len = ep_len # this way the model will learn only 20 steps, hopefully in the end he will manage to merge his knowledge
+		self.max_len = ep_len # this way the model will learn only 20 steps
 		self.step_count = 0
 		self.i_len = init_len
 
@@ -50,10 +50,10 @@ class MetaDreamEnv(VecEnv):
 		)
 		self.action_space = spaces.Box(
 			low=-1, high=1, 
-			shape=(4,),
+			shape=(CURRENT_ENV["a_size"],),
 			dtype=np.float32
 		)
-		super(MetaDreamEnv, self).__init__(
+		super(SoftDreamEnv, self).__init__(
 			num_envs=num_envs,
 			action_space=self.action_space,
 			observation_space=self.observation_space	
@@ -87,7 +87,7 @@ class MetaDreamEnv(VecEnv):
 
 	def step(self, actions) -> tuple:
 		'''
-		Step in the environment using only MDRNN
+		Step in the environment using only LSTM
 		action: action to take
 		returns: observation (np.array), reward (float), terminated (bool), truncated (bool), info (dict)
 		'''
@@ -180,7 +180,7 @@ if __name__ == "__main__":
 	vq = load_vq_vae(CURRENT_ENV, CODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM, True, SMOOTH, best_device())
 	lstm = load_lstm_quantized(CURRENT_ENV, vq, best_device(), HIDDEN_DIM, SMOOTH, False, False)
 	#lstm = load_transformer(CURRENT_ENV, vq, best_device(), EMB_SIZE, MAX_SEQ_LEN, NUM_HEADS, NUM_LAYERS, DROPOUT, False, False)
-	env = MetaDreamEnv(vq=vq, dynamic=lstm, dataloader=make_seq_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], True, 0), vq, 100, 1), 
+	env = SoftDreamEnv(vq=vq, dynamic=lstm, dataloader=make_seq_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], True, 0), vq, 100, 1), 
 					  num_envs=1, ep_len=100, init_len=10)
 	observation = env.reset()
 	frames = []

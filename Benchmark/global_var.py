@@ -128,7 +128,7 @@ HIDDEN_DIM = 1024
 LSTM_EPOCS = 2 # used in learning loop for the initial training, then 1 epoch for each round
 LSTM_LR = 5e-5
 LSTM_WD = 1e-3
-PROP_SIZE = 8
+PROP_SIZE = 3
 
 
 N_ROUNDS = 3000 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/1000

@@ -23,8 +23,8 @@ from helpers.general import best_device
 from vae.vqVae import VQVAE
 from dynamics.lstm import LSTMQuantized
 
-from envs.simulator import MetaDreamEnv
-from envs.wrapper import SoftWrapEnv, evaluate_gathering, generate_data
+from envs.simulator import SoftDreamEnv
+from envs.wrapper import evaluate_gathering, generate_data
 
 SMOOTHING = True if SMOOTH > 0 else False
 # PPO RELATED PARAMETERS
@@ -76,22 +76,19 @@ def main():
 		lstm = tune_lstm(lstm, tr=tr_seq, vl=vl_seq, encoder=vq, num_epocs=LSTM_EPOCS if round == 0 else 1, lr=LSTM_LR, wd=LSTM_WD)
 		lstm_training_time += time.time()
 		
-		dream_env = MetaDreamEnv(vq, lstm, vl_seq, init_len=INIT_LEN, ep_len=DREAM_LEN, num_envs=50) #ep_len=SEQ_LEN - INIT_LEN
+		dream_env = SoftDreamEnv(vq, lstm, vl_seq, init_len=INIT_LEN, ep_len=DREAM_LEN, num_envs=50) #ep_len=SEQ_LEN - INIT_LEN
 		agent_training_time -= time.time()
 		agent = tune_agent(agent, num_steps=PPO_STEPS, env=dream_env) # codes changed so we train more PPO
 		agent_training_time += time.time()
 
 		collecting_time -= time.time()
-		generate_data(vq, lstm, n_sample=250 if ACTION_REPEAT else 500, policy=agent, training_set=True, round=EXP_ID)
-		if round % 10 == 0:
-			rew, succ = evaluate_gathering(vq, lstm, n_sample=(250 if ACTION_REPEAT else 500)*10, policy=agent, training_set=False, round=EXP_ID)
-			print(f"Average reward: {(sum(rew) / len(rew)):.2f}, Success rate: {(sum(succ) / len(succ)):.2%}")
-			with open(LOG_NAME + '.csv', 'a') as f:
-				for i in range(len(rew)):
-					f.write(f'{rew[i]:.3f},{succ[i]},{torch.mean(torch.abs(vq.quantizer.embedding.weight.data)):.3f},{torch.max(vq.quantizer.embedding.weight.data):.3f},{torch.min(vq.quantizer.embedding.weight.data):.3f},{torch.std(vq.quantizer.embedding.weight.data):.5f}\n')
-					if not torch.isfinite(torch.mean(torch.abs(vq.quantizer.embedding.weight.data))):
-						print("Found nan for the first time in the main loop")
-						exit()
+		rew, succ = evaluate_gathering(vq, lstm, n_sample=250, policy=agent, training_set=False, round=EXP_ID)
+		with open(LOG_NAME + '.csv', 'a') as f:
+			for i in range(len(rew)):
+				f.write(f'{rew[i]:.3f},{succ[i]},{torch.mean(torch.abs(vq.quantizer.embedding.weight.data)):.3f},{torch.max(vq.quantizer.embedding.weight.data):.3f},{torch.min(vq.quantizer.embedding.weight.data):.3f},{torch.std(vq.quantizer.embedding.weight.data):.5f}\n')
+				if not torch.isfinite(torch.mean(torch.abs(vq.quantizer.embedding.weight.data))):
+					print("Found nan for the first time in the main loop")
+					exit()
 		collecting_time += time.time()
 
 		print(f"\033[1;31m--- {time.strftime('%H:%M:%S', time.gmtime(time.time()-start_time))} ---\033[0m")
@@ -155,7 +152,7 @@ def tune_lstm(model: LSTMQuantized, tr:DataLoader, vl:DataLoader, encoder: VQVAE
 	model.compile()
 	return model
 	
-def tune_agent(agent:PPO, env:MetaDreamEnv, num_steps:int=100000) -> PPO:
+def tune_agent(agent:PPO, env:SoftDreamEnv, num_steps:int=100000) -> PPO:
 	if agent is None:
 		agent = PPO(MlpPolicy, env, policy_kwargs=policy_kwargs, n_steps=500, batch_size=1000, learning_rate=PPO_LR, ent_coef=0.01, sde_sample_freq=10, use_sde=True)
 	else:
@@ -188,16 +185,3 @@ def print_lstm_analytics(epoch, err_tr, err_vl):
 
 if __name__ == '__main__':
 	main()
-	
-
-
-# STEPS
-# 1 - gather some amount of data
-# 2 - train a vector quantizer variational autoencoder
-# 3 - train an lstmc
-# 4 - a loop of some length begins
-# 4.1 - train a PPO in the dream
-# 4.2 - use the PPO to obtain data from a wrapped env
-# 4.3 - tune the vq-vae
-# 4.4 - tune the lstmc (more than the vq-vae)
-# 5 fine

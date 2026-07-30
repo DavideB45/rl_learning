@@ -54,7 +54,8 @@ class RealWorld(gym.Env):
 
 		# observation and action stuff
 		self.action_space = spaces.Box( low=-1, high=1, shape=(3,), dtype=np.float32 )
-		self.observation_space = spaces.Box( low=0, high=self.max_pressure, shape=(4,), dtype=np.float32 )
+		# observation can be 4 if contact sensor
+		self.observation_space = spaces.Box( low=0, high=self.max_pressure, shape=(3,), dtype=np.float32 )
 		self.current_render = None
 		self.current_prop = None
 		self.current_step = 0
@@ -131,9 +132,12 @@ class RealWorld(gym.Env):
 		self.target_y = random.randint(half_size, self.height - half_size)
 		
 		self.current_img, _ = self.get_good_img()
-		self.current_prop = np.array([self.pressure.safe_read(), 0, 0, 0])
+		self.current_prop = np.array([
+			#self.pressure.safe_read(), 
+			0, 0, 0])
 		self.current_pressure = np.array([0, 0, 0])
 		self.current_step = 0
+		self.last_return = time.time()
 		return self.current_prop, {}
 
 	def step(self, action) -> tuple:
@@ -147,14 +151,18 @@ class RealWorld(gym.Env):
 			self.current_pressure[i] += 0.1*action[i]
 			self.current_pressure[i] = min(self.max_pressure, max(self.current_pressure[i], 0))
 		self.box.send_pressure_array(self.current_pressure)
-		time.sleep(self.stepTime)
+		time.sleep(self.stepTime/2) # with this sleep the robot sees a bit the effect of the action
 		self.current_prop = np.array([
-			self.pressure.safe_read(), 
+			#self.pressure.safe_read(), 
 			self.current_pressure[0], 
 			self.current_pressure[1], 
 			self.current_pressure[2]])
 		self.current_img, reward = self.get_good_img()
 		info = {}
+		elapsed_time = time.time() - self.last_return
+		if elapsed_time < self.stepTime:
+			time.sleep(self.stepTime - elapsed_time)
+		self.last_return = time.time()
 		if reward > 0.95:
 			info['success'] = 1
 		else:
