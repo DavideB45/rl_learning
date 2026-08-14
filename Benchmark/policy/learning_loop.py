@@ -45,6 +45,8 @@ def main():
 	lstm_training_time = 0
 	dataset_generation_time = 0
 	agent_training_time = 0
+	rolling_success = 0.0
+	best_success_rate = -1.0
 
 	start_time = time.time()
 	vq = VQVAE(CODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM, 0.25, best_device(), True)
@@ -78,6 +80,10 @@ def main():
 		
 		dream_env = MetaDreamEnv(vq, lstm, vl_seq, init_len=INIT_LEN, ep_len=DREAM_LEN, num_envs=50) #ep_len=SEQ_LEN - INIT_LEN
 		agent_training_time -= time.time()
+		if round % 500 == 3:
+			if rolling_success < 0.1:
+				agent = None
+				best_success_rate = -1.0
 		agent = tune_agent(agent, num_steps=PPO_STEPS, env=dream_env) # codes changed so we train more PPO
 		agent_training_time += time.time()
 
@@ -85,7 +91,23 @@ def main():
 		generate_data(vq, lstm, n_sample=250 if ACTION_REPEAT else 500, policy=agent, training_set=True, round=EXP_ID)
 		if round % 10 == 0:
 			rew, succ = evaluate_gathering(vq, lstm, n_sample=(250 if ACTION_REPEAT else 500)*10, policy=agent, training_set=False, round=EXP_ID)
-			print(f"Average reward: {(sum(rew) / len(rew)):.2f}, Success rate: {(sum(succ) / len(succ)):.2%}")
+			current_success = sum(succ) / len(succ)
+			rolling_success = rolling_success*0.9 + 0.1*current_success
+			print(f"Average reward: {(sum(rew) / len(rew)):.2f}, Success rate: {current_success:.2%}, Rolling: {rolling_success:.2%}")
+			if current_success >= best_success_rate - 0.1: # save but allow for 10% decrease compared to the best
+				# Agent improved or stayed the same, save this as our new "best" anchor
+				best_success_rate = max(current_success, best_success_rate)
+				if agent is not None:
+					agent.save(CURRENT_ENV['models'] + 'agent_best' + f'{EXP_ID}')
+					print(f"{colors[2]}  PPO performance stabilized/improved! Saved new best checkpoint.{reset}")
+			else:
+				# Agent got worse, revert to the previous best anchor
+				if agent is not None:
+					print(f"{colors[0]}  PPO performance dropped (Current: {current_success:.2%} < Best: {best_success_rate:.2%}). Reverting to best checkpoint!{reset}")
+					# Load the best agent
+					agent = PPO.load(CURRENT_ENV['models'] + 'agent_best' + f'{EXP_ID}', env=dream_env)
+					# Overwrite the standard save file so `tune_agent` loads this restored version next time
+					agent.save(CURRENT_ENV['models'] + 'agent' + f'{EXP_ID}')
 			with open(LOG_NAME + '.csv', 'a') as f:
 				for i in range(len(rew)):
 					f.write(f'{rew[i]:.3f},{succ[i]},{torch.mean(torch.abs(vq.quantizer.embedding.weight.data)):.3f},{torch.max(vq.quantizer.embedding.weight.data):.3f},{torch.min(vq.quantizer.embedding.weight.data):.3f},{torch.std(vq.quantizer.embedding.weight.data):.5f}\n')
@@ -157,7 +179,7 @@ def tune_lstm(model: LSTMQuantized, tr:DataLoader, vl:DataLoader, encoder: VQVAE
 	
 def tune_agent(agent:PPO, env:MetaDreamEnv, num_steps:int=100000) -> PPO:
 	if agent is None:
-		agent = PPO(MlpPolicy, env, policy_kwargs=policy_kwargs, n_steps=500, batch_size=1000, learning_rate=PPO_LR, ent_coef=0.01, sde_sample_freq=10, use_sde=True)
+		agent = PPO(MlpPolicy, env, policy_kwargs=policy_kwargs, n_steps=500, batch_size=1000, learning_rate=PPO_LR, ent_coef=0.01, sde_sample_freq=10, use_sde=True, target_kl=None) # target_kl=0.01
 	else:
 		agent = PPO.load(CURRENT_ENV['models'] + 'agent' + f'{EXP_ID}', env)
 	agent = agent.learn(num_steps, progress_bar=False, reset_num_timesteps=False)
