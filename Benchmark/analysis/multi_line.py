@@ -4,9 +4,9 @@ import glob
 import os
 
 # ==== CONFIG ====
-ENV = 'window-open'
-CSV_FOLDER = f"./data/{ENV}/full_experiments/models/"   # folder containing your CSV files
-ROLLING_WINDOW = 50     # number of episodes for rolling mean
+ENV = 'peg-insert'
+CSV_FOLDER = f"./data/{ENV}/full_experiments/reset_conditional/"   # folder containing your CSV files
+ROLLING_WINDOW = 10*3     # number of episodes for rolling mean
 INTERACTIONS_PER_EPISODE = 500
 
 # =================
