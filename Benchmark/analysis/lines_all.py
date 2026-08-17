@@ -5,7 +5,7 @@ import glob
 import os
 
 # ==== CONFIG ====
-NAME='peg-insert'
+NAME='drawer-open'
 ROOT_FOLDER = f"./data/{NAME}/full_experiments"
 EVAL_EPISODES = 10
 EVAL_FREQUENCY = 5000
@@ -138,9 +138,10 @@ def main():
 	# Remove folders you don't want
 	# ==========================================================
 	for folder in [
-		"default",
+		#"default",
 		"no_mask",
 		"models",
+		"prop_rr",
 		#"contraction_loss",
 		#"no_kl",
 		"no_kl_no_rew",

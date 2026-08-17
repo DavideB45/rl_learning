@@ -94,20 +94,21 @@ def main():
 			current_success = sum(succ) / len(succ)
 			rolling_success = rolling_success*0.9 + 0.1*current_success
 			print(f"Average reward: {(sum(rew) / len(rew)):.2f}, Success rate: {current_success:.2%}, Rolling: {rolling_success:.2%}")
-			if current_success >= best_success_rate - 0.1: # save but allow for 10% decrease compared to the best
-				# Agent improved or stayed the same, save this as our new "best" anchor
-				best_success_rate = max(current_success, best_success_rate)
-				if agent is not None:
-					agent.save(CURRENT_ENV['models'] + 'agent_best' + f'{EXP_ID}')
-					print(f"{colors[2]}  PPO performance stabilized/improved! Saved new best checkpoint.{reset}")
-			else:
-				# Agent got worse, revert to the previous best anchor
-				if agent is not None:
-					print(f"{colors[0]}  PPO performance dropped (Current: {current_success:.2%} < Best: {best_success_rate:.2%}). Reverting to best checkpoint!{reset}")
-					# Load the best agent
-					agent = PPO.load(CURRENT_ENV['models'] + 'agent_best' + f'{EXP_ID}', env=dream_env)
-					# Overwrite the standard save file so `tune_agent` loads this restored version next time
-					agent.save(CURRENT_ENV['models'] + 'agent' + f'{EXP_ID}')
+			if round > 800:
+				if current_success >= best_success_rate - 0.1: # save but allow for 10% decrease compared to the best
+					# Agent improved or stayed the same, save this as our new "best" anchor
+					best_success_rate = max(current_success, best_success_rate)
+					if agent is not None:
+						agent.save(CURRENT_ENV['models'] + 'agent_best' + f'{EXP_ID}')
+						print(f"{colors[2]}  PPO performance stabilized/improved! Saved new best checkpoint.{reset}")
+				else:
+					# Agent got worse, revert to the previous best anchor
+					if agent is not None:
+						print(f"{colors[0]}  PPO performance dropped (Current: {current_success:.2%} < Best: {best_success_rate:.2%}). Reverting to best checkpoint!{reset}")
+						# Load the best agent
+						agent = PPO.load(CURRENT_ENV['models'] + 'agent_best' + f'{EXP_ID}', env=dream_env)
+						# Overwrite the standard save file so `tune_agent` loads this restored version next time
+						agent.save(CURRENT_ENV['models'] + 'agent' + f'{EXP_ID}')
 			with open(LOG_NAME + '.csv', 'a') as f:
 				for i in range(len(rew)):
 					f.write(f'{rew[i]:.3f},{succ[i]},{torch.mean(torch.abs(vq.quantizer.embedding.weight.data)):.3f},{torch.max(vq.quantizer.embedding.weight.data):.3f},{torch.min(vq.quantizer.embedding.weight.data):.3f},{torch.std(vq.quantizer.embedding.weight.data):.5f}\n')
