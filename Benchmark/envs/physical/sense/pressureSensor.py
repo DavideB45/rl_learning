@@ -24,7 +24,7 @@ class PressureSensor:
 			for i, port in enumerate(available_ports):
 				print(f"[{i}] {port}")
 			try:
-				selection = input("Which port index is the Control Box connected to? ")
+				selection = input("Which port index is the Pressure Sensor connected to? ")
 				self.port = available_ports[int(selection)]
 			except (ValueError, IndexError):
 				print("Invalid selection. Aborting connection.")

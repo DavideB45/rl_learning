@@ -8,9 +8,9 @@ import time
 import sys
 import os
 sys.path.append(os.path.join(sys.path[0], '../..'))
-#from control.safeControlBox import SafeControlBox
-from envs.physical.control.mockControlBox import MockControlBox as SafeControlBox
-from envs.physical.sense.pressureSensor import PressureSensor
+from control.safeControlBox import SafeControlBox
+#from envs.physical.control.mockControlBox import MockControlBox as SafeControlBox
+#from envs.physical.sense.pressureSensor import PressureSensor
 
 class RealWorld(gym.Env):
 	"""
@@ -48,9 +48,9 @@ class RealWorld(gym.Env):
 			raise RuntimeError("Unable to connect to the controlbox, check the stuff and try again")
 		
 		# pressure sensor stuff
-		self.pressure = PressureSensor(port='/dev/cu.usbmodem31401')
-		if(not self.pressure.connect()):
-			raise RuntimeError("Unable to connect to the pressure sensor")
+		# self.pressure = PressureSensor(port='/dev/cu.usbmodem31401')
+		# if(not self.pressure.connect()):
+		# 	raise RuntimeError("Unable to connect to the pressure sensor")
 
 		# observation and action stuff
 		self.action_space = spaces.Box( low=-1, high=1, shape=(3,), dtype=np.float32 )
@@ -134,8 +134,8 @@ class RealWorld(gym.Env):
 		self.current_img, _ = self.get_good_img()
 		self.current_prop = np.array([
 			#self.pressure.safe_read(), 
-			0, 0, 0])
-		self.current_pressure = np.array([0, 0, 0])
+			0.0, 0.0, 0.0])
+		self.current_pressure = np.array([0.0, 0.0, 0.0])
 		self.current_step = 0
 		self.last_return = time.time()
 		return self.current_prop, {}
@@ -148,7 +148,7 @@ class RealWorld(gym.Env):
 		'''
 		# do the action
 		for i in range(3):
-			self.current_pressure[i] += 0.1*action[i]
+			self.current_pressure[i] = self.current_pressure[i] + 0.1*action[i]
 			self.current_pressure[i] = min(self.max_pressure, max(self.current_pressure[i], 0))
 		self.box.send_pressure_array(self.current_pressure)
 		time.sleep(self.stepTime/2) # with this sleep the robot sees a bit the effect of the action
@@ -184,7 +184,6 @@ class RealWorld(gym.Env):
 		if self.render_mode == 'rgb_array':
 			return self.current_img
 		elif self.render_mode == 'human':
-			print('human')
 			cv2.imshow("Result", self.current_img)
 			cv2.waitKey(1)
 			return self.current_img
