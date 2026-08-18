@@ -24,7 +24,7 @@ from vae.vqVae import VQVAE
 from dynamics.lstm import LSTMQuantized
 
 from envs.simulator import SoftDreamEnv
-from envs.wrapper import evaluate_gathering, generate_data
+from envs.wrapper import evaluate_gathering_safe, generate_data
 
 SMOOTHING = True if SMOOTH > 0 else False
 # PPO RELATED PARAMETERS
@@ -82,7 +82,7 @@ def main():
 		agent_training_time += time.time()
 
 		collecting_time -= time.time()
-		rew, succ = evaluate_gathering(vq, lstm, n_sample=250, policy=agent, training_set=False, round=EXP_ID)
+		rew, succ = evaluate_gathering_safe(vq, lstm, n_sample=250, policy=agent, training_set=False, round=EXP_ID)
 		with open(LOG_NAME + '.csv', 'a') as f:
 			for i in range(len(rew)):
 				f.write(f'{rew[i]:.3f},{succ[i]},{torch.mean(torch.abs(vq.quantizer.embedding.weight.data)):.3f},{torch.max(vq.quantizer.embedding.weight.data):.3f},{torch.min(vq.quantizer.embedding.weight.data):.3f},{torch.std(vq.quantizer.embedding.weight.data):.5f}\n')

@@ -47,7 +47,7 @@ class SoftWrapEnv(gym.Env):
 		self.dyn = dyn
 		self.dyn.eval()
 
-		self.env = RealWorld()
+		self.env = RealWorld(debug=True)
 		self.mu = vq.quantizer.embedding.weight.data.mean()
 		self.std = vq.quantizer.embedding.weight.data.std()
 		self.action_space = self.env.action_space
@@ -253,7 +253,7 @@ def evaluate_gathering(vq:VQVAE, lstm:LSTMQuantized, policy:BaseAlgorithm, n_sam
 	env.current_render.save(base_path + f'img_{episode}_{step}.png')
 	tot_rewards = [0]
 	tot_success = [False]
-	for i in range(n_sample):
+	for i in tqdm(range(n_sample)):
 		step += 1
 		if step % 10 == 0: # SB3 does not do this automatically since we are evaluating the model
 			policy.policy.reset_noise()
@@ -322,70 +322,72 @@ def evaluate_gathering_safe(vq, lstm, policy, n_sample:int=1000, training_set:bo
 	
 	# Use a while loop so we can rollback the counter if an episode is discarded
 	i = 0
-	while i < n_sample:
-		step += 1
-		i += 1
-		
-		if step % 10 == 0: 
-			policy.policy.reset_noise()
+	with tqdm(total=n_sample) as pbar:
+		while i < n_sample:
+			step += 1
+			i += 1
+			pbar.update()
 			
-		action, _ = policy.predict(obs, deterministic=False)
-		obs, rew, ter, trunc, info = env.step(action)
-		
-		proprioception[-1].append(env.current_prop.flatten().tolist())
-		actions[-1].append(action.tolist())
-		rewards[-1].append(float(rew))
-		env.current_render.save(base_path + f'img_{episode}_{step}.png')
-		
-		tot_rewards[-1] += rew
-		tot_success[-1] = (info['success'] == 1) or tot_success[-1]
-		
-		if ter or trunc:
-			# --- POPUP LOGIC ---
-			root = tk.Tk()
-			root.withdraw() # Hide the main window
-			root.attributes('-topmost', True) # Force popup to the front
+			if step % 10 == 0: 
+				policy.policy.reset_noise()
+				
+			action, _ = policy.predict(obs, deterministic=False)
+			obs, rew, ter, trunc, info = env.step(action)
 			
-			keep_episode = messagebox.askyesno(
-				"Keep Episode?", 
-				f"Episode {episode} finished in {step} steps.\n"
-				f"Reward: {tot_rewards[-1]:.2f}\n"
-				f"Success: {tot_success[-1]}\n\n"
-				"Keep this episode data?"
-			)
-			root.destroy()
+			proprioception[-1].append(env.current_prop.flatten().tolist())
+			actions[-1].append(action.tolist())
+			rewards[-1].append(float(rew))
+			env.current_render.save(base_path + f'img_{episode}_{step}.png')
 			
-			if keep_episode:
-				# Keep the data, prep the next episode normally
-				obs, info = env.reset()
-				if i < n_sample:
-					episode += 1
+			tot_rewards[-1] += rew
+			tot_success[-1] = (info['success'] == 1) or tot_success[-1]
+			
+			if ter or trunc:
+				# --- POPUP LOGIC ---
+				root = tk.Tk()
+				root.withdraw() # Hide the main window
+				root.attributes('-topmost', True) # Force popup to the front
+				
+				keep_episode = messagebox.askyesno(
+					"Keep Episode?", 
+					f"Episode {episode} finished in {step} steps.\n"
+					f"Reward: {tot_rewards[-1]:.2f}\n"
+					f"Success: {tot_success[-1]}\n\n"
+					"Keep this episode data?"
+				)
+				root.destroy()
+				
+				if keep_episode:
+					# Keep the data, prep the next episode normally
+					obs, info = env.reset()
+					if i < n_sample:
+						episode += 1
+						step = 0
+						proprioception.append([env.current_prop.flatten().tolist()])
+						actions.append([])
+						rewards.append([])
+						tot_rewards.append(0)
+						tot_success.append(False)
+						env.current_render.save(base_path + f'img_{episode}_{step}.png')
+				else:
+					# Discard the data: Rollback sample counter
+					i -= step
+					
+					# Delete images saved during this bad episode
+					for s in range(step + 1):
+						img_path = base_path + f'img_{episode}_{s}.png'
+						if os.path.exists(img_path):
+							os.remove(img_path)
+					
+					# Reset environment and overwrite current lists 
+					obs, info = env.reset()
 					step = 0
-					proprioception.append([env.current_prop.flatten().tolist()])
-					actions.append([])
-					rewards.append([])
-					tot_rewards.append(0)
-					tot_success.append(False)
+					actions[-1] = []
+					rewards[-1] = []
+					proprioception[-1] = [env.current_prop.flatten().tolist()]
+					tot_rewards[-1] = 0
+					tot_success[-1] = False
 					env.current_render.save(base_path + f'img_{episode}_{step}.png')
-			else:
-				# Discard the data: Rollback sample counter
-				i -= step
-				
-				# Delete images saved during this bad episode
-				for s in range(step + 1):
-					img_path = base_path + f'img_{episode}_{s}.png'
-					if os.path.exists(img_path):
-						os.remove(img_path)
-				
-				# Reset environment and overwrite current lists 
-				obs, info = env.reset()
-				step = 0
-				actions[-1] = []
-				rewards[-1] = []
-				proprioception[-1] = [env.current_prop.flatten().tolist()]
-				tot_rewards[-1] = 0
-				tot_success[-1] = False
-				env.current_render.save(base_path + f'img_{episode}_{step}.png')
 
 	# Failsafe: Cleanup if the loop terminated precisely on an empty initialized episode
 	if len(actions[-1]) == 0 and len(actions) > 1:
