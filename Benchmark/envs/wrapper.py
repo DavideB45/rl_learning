@@ -47,7 +47,10 @@ class SoftWrapEnv(gym.Env):
 		self.dyn = dyn
 		self.dyn.eval()
 
-		self.env = RealWorld(debug=True)
+		if True:
+			self.env = RealWorld(debug=True, target_size=10)
+		else:
+			self.env = RealWorld()
 		self.mu = vq.quantizer.embedding.weight.data.mean()
 		self.std = vq.quantizer.embedding.weight.data.std()
 		self.action_space = self.env.action_space
@@ -328,10 +331,13 @@ def evaluate_gathering_safe(vq, lstm, policy, n_sample:int=1000, training_set:bo
 			i += 1
 			pbar.update()
 			
-			if step % 10 == 0: 
+			if step % 10 == 0 and policy is not None: 
 				policy.policy.reset_noise()
-				
-			action, _ = policy.predict(obs, deterministic=False)
+
+			if policy is not None:
+				action, _ = policy.predict(obs, deterministic=False)
+			else:
+				action = env.action_space.sample()
 			obs, rew, ter, trunc, info = env.step(action)
 			
 			proprioception[-1].append(env.current_prop.flatten().tolist())

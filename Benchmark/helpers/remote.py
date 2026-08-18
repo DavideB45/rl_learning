@@ -25,7 +25,7 @@ class RemoteConfig:
     server_data_root:   str = f"/home/davide/github/rl_learning/Benchmark/{CURRENT_ENV['img_dir']}"
     server_models_root: str = f"/home/davide/github/rl_learning/Benchmark/{CURRENT_ENV['models']}"
     server_script:      str = "/home/davide/github/rl_learning/Benchmark/policy/train_server.py"
-    server_python:      str = "/home/davide/github/rl_learning/rl_env/bin/python" # TODO: check this
+    server_python:      str = "/home/davide/github/rl_learning/rl_env/bin/python"
 
     # Absolute paths on the MAC
     local_data_root:   str = str(Path.home() / f"Documents/github/rl_learning/Benchmark/{CURRENT_ENV['img_dir']}")

@@ -27,7 +27,7 @@ from stable_baselines3.ppo import PPO
 from helpers.model_loader import load_vq_vae, load_lstm_quantized
 from helpers.general import best_device
 from helpers.remote import rsync_push_data, rsync_pull_models, ssh_train_on_server
-from envs.wrapper import evaluate_gathering, generate_data
+from envs.wrapper import evaluate_gathering_safe, generate_data
 from vae.vqVae import VQVAE
 from dynamics.lstm import LSTMQuantized
 
@@ -60,8 +60,8 @@ def main():
     # ------------------------------------------------------------------
     print("\n[orchestrator] === Initial data collection ===")
     t = time.time()
-    generate_data(vq, lstm, n_sample=INIT_GATHER, training_set=True,  round=EXP_ID)
-    generate_data(vq, lstm, n_sample=1000,         training_set=False, round=EXP_ID)
+    evaluate_gathering_safe(vq, lstm, policy=None, n_sample=1000, training_set=True,  round=EXP_ID)
+    evaluate_gathering_safe(vq, lstm, n_sample=1000,         training_set=False, round=EXP_ID)
     timings['collecting_time'] += time.time() - t
 
     # ------------------------------------------------------------------
@@ -106,7 +106,7 @@ def main():
             print("[orchestrator] WARNING: agent checkpoint not found, using None policy")
             agent = None
 
-        rew, succ = evaluate_gathering(vq, lstm, n_sample=250, policy=agent, training_set=True, round=EXP_ID)
+        rew, succ = evaluate_gathering_safe(vq, lstm, n_sample=250, policy=agent, training_set=True, round=EXP_ID)
 
         with open(LOG_NAME + '.csv', 'a') as f:
             for i in range(len(rew)):

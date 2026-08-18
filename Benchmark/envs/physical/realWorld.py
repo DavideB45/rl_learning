@@ -128,9 +128,10 @@ class RealWorld(gym.Env):
 		while not done:
 			img = self.get_image(trials=30)
 			try:
-				img, rew = self.get_arocu_rew(img)
 				if self.debug: # if debugging the reward is the amount of orange in the image
 					rew = self.get_orange_amount(img)
+				else:
+					img, rew = self.get_arocu_rew(img)
 				self.overlay_target(img)
 				done = True
 			except RuntimeError:
