@@ -103,13 +103,34 @@ class RealWorld(gym.Env):
 						cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
 		return img, rew
 
-		
+
+	def get_orange_amount(self, img: cv2.typing.MatLike) -> float:
+		"""
+		Returns the fraction (0.0 - 1.0) of pixels in `img` that fall
+		within an 'orange' HSV range. Useful as a cheap debug reward
+		proxy for how much of the orange end-effector is visible/close.
+		"""
+		hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+		# Orange sits roughly between red and yellow in Hue.
+		# OpenCV Hue range is 0-179, so orange ~ 5-25.
+		lower_orange = np.array([5, 100, 80])
+		upper_orange = np.array([25, 255, 255])
+		mask = cv2.inRange(hsv, lower_orange, upper_orange)
+		orange_pixels = cv2.countNonZero(mask)
+		total_pixels = img.shape[0] * img.shape[1]
+		orange_frac = orange_pixels / total_pixels
+		target = 0.10
+		reward = 1.0 - abs(orange_frac - target) / target
+		return max(0.0, reward)
+	
 	def get_good_img(self) -> tuple[cv2.typing.MatLike, float]:
 		done = False
 		while not done:
 			img = self.get_image(trials=30)
 			try:
 				img, rew = self.get_arocu_rew(img)
+				if self.debug: # if debugging the reward is the amount of orange in the image
+					rew = self.get_orange_amount(img)
 				self.overlay_target(img)
 				done = True
 			except RuntimeError:
@@ -204,10 +225,11 @@ if __name__ == "__main__":
 	observation, _ = env.reset()
 	total_reward = 0
 	done = False
+	np.set_printoptions(precision=2, suppress=True)
 	while not done:
 		action = env.action_space.sample()
 		observation, reward, terminated, truncated, info = env.step(action)
-		print(f"act: {action} rew:{reward}, obs:{observation}")
+		print(f"act: {action} rew:{reward:.2f}, obs:{observation}")
 		env.render()
 		if(info['success'] == 1):
 			print(f'Win!! Total Reward: {total_reward}')
