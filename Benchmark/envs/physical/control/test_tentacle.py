@@ -3,9 +3,9 @@ from tqdm import tqdm
 import sys
 import os
 sys.path.append(os.path.join(sys.path[0], '..'))
-from control.safeControlBox import SafeControlBox
+from safeControlBox import SafeControlBox
 
-MAX_PRESSURE = 1.5
+MAX_PRESSURE = 0.5
 box = SafeControlBox(max_pressure=MAX_PRESSURE)
 if(not box.connect()):
 	raise RuntimeError("Unable to connect to the controlbox, check the stuff and try again")

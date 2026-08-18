@@ -8,7 +8,8 @@ import time
 import sys
 import os
 sys.path.append(os.path.join(sys.path[0], '../..'))
-from control.safeControlBox import SafeControlBox
+sys.path.append(os.path.join(sys.path[0], '..'))
+from envs.physical.control.safeControlBox import SafeControlBox
 #from envs.physical.control.mockControlBox import MockControlBox as SafeControlBox
 #from envs.physical.sense.pressureSensor import PressureSensor
 
@@ -29,6 +30,8 @@ class RealWorld(gym.Env):
 		self.render_mode = render_mode
 		self.debug = debug
 		self.max_pressure = 1.3
+		if debug:
+			self.max_pressure = 0.5
 		self.stepTime = 1/approx_Hz
 		self.max_steps = max_steps
 		self.current_pressure = np.array([0, 0, 0])

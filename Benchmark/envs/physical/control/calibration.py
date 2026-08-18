@@ -1,7 +1,7 @@
 import csv
 import os
 import time
-from control.controlBox import ControlBox
+from controlBox import ControlBox
 
 if __name__ == "__main__":
     # Create an instance of our control box
