@@ -19,7 +19,7 @@ class RealWorld(gym.Env):
 	"""
 
 
-	def __init__(self, render_mode='rgb_array', width = 640, height = 480, max_steps=500, target_size=80, approx_Hz=10, debug=False):
+	def __init__(self, render_mode='rgb_array', width = 640, height = 480, max_steps=100, target_size=80, approx_Hz=10, debug=False):
 		'''
 		initialize the environment by doing important initialization stuff (in the real world)
 		'''

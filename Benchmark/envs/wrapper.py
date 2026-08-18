@@ -48,7 +48,7 @@ class SoftWrapEnv(gym.Env):
 		self.dyn.eval()
 
 		if True:
-			self.env = RealWorld(debug=True, target_size=10)
+			self.env = RealWorld(debug=True, target_size=10, render_mode='human')
 		else:
 			self.env = RealWorld()
 		self.mu = vq.quantizer.embedding.weight.data.mean()
@@ -350,18 +350,12 @@ def evaluate_gathering_safe(vq, lstm, policy, n_sample:int=1000, training_set:bo
 			
 			if ter or trunc:
 				# --- POPUP LOGIC ---
-				root = tk.Tk()
-				root.withdraw() # Hide the main window
-				root.attributes('-topmost', True) # Force popup to the front
-				
-				keep_episode = messagebox.askyesno(
-					"Keep Episode?", 
-					f"Episode {episode} finished in {step} steps.\n"
-					f"Reward: {tot_rewards[-1]:.2f}\n"
-					f"Success: {tot_success[-1]}\n\n"
-					"Keep this episode data?"
-				)
-				root.destroy()
+				env.reset()
+				print(f"\nEpisode {episode} finished in {step} steps.")
+				print(f"Reward: {tot_rewards[-1]:.2f}")
+				print(f"Success: {tot_success[-1]}")
+				answer = input("Keep this episode data? [y/n]: ").strip().lower()
+				keep_episode = answer in ('y', 'yes')
 				
 				if keep_episode:
 					# Keep the data, prep the next episode normally
@@ -395,6 +389,7 @@ def evaluate_gathering_safe(vq, lstm, policy, n_sample:int=1000, training_set:bo
 					tot_success[-1] = False
 					env.current_render.save(base_path + f'img_{episode}_{step}.png')
 
+	env.close()
 	# Failsafe: Cleanup if the loop terminated precisely on an empty initialized episode
 	if len(actions[-1]) == 0 and len(actions) > 1:
 		actions.pop()

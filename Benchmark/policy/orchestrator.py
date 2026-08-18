@@ -60,8 +60,8 @@ def main():
     # ------------------------------------------------------------------
     print("\n[orchestrator] === Initial data collection ===")
     t = time.time()
-    evaluate_gathering_safe(vq, lstm, policy=None, n_sample=1000, training_set=True,  round=EXP_ID)
-    evaluate_gathering_safe(vq, lstm, n_sample=1000,         training_set=False, round=EXP_ID)
+    #evaluate_gathering_safe(vq, lstm, policy=None, n_sample=500, training_set=True,  round=EXP_ID)
+    #evaluate_gathering_safe(vq, lstm, policy=None, n_sample=500, training_set=False, round=EXP_ID)
     timings['collecting_time'] += time.time() - t
 
     # ------------------------------------------------------------------

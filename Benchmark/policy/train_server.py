@@ -37,7 +37,7 @@ from dynamics.lstm import LSTMQuantized
 from envs.simulator import SoftDreamEnv
 
 SMOOTHING = True if SMOOTH > 0 else False
-
+BASE = 'home/davide/github/rl_learning/Benchmark/'
 policy_kwargs = dict(
     net_arch=dict(
         pi=[1024, 512, 256],
@@ -95,8 +95,8 @@ def main():
     # ------------------------------------------------------------------
     # Sequence dataloaders (built after VQ is updated so codes are fresh)
     # ------------------------------------------------------------------
-    tr_seq = make_seq_dataloader_safe( get_data_path(CURRENT_ENV['img_dir'], True,  exp_id), vq, SEQ_LEN, 128, max_ep = EP_ON_LOOP )
-    vl_seq = make_seq_dataloader_safe( get_data_path(CURRENT_ENV['img_dir'], False, exp_id), vq, SEQ_LEN, 128, max_ep = 15, )
+    tr_seq = make_seq_dataloader_safe( get_data_path(BASE + CURRENT_ENV['img_dir'], True,  exp_id), vq, SEQ_LEN, 128, max_ep = EP_ON_LOOP )
+    vl_seq = make_seq_dataloader_safe( get_data_path(BASE + CURRENT_ENV['img_dir'], False, exp_id), vq, SEQ_LEN, 128, max_ep = 15, )
 
     # ------------------------------------------------------------------
     # LSTM
@@ -118,8 +118,8 @@ def main():
 # ---------------------------------------------------------------------------
 
 def tune_vq(model: VQVAE, num_epocs: int, lr: float, wd: float, reg: float, exp_id: str) -> VQVAE:
-    tr = make_image_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], True,  exp_id), max_size=EP_ON_LOOP * 500)
-    vl = make_image_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], False, exp_id), max_size=1500)
+    tr = make_image_dataloader_safe(get_data_path(BASE + CURRENT_ENV['img_dir'], True,  exp_id), max_size=EP_ON_LOOP * 500)
+    vl = make_image_dataloader_safe(get_data_path(BASE + CURRENT_ENV['img_dir'], False, exp_id), max_size=1500)
     optim = Adam(model.parameters(), lr=lr, weight_decay=wd)
 
     best_val_loss  = float('inf')

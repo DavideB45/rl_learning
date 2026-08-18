@@ -18,7 +18,7 @@ class RemoteConfig:
     """All connection/path details in one place. Edit to match your setup."""
 
     # SSH target — can use an alias from ~/.ssh/config (recommended)
-    ssh_host: str = "davide@fibonacci-brairlab:2302"          # or "user@192.168.x.x"
+    ssh_host: str = "davide@fibonacci-brairlab"          # or "user@192.168.x.x:2302"
     ssh_key:  str = "~/.ssh/fibo_key_davide"        # path to private key
 
     # Absolute paths on the LINUX SERVER
@@ -36,7 +36,7 @@ class RemoteConfig:
     # --compress : compress during transfer (good for checkpoints)
     # --partial  : resume interrupted transfers
     # --info=progress2 : single-line progress (quiet but informative)
-    rsync_opts: list = ["--archive", "--compress", "--partial", "--info=progress2"]
+    rsync_opts: list = ["--archive", "--compress", "--partial"]
 
 
 CFG = RemoteConfig()
@@ -69,7 +69,7 @@ def rsync_push_data() -> None:
     transfer stays small even when multiple experiments exist locally.
     """
     local_src  = str(Path(CFG.local_data_root)) + "/"
-    remote_dst = f"{CFG.ssh_host}:{CFG.server_data_root}/"
+    remote_dst = f"{CFG.ssh_host}:{CFG.server_data_root}"
 
     _run(
         ["rsync"] + CFG.rsync_opts + [
