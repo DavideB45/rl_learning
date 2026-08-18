@@ -26,6 +26,7 @@ class PNGDataset(Dataset):
 	def __init__(self, path:str, max_size:int=10000):
 
 		self.files = glob.glob(path + 'img_*.png')
+
 		apr_path = path + 'action_reward_data.json'
 		with open(apr_path, 'r') as f:
 			apr_json = json.load(f)
@@ -43,7 +44,7 @@ class PNGDataset(Dataset):
 	def __getitem__(self, idx):
 		with Image.open(self.files[idx]) as im:
 			img = im.convert('RGB')
-		parts = self.files[idx].split('_')
+		parts = self.files[idx].split('nd_')
 		episode = int(parts[2])
 		step = int(parts[3].split('.')[0]) - 1
 			

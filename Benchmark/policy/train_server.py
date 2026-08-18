@@ -37,7 +37,7 @@ from dynamics.lstm import LSTMQuantized
 from envs.simulator import SoftDreamEnv
 
 SMOOTHING = True if SMOOTH > 0 else False
-BASE = 'home/davide/github/rl_learning/Benchmark/'
+BASE = '/home/davide/github/rl_learning/Benchmark/'
 policy_kwargs = dict(
     net_arch=dict(
         pi=[1024, 512, 256],
