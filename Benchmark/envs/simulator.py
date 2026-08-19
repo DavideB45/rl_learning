@@ -180,7 +180,7 @@ if __name__ == "__main__":
 	vq = load_vq_vae(CURRENT_ENV, CODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM, True, SMOOTH, best_device())
 	lstm = load_lstm_quantized(CURRENT_ENV, vq, best_device(), HIDDEN_DIM, SMOOTH, False, False)
 	#lstm = load_transformer(CURRENT_ENV, vq, best_device(), EMB_SIZE, MAX_SEQ_LEN, NUM_HEADS, NUM_LAYERS, DROPOUT, False, False)
-	env = SoftDreamEnv(vq=vq, dynamic=lstm, dataloader=make_seq_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], True, 0), vq, 100, 1), 
+	env = SoftDreamEnv(vq=vq, dynamic=lstm, dataloader=make_seq_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], True, 2), vq, 100, 1), 
 					  num_envs=1, ep_len=100, init_len=10)
 	observation = env.reset()
 	frames = []
@@ -188,10 +188,13 @@ if __name__ == "__main__":
 	done = False
 	total_reward = 0
 	step_count = 0
-	agent = PPO.load(CURRENT_ENV['models'] + 'agent' + f'{EXP_ID}', env)
+	#agent = PPO.load(CURRENT_ENV['models'] + 'agent' + f'{EXP_ID}', env)
 	while not done:
-		#action = env.action_space.sample()  # random action
-		action, _states = agent.predict(observation, deterministic=True)
+		action = env.action_space.sample()  # random action
+		action[0] = 0.0
+		action[1] = 0.0
+		action[2] = 0.0
+		#action, _states = agent.predict(observation, deterministic=True)
 		observation, reward, terminated, info = env.step(action)
 		print(f"Step {step_count} Reward: {reward} | Action: {action}")
 		frames.append(env.render().rotate(180))

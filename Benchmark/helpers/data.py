@@ -44,7 +44,7 @@ class PNGDataset(Dataset):
 	def __getitem__(self, idx):
 		with Image.open(self.files[idx]) as im:
 			img = im.convert('RGB')
-		parts = self.files[idx].split('nd_')
+		parts = self.files[idx].split('_')
 		episode = int(parts[2])
 		step = int(parts[3].split('.')[0]) - 1
 			

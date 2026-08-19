@@ -60,8 +60,8 @@ def main():
     # ------------------------------------------------------------------
     print("\n[orchestrator] === Initial data collection ===")
     t = time.time()
-    #evaluate_gathering_safe(vq, lstm, policy=None, n_sample=500, training_set=True,  round=EXP_ID)
-    #evaluate_gathering_safe(vq, lstm, policy=None, n_sample=500, training_set=False, round=EXP_ID)
+    evaluate_gathering_safe(vq, lstm, policy=None, n_sample=200, training_set=True,  round=EXP_ID)
+    evaluate_gathering_safe(vq, lstm, policy=None, n_sample=200, training_set=False, round=EXP_ID)
     timings['collecting_time'] += time.time() - t
 
     # ------------------------------------------------------------------
@@ -106,7 +106,7 @@ def main():
             print("[orchestrator] WARNING: agent checkpoint not found, using None policy")
             agent = None
 
-        rew, succ = evaluate_gathering_safe(vq, lstm, n_sample=250, policy=agent, training_set=True, round=EXP_ID)
+        rew, succ = evaluate_gathering_safe(vq, lstm, n_sample=100, policy=agent, training_set=True, round=EXP_ID)
 
         with open(LOG_NAME + '.csv', 'a') as f:
             for i in range(len(rew)):

@@ -8,7 +8,7 @@ sys.path.insert(1, os.path.join(sys.path[0], '../'))
 from helpers.general import best_device
 
 from vae.vqVae import VQVAE
-from global_var import CURRENT_ENV, LATENT_DIM, CODE_DEPTH, CODEBOOK_SIZE, SMOOTH
+from global_var import CURRENT_ENV, LATENT_DIM, CODE_DEPTH, CODEBOOK_SIZE, SMOOTH, EXP_ID
 from helpers.data import make_image_dataloader_safe, get_data_path
 from helpers.model_loader import load_vq_vae
 import matplotlib.pyplot as plt
@@ -28,7 +28,7 @@ if __name__ == "__main__":
 	vq_vae = load_vq_vae(CURRENT_ENV, CODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM, True, True if SMOOTH > 0 else False, device)
 	vq_vae.eval()
 
-	test_loader = make_image_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], False, 0))
+	test_loader = make_image_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], False, EXP_ID))
 
 	dataiter = iter(test_loader)
 	images = next(dataiter)[0].to(device)
@@ -49,32 +49,32 @@ if __name__ == "__main__":
 	for i in range(num_images):
 		# original image
 		plt.subplot(5, num_images, i + 1)
-		plt.imshow(images[i].permute(1, 2, 0).numpy()[::-1, ::-1])
+		plt.imshow(images[i].permute(1, 2, 0).numpy())#[::-1, ::-1])
 		plt.axis('off')
 		if i == 0:
 			plt.title('Original Images')
 		
 		# reconstructed image
 		plt.subplot(5, num_images, i + 1 + num_images)
-		plt.imshow(vq_images[i].permute(1, 2, 0).numpy()[::-1, ::-1])
+		plt.imshow(vq_images[i].permute(1, 2, 0).numpy())#[::-1, ::-1])
 		plt.axis('off')
 		if i == 0:
 			plt.title('Reconstructed Images')
 
 		plt.subplot(5, num_images, i + 1 + 2 * num_images)
-		plt.imshow(masks[i].numpy()[::-1, ::-1])
+		plt.imshow(masks[i].numpy())#[::-1, ::-1])
 		plt.axis('off')
 		if i == 0:
 			plt.title('Masks')
 
 		plt.subplot(5, num_images, i + 1 + 3 * num_images)
-		plt.imshow(robot[i].permute(1, 2, 0).numpy()[::-1, ::-1])
+		plt.imshow(robot[i].permute(1, 2, 0).numpy())#[::-1, ::-1])
 		plt.axis('off')
 		if i == 0:
 			plt.title('Robot')
 
 		plt.subplot(5, num_images, i + 1 + 4 * num_images)
-		plt.imshow(backgorund.permute(1, 2, 0).numpy()[::-1, ::-1])
+		plt.imshow(backgorund.permute(1, 2, 0).numpy())#[::-1, ::-1])
 		plt.axis('off')
 		if i == 0:
 			plt.title('Background')
