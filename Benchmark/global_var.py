@@ -1,3 +1,4 @@
+IS_SERVER = True
 EXP_ID = 2
 LOG_NAME = f'res_{EXP_ID}'
 GPU_ID = f"{EXP_ID%4}" # window 2 - peg 3
@@ -5,6 +6,11 @@ GPU_ID = f"{EXP_ID%4}" # window 2 - peg 3
 IMG_DIR = "imgs/"
 TRANSITIONS = "action_reward_data.json"
 MODELS_DIR = "models/"
+
+if IS_SERVER:
+	BASE = '/home/davide/github/rl_learning/Benchmark/'
+else:
+	BASE = '/Users/davide/Documents/github/rl_learning/Benchmark/'
 
 
 BUTTON_DATA_DIR = "data/button-press/"
@@ -101,7 +107,7 @@ REAL_SOFT_DATA_DIR = "data/real-soft/"
 REAL_SOFT = {
 	"env_name": "real-soft-v0",
 	"img_dir": REAL_SOFT_DATA_DIR + IMG_DIR,
-	"models": REAL_SOFT_DATA_DIR + MODELS_DIR + f"{EXP_ID}/",
+	"models": BASE + REAL_SOFT_DATA_DIR + MODELS_DIR + f"{EXP_ID}/",
 	"a_size": 3,
 	"render_size": 64,
 	"camera_id": 0,

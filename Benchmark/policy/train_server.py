@@ -107,7 +107,7 @@ def main():
     # ------------------------------------------------------------------
     # PPO agent in dream environment
     # ------------------------------------------------------------------
-    dream_env = SoftDreamEnv( vq, lstm, vl_seq, init_len = INIT_LEN, ep_len = DREAM_LEN, num_envs = 50 )
+    dream_env = SoftDreamEnv( vq, lstm, tr_seq, init_len = INIT_LEN, ep_len = DREAM_LEN, num_envs = 50 )
     agent = tune_agent(agent, num_steps=PPO_STEPS, env=dream_env)
 
     print(f"\n[server] Round {round_idx} complete. Checkpoints saved.\n")

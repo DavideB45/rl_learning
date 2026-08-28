@@ -14,7 +14,7 @@ import sys
 sys.path.insert(1, os.path.join(sys.path[0], '../'))
 
 from vae.vqVae import VQVAE
-from global_var import PROP_SIZE
+from global_var import PROP_SIZE, IS_SERVER
 
 def get_data_path(origin:str, train:bool, round:int) -> str:
 	return origin + ('tr/' if train else 'vl/') + f'round_{round}/'
@@ -44,9 +44,14 @@ class PNGDataset(Dataset):
 	def __getitem__(self, idx):
 		with Image.open(self.files[idx]) as im:
 			img = im.convert('RGB')
-		parts = self.files[idx].split('_')
-		episode = int(parts[2])
-		step = int(parts[3].split('.')[0]) - 1
+		if IS_SERVER:
+			parts = self.files[idx].split('_')
+			episode = int(parts[3])
+			step = int(parts[4].split('.')[0]) - 1
+		else:
+			parts = self.files[idx].split('_')
+			episode = int(parts[2])
+			step = int(parts[3].split('.')[0]) - 1
 			
 		img = self.transform(img)
 		return img, self.rew[episode][step]
