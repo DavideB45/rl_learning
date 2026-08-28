@@ -45,6 +45,8 @@ def main():
 	lstm_training_time = 0
 	dataset_generation_time = 0
 	agent_training_time = 0
+	rolling_success = 0.0
+	best_success_rate = -1.0
 
 	start_time = time.time()
 	vq = VQVAE(CODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM, 0.25, best_device(), True)
@@ -78,6 +80,10 @@ def main():
 		
 		dream_env = MetaDreamEnv(vq, lstm, vl_seq, init_len=INIT_LEN, ep_len=DREAM_LEN, num_envs=50) #ep_len=SEQ_LEN - INIT_LEN
 		agent_training_time -= time.time()
+		if round % 500 == 3:
+			if rolling_success < 0.1:
+				agent = None
+				best_success_rate = -1.0
 		agent = tune_agent(agent, num_steps=PPO_STEPS, env=dream_env) # codes changed so we train more PPO
 		agent_training_time += time.time()
 
