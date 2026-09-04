@@ -97,33 +97,10 @@ WINDOW_OPEN = {
 	"camera_id": 2,
 }
 
-CURRENT_ENV = BUTTON
-
-LATENT_DIM = 4
-CODE_DEPTH = 16
-CODEBOOK_SIZE = 32
-SMOOTH = 5
-VQ_EPOCS = 20 # used in learning loop for the initial training, then 1 epoch for each round
-VQ_LR = 1e-3
-VQ_WD = 0.001
-
-EP_ON_LOOP = 20
-
-SEQ_LEN = 25
-INIT_LEN = 10
-REW_WEIGHT = 1
-USE_KL = True
-
-HIDDEN_DIM = 1024
-LSTM_EPOCS = 2 # used in learning loop for the initial training, then 1 epoch for each round
-LSTM_LR = 5e-5
-LSTM_WD = 1e-3
-PROP_SIZE = 8
+CURRENT_ENV = BUTTON_TD
 
 
 N_ROUNDS = 500 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/1000
-PPO_STEPS = 100000
-DREAM_LEN = 30
 PPO_LR = 0.0003
 PPO_MIN_LR = 1e-5
 N_ENVS = 4
@@ -132,7 +109,7 @@ PPO_BATCH_SIZE = 128
 PPO_N_EPOCHS = 10
 PPO_ENT_COEF = 0.005
 NORMALIZE_REWARD = True
-USE_IMPALA = True
+USE_IMPALA = False
 PPO_FEATURES_DIM = 256
 IMPALA_DEPTHS = (16, 32, 32)
 ACTION_REPEAT = True
@@ -140,4 +117,3 @@ ACTION_REPEAT_STEPS = 2
 FRAME_STACK = 3
 GRAYSCALE = True
 CHANNELS_FIRST = True
-INIT_GATHER = 5000
