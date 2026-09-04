@@ -2,6 +2,7 @@ import os
 import sys
 import argparse
 import platform
+import cv2
 import numpy as np
 import imageio
 from stable_baselines3 import PPO
@@ -176,7 +177,7 @@ def main():
 		if args.record_video:
 			frame = raw_env.render()
 			if frame is not None:
-				video_frames.append(frame)
+				video_frames.append(cv2.resize(frame, (512, 512), interpolation=cv2.INTER_AREA))
 
 		while not done:
 			action, _ = agent.predict(obs, deterministic=args.deterministic)
@@ -193,7 +194,7 @@ def main():
 			if args.record_video:
 				frame = raw_env.render()
 				if frame is not None:
-					video_frames.append(frame)
+					video_frames.append(cv2.resize(frame, (512, 512), interpolation=cv2.INTER_AREA))
 
 		episode_rewards.append(ep_reward)
 		episode_lengths.append(ep_length)
