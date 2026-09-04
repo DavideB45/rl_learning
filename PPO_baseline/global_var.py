@@ -121,10 +121,20 @@ LSTM_WD = 1e-3
 PROP_SIZE = 8
 
 
-N_ROUNDS = 3000 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/1000
+N_ROUNDS = 500 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/1000
 PPO_STEPS = 100000
 DREAM_LEN = 30
 PPO_LR = 0.0003
+PPO_MIN_LR = 1e-5
+N_ENVS = 4
+PPO_N_STEPS = 1024
+PPO_BATCH_SIZE = 128
+PPO_N_EPOCHS = 10
+PPO_ENT_COEF = 0.005
+NORMALIZE_REWARD = True
+USE_IMPALA = True
+PPO_FEATURES_DIM = 256
+IMPALA_DEPTHS = (16, 32, 32)
 ACTION_REPEAT = True
 ACTION_REPEAT_STEPS = 2
 FRAME_STACK = 3

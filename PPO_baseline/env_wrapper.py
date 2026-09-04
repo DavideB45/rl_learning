@@ -9,11 +9,13 @@ from gymnasium import spaces
 import metaworld
 from stable_baselines3 import PPO
 from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecNormalize
 
 sys.path.insert(1, os.path.join(sys.path[0], '../'))
 
 from helpers import best_device
 from global_var import *
+from impala_cnn import ImpalaCNN
 
 class MetaWrapEnv(gym.Env):
 	"""
@@ -185,7 +187,10 @@ class MetaWrapEnv(gym.Env):
 		return self.current_render
 
 	def close(self):
-		self.env.close()
+		try:
+			self.env.close()
+		except Exception:
+			pass
 
 
 def make_env(
@@ -196,8 +201,7 @@ def make_env(
 	action_repeat: int = (ACTION_REPEAT_STEPS if ACTION_REPEAT else 1),
 ) -> gym.Env:
 	"""
-	Factory helper that creates a MetaWrapEnv wrapped with SB3's Monitor
-	for logging episodic returns, lengths, and success rates.
+	Factory helper that creates a single MetaWrapEnv wrapped with SB3's Monitor.
 	"""
 	env = MetaWrapEnv(
 		env_dict=env_dict,
@@ -207,6 +211,59 @@ def make_env(
 		action_repeat=action_repeat,
 	)
 	return Monitor(env, info_keywords=("is_success",))
+
+
+def linear_schedule(initial_value: float, final_value: float = 1e-5):
+	"""
+	Linear learning rate schedule that decays from initial_value to final_value.
+	"""
+	def func(progress_remaining: float) -> float:
+		return final_value + progress_remaining * (initial_value - final_value)
+	return func
+
+
+def make_vec_envs(
+	env_dict: dict = CURRENT_ENV,
+	n_envs: int = N_ENVS,
+	seed: int = 42,
+	frame_stack: int = FRAME_STACK,
+	grayscale: bool = GRAYSCALE,
+	channels_first: bool = CHANNELS_FIRST,
+	action_repeat: int = (ACTION_REPEAT_STEPS if ACTION_REPEAT else 1),
+	normalize_reward: bool = NORMALIZE_REWARD,
+	use_subproc: bool = False,
+):
+	"""
+	Creates vectorized environments with seeding, Monitor wrappers,
+	and optional running reward normalization (VecNormalize).
+	"""
+	def _init(rank: int):
+		def _thunk():
+			env = MetaWrapEnv(
+				env_dict=env_dict,
+				frame_stack=frame_stack,
+				grayscale=grayscale,
+				channels_first=channels_first,
+				action_repeat=action_repeat,
+			)
+			env.action_space.seed(seed + rank)
+			return Monitor(env, info_keywords=("is_success",))
+		return _thunk
+
+	env_fns = [_init(i) for i in range(n_envs)]
+
+	# On macOS Darwin, DummyVecEnv avoids GLFW OpenGL context crashes across subprocesses.
+	# On headless Linux with EGL, SubprocVecEnv can be used.
+	if n_envs > 1 and use_subproc:
+		venv = SubprocVecEnv(env_fns)
+	else:
+		venv = DummyVecEnv(env_fns)
+
+	if normalize_reward:
+		venv = VecNormalize(venv, norm_obs=False, norm_reward=True, clip_reward=10.0)
+
+	return venv
+
 
 if __name__ == "__main__":
 	if 'MUJOCO_GL' not in os.environ:
@@ -218,41 +275,67 @@ if __name__ == "__main__":
 	device = best_device()
 	print(f"Device: {device}")
 	print(f"Observation setup: Frame stack={FRAME_STACK}, Grayscale={GRAYSCALE}, Channels first={CHANNELS_FIRST}")
+	print(f"Parallel Envs: {N_ENVS}, Reward Normalization: {NORMALIZE_REWARD}")
 
-	# 1. Initialize the environment wrapped with Monitor for statistics
-	env = make_env(
+	# 1. Initialize vectorized environments (DummyVecEnv on macOS to avoid GLFW multithreading issues)
+	use_subproc = (platform.system() != 'Darwin')
+	env = make_vec_envs(
 		env_dict=CURRENT_ENV,
+		n_envs=N_ENVS,
 		frame_stack=FRAME_STACK,
 		grayscale=GRAYSCALE,
 		channels_first=CHANNELS_FIRST,
 		action_repeat=(ACTION_REPEAT_STEPS if ACTION_REPEAT else 1),
+		normalize_reward=NORMALIZE_REWARD,
+		use_subproc=use_subproc,
 	)
 	print(f"Observation space: {env.observation_space}")
 	print(f"Action space: {env.action_space}")
 
-	# 2. Instantiate PPO with "CnnPolicy" and tuned hyperparameters for image RL
+	# 2. Configure feature extractor (Impala CNN vs Nature CNN)
+	policy_kwargs = {}
+	if USE_IMPALA:
+		print(f"Backbone: ImpalaCNN (residual blocks, depths={IMPALA_DEPTHS}, features_dim={PPO_FEATURES_DIM})")
+		policy_kwargs = dict(
+			features_extractor_class=ImpalaCNN,
+			features_extractor_kwargs=dict(
+				features_dim=PPO_FEATURES_DIM,
+				depths=IMPALA_DEPTHS,
+			),
+		)
+	else:
+		print("Backbone: NatureCNN (default SB3)")
+
+	# 3. Instantiate PPO with linear LR schedule and tuned hyperparameters for image RL (Idea 3 & 6)
+	lr_schedule = linear_schedule(PPO_LR, final_value=PPO_MIN_LR)
+
 	agent = PPO(
 		policy="CnnPolicy",
 		env=env,
-		learning_rate=PPO_LR,
-		n_steps=1024,
-		batch_size=64,
-		n_epochs=10,
+		policy_kwargs=policy_kwargs,
+		learning_rate=lr_schedule,
+		n_steps=PPO_N_STEPS,
+		batch_size=PPO_BATCH_SIZE,
+		n_epochs=PPO_N_EPOCHS,
 		gamma=0.99,
 		gae_lambda=0.95,
 		clip_range=0.2,
-		ent_coef=0.005,
+		ent_coef=PPO_ENT_COEF,
 		verbose=1,
 		device=device,
 		tensorboard_log="./tensorboard_logs/",
 	)
 
-	# 3. Train the agent using learn()
+	# 4. Train the agent using learn()
 	total_steps = N_ROUNDS * (500 if not ACTION_REPEAT else 250)
 	print(f"Starting PPO training on images for {total_steps} timesteps...")
 	agent.learn(total_timesteps=total_steps, progress_bar=True)
 
-	# 4. Save model and clean up
+	# 4. Save model and normalization statistics
 	agent.save("ppo_metaworld_vision")
 	print("Model saved to ppo_metaworld_vision.zip")
+	if NORMALIZE_REWARD and isinstance(env, VecNormalize):
+		env.save("vec_normalize.pkl")
+		print("VecNormalize statistics saved to vec_normalize.pkl")
+
 	env.close()
