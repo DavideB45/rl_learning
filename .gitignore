@@ -13,6 +13,7 @@ Benchmark/data/*
 Benchmark/*.out
 Benchmark/*.csv
 Benchmark/tmp
+PPO_baseline/tensorboard_logs/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
