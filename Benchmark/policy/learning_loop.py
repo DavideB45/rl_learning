@@ -12,6 +12,7 @@ from torch.optim import Adam
 from stable_baselines3.ppo.policies import MlpPolicy
 from stable_baselines3.ppo import PPO
 from torch.utils.data import DataLoader
+from helpers.telegram import send_telegram_message
 import torch
 import time
 import json
@@ -126,6 +127,11 @@ def main():
 			'dataset_generation_time': dataset_generation_time,
 			'agent_training_time': agent_training_time,
 		}, f, indent=1)
+	total_elapsed = time.time() - start_time
+	days = int(total_elapsed // 86400)
+	time_str = time.strftime('%H:%M:%S', time.gmtime(total_elapsed))
+	send_telegram_message(f"Learning loop finished for {CURRENT_ENV['env_name']} with run ID {EXP_ID}. Total time: {days} days, {time_str}")
+	
 
 
 
