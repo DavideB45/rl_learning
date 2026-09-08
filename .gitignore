@@ -16,6 +16,7 @@ Benchmark/tmp
 PPO_baseline/tensorboard_logs/*
 PPO_baseline/*.pkl
 PPO_baseline/*.csv
+PPO_baseline/telegram_token.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

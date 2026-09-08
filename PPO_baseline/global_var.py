@@ -1,4 +1,4 @@
-EXP_ID = 6
+EXP_ID = 7
 LOG_NAME = f'res_{EXP_ID}'
 GPU_ID = f"{EXP_ID%4}" # window 2 - peg 3
 
@@ -97,10 +97,10 @@ WINDOW_OPEN = {
 	"camera_id": 2,
 }
 
-CURRENT_ENV = DRAWER_OPEN
+CURRENT_ENV = PEG_INSERT 
 
 
-N_ROUNDS = 1000 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/1000
+N_ROUNDS = 3010 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/1000
 PPO_LR = 0.0003
 PPO_MIN_LR = 1e-5
 N_ENVS = 4

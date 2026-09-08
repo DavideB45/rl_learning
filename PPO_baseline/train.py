@@ -1,8 +1,26 @@
+from global_var import *
+import argparse
+# --- Parse Command Line Arguments ---
+parser = argparse.ArgumentParser(description="Train PPO Agent")
+parser.add_argument("--run-id", type=int, default=f"{EXP_ID}", help="Unique name for this run (used for output files)")
+parser.add_argument("--n-eval", type=int, default=10, help="Number of evaluation episodes to run concurrently")
+args = parser.parse_args()
+EXP_ID = args.run_id  # Update EXP_ID based on command line argument
+GPU_ID = f"{EXP_ID%4}"
+
 import os
+import platform
+# Setup rendering vars
+if 'MUJOCO_GL' not in os.environ:
+    if platform.system() == 'Darwin':  # macOS
+        os.environ['MUJOCO_GL'] = 'glfw'
+    else:  # Linux / servers
+        os.environ['MUJOCO_GL'] = 'egl'
+        os.environ['MUJOCO_EGL_DEVICE_ID'] = GPU_ID
+        os.environ['CUDA_VISIBLE_DEVICES'] = GPU_ID
+
 import sys
 import csv
-import platform
-import argparse
 import numpy as np
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback
@@ -12,7 +30,6 @@ from stable_baselines3.common.vec_env import VecNormalize
 sys.path.insert(1, os.path.join(sys.path[0], '../'))
 
 from helpers import best_device
-from global_var import *
 from impala_cnn import ImpalaCNN
 from env_wrapper import make_vec_envs, linear_schedule
 
@@ -89,26 +106,14 @@ class CsvEvalCallback(BaseCallback):
 
 
 if __name__ == "__main__":
-    # --- Parse Command Line Arguments ---
-    parser = argparse.ArgumentParser(description="Train PPO Agent")
-    parser.add_argument("--run-name", type=str, default="default", help="Unique name for this run (used for output files)")
-    parser.add_argument("--n-eval", type=int, default=10, help="Number of evaluation episodes to run concurrently")
-    args = parser.parse_args()
 
     # Dynamic filenames based on the run name
-    csv_filename = f"evaluation_metrics_{args.run_name}.csv"
-    model_filename = f"ppo_metaworld_vision_{args.run_name}"
-    vecnorm_filename = f"vec_normalize_{args.run_name}.pkl"
-
-    # Setup rendering vars
-    if 'MUJOCO_GL' not in os.environ:
-        if platform.system() == 'Darwin':  # macOS
-            os.environ['MUJOCO_GL'] = 'glfw'
-        else:  # Linux / servers
-            os.environ['MUJOCO_GL'] = 'egl'
+    csv_filename = f"evaluation_metrics_{args.run_id}.csv"
+    model_filename = f"ppo_metaworld_vision_{args.run_id}"
+    vecnorm_filename = f"vec_normalize_{args.run_id}.pkl"
 
     device = best_device()
-    print(f"Device: {device} | Run Name: {args.run_name}")
+    print(f"Device: {device} | Run Name: {args.run_id}")
     
     # 1. Initialize training environment
     use_subproc = (platform.system() != 'Darwin')
@@ -166,7 +171,7 @@ if __name__ == "__main__":
         ent_coef=PPO_ENT_COEF,
         verbose=0,
         device=device,
-        tensorboard_log=f"./tensorboard_logs/{args.run_name}/",
+        tensorboard_log=f"./tensorboard_logs/{args.run_id}/",
     )
 
     # 5. Calculate frequencies and setup the callback
@@ -196,3 +201,6 @@ if __name__ == "__main__":
 
     train_env.close()
     eval_env.close()
+    if EXP_ID == 7:
+        from telegram import send_telegram_message
+        send_telegram_message(f"PPO training completed for run {args.run_id}. Model and evaluation metrics saved.")
