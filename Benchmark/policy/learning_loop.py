@@ -53,7 +53,7 @@ def main():
 	lstm = LSTMQuantized(vq, best_device(), CURRENT_ENV['a_size'], 4, HIDDEN_DIM)
 	agent = None
 	with open(LOG_NAME + '.csv', 'w') as f:
-			f.write(f'mrew,success,space,max_space,min_space\n')
+			f.write(f'mrew,success,space,max_space,min_space,std\n')
 	
 	collecting_time -= time.time()
 	generate_data(vq, lstm, n_sample=INIT_GATHER, training_set=True, round=EXP_ID)
@@ -95,7 +95,7 @@ def main():
 			rolling_success = rolling_success*0.9 + 0.1*current_success
 			print(f"Average reward: {(sum(rew) / len(rew)):.2f}, Success rate: {current_success:.2%}, Rolling: {rolling_success:.2%}")
 			if round > 800:
-				if current_success >= best_success_rate - 0.1: # save but allow for 10% decrease compared to the best
+				if current_success >= best_success_rate - 0.11: # save but allow for 10% decrease compared to the best
 					# Agent improved or stayed the same, save this as our new "best" anchor
 					best_success_rate = max(current_success, best_success_rate)
 					if agent is not None:
