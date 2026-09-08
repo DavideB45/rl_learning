@@ -2,6 +2,7 @@ import os
 import sys
 import csv
 import platform
+import argparse
 import numpy as np
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback
@@ -19,13 +20,13 @@ from env_wrapper import make_vec_envs, linear_schedule
 class CsvEvalCallback(BaseCallback):
     """
     Custom callback for evaluating the agent every `eval_freq` steps.
-    Runs `n_eval_episodes` episodes and saves reward and success of EACH run to a CSV.
+    Runs `n_eval_episodes` concurrently in a vectorized environment and saves results to a CSV.
     """
-    def __init__(self, eval_env, eval_freq: int, n_eval_episodes: int = 10, csv_path: str = 'eval_results.csv', verbose: int = 1):
+    def __init__(self, eval_env, eval_freq: int, csv_path: str = 'eval_results.csv', verbose: int = 1):
         super(CsvEvalCallback, self).__init__(verbose)
         self.eval_env = eval_env
         self.eval_freq = eval_freq
-        self.n_eval_episodes = n_eval_episodes
+        self.n_envs = eval_env.num_envs
         self.csv_path = csv_path
         self.next_eval_step = self.eval_freq
 
@@ -43,33 +44,36 @@ class CsvEvalCallback(BaseCallback):
 
     def _run_evaluation(self):
         if self.verbose > 0:
-            print(f"\n[Eval] Triggering evaluation at {self.num_timesteps} steps...")
+            print(f"\n[Eval] Triggering parallel evaluation for {self.n_envs} episodes at {self.num_timesteps} steps...")
         
-        results = []
+        obs = self.eval_env.reset()
         
-        for ep in range(1, self.n_eval_episodes + 1):
-            # VecEnv returns only the observation on reset
-            obs = self.eval_env.reset()
-            done = False
-            ep_reward = 0.0
-            ep_success = False
+        # Track state for each parallel environment
+        ep_rewards = np.zeros(self.n_envs)
+        ep_successes = np.zeros(self.n_envs, dtype=bool)
+        ep_dones = np.zeros(self.n_envs, dtype=bool)
+        
+        # Step until ALL environments have completed one episode
+        while not np.all(ep_dones):
+            actions, _ = self.model.predict(obs, deterministic=True)
+            obs, rewards, dones, infos = self.eval_env.step(actions)
             
-            while not done:
-                # Predict action deterministically for evaluation
-                action, _ = self.model.predict(obs, deterministic=True)
-                
-                # VecEnv returns exactly 4 elements
-                obs, reward, dones, infos = self.eval_env.step(action)
-                
-                ep_reward += reward[0]
-                
-                # Check for success metric stored by your wrapper
-                if infos[0].get("is_success", False):
-                    ep_success = True
+            for i in range(self.n_envs):
+                # Only add rewards/success if the environment hasn't finished its first episode yet
+                # (VecEnv auto-resets, so we must ignore steps after the first 'done')
+                if not ep_dones[i]:
+                    ep_rewards[i] += rewards[i]
                     
-                done = dones[0]
-                
-            results.append([self.num_timesteps, ep, ep_reward, ep_success])
+                    if infos[i].get("is_success", False):
+                        ep_successes[i] = True
+                        
+                    if dones[i]:
+                        ep_dones[i] = True
+                        
+        # Format results for CSV
+        results = []
+        for i in range(self.n_envs):
+            results.append([self.num_timesteps, i + 1, ep_rewards[i], ep_successes[i]])
             
         # Append results to CSV
         with open(self.csv_path, mode='a', newline='') as f:
@@ -77,14 +81,25 @@ class CsvEvalCallback(BaseCallback):
             writer.writerows(results)
             
         # Compute means for logging
-        mean_reward = np.mean([r[2] for r in results])
-        mean_success = np.mean([r[3] for r in results])
+        mean_reward = np.mean(ep_rewards)
+        mean_success = np.mean(ep_successes)
         
         if self.verbose > 0:
             print(f"[Eval Results] Mean Reward: {mean_reward:.2f} | Mean Success Rate: {mean_success * 100:.1f}%\n")
 
 
 if __name__ == "__main__":
+    # --- Parse Command Line Arguments ---
+    parser = argparse.ArgumentParser(description="Train PPO Agent")
+    parser.add_argument("--run-name", type=str, default="default", help="Unique name for this run (used for output files)")
+    parser.add_argument("--n-eval", type=int, default=10, help="Number of evaluation episodes to run concurrently")
+    args = parser.parse_args()
+
+    # Dynamic filenames based on the run name
+    csv_filename = f"evaluation_metrics_{args.run_name}.csv"
+    model_filename = f"ppo_metaworld_vision_{args.run_name}"
+    vecnorm_filename = f"vec_normalize_{args.run_name}.pkl"
+
     # Setup rendering vars
     if 'MUJOCO_GL' not in os.environ:
         if platform.system() == 'Darwin':  # macOS
@@ -93,7 +108,7 @@ if __name__ == "__main__":
             os.environ['MUJOCO_GL'] = 'egl'
 
     device = best_device()
-    print(f"Device: {device}")
+    print(f"Device: {device} | Run Name: {args.run_name}")
     
     # 1. Initialize training environment
     use_subproc = (platform.system() != 'Darwin')
@@ -108,17 +123,17 @@ if __name__ == "__main__":
         use_subproc=use_subproc,
     )
     
-    # 2. Initialize a separate SINGLE evaluation environment
-    # Note: normalize_reward is False so evaluation is on raw true rewards!
+    # 2. Initialize a separate PARALLEL evaluation environment
+    # We set n_envs = args.n_eval so it runs all evaluation episodes at the exact same time
     eval_env = make_vec_envs(
         env_dict=CURRENT_ENV,
-        n_envs=1, 
+        n_envs=args.n_eval, 
         frame_stack=FRAME_STACK,
         grayscale=GRAYSCALE,
         channels_first=CHANNELS_FIRST,
         action_repeat=(ACTION_REPEAT_STEPS if ACTION_REPEAT else 1),
         normalize_reward=False,  
-        use_subproc=False,
+        use_subproc=use_subproc, # Enabled subproc here to parallelize eval!
     )
 
     # 3. Configure architecture
@@ -149,9 +164,9 @@ if __name__ == "__main__":
         gae_lambda=0.95,
         clip_range=0.2,
         ent_coef=PPO_ENT_COEF,
-        verbose=1,
+        verbose=0,
         device=device,
-        tensorboard_log="./tensorboard_logs/",
+        tensorboard_log=f"./tensorboard_logs/{args.run_name}/",
     )
 
     # 5. Calculate frequencies and setup the callback
@@ -160,25 +175,24 @@ if __name__ == "__main__":
     total_steps = N_ROUNDS * steps_per_episode
     
     print(f"Starting PPO training for {total_steps} timesteps...")
-    print(f"Evaluation scheduled every {eval_freq} steps (10 episodes).")
+    print(f"Evaluation scheduled every {eval_freq} steps ({args.n_eval} parallel episodes).")
     
     eval_callback = CsvEvalCallback(
         eval_env=eval_env, 
         eval_freq=eval_freq, 
-        n_eval_episodes=10, 
-        csv_path="evaluation_metrics.csv"
+        csv_path=csv_filename
     )
 
     # 6. Train the agent
     agent.learn(total_timesteps=total_steps, callback=eval_callback, progress_bar=True)
 
     # 7. Save models and normalize variables
-    agent.save("ppo_metaworld_vision")
-    print("Model saved to ppo_metaworld_vision.zip")
+    agent.save(model_filename)
+    print(f"Model saved to {model_filename}.zip")
     
     if NORMALIZE_REWARD and isinstance(train_env, VecNormalize):
-        train_env.save("vec_normalize.pkl")
-        print("VecNormalize statistics saved to vec_normalize.pkl")
+        train_env.save(vecnorm_filename)
+        print(f"VecNormalize statistics saved to {vecnorm_filename}")
 
     train_env.close()
     eval_env.close()

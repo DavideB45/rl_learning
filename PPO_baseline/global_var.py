@@ -97,10 +97,10 @@ WINDOW_OPEN = {
 	"camera_id": 2,
 }
 
-CURRENT_ENV = BUTTON_TD
+CURRENT_ENV = DRAWER_OPEN
 
 
-N_ROUNDS = 500 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/1000
+N_ROUNDS = 1000 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/1000
 PPO_LR = 0.0003
 PPO_MIN_LR = 1e-5
 N_ENVS = 4
