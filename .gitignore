@@ -223,3 +223,4 @@ marimo/_lsp/
 __marimo__/
 .vscode/settings.json
 .DS_Store
+Benchmark/helpers/telegram_token.py
