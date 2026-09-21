@@ -33,5 +33,8 @@ class SafeControlBox(ControlBox):
 	def reset(self):
 		self.send_pressure(0, 0, 0)
 
+	def disconnect(self):
+		self.reset()
+
 	def send_pressure_array(self, pressure):
 		self.send_pressure(pressure[0], pressure[1], pressure[2])
