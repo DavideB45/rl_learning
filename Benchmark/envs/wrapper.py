@@ -46,11 +46,9 @@ class SoftWrapEnv(gym.Env):
 		self.vq_dim = self.vq.latent_dim**2*self.vq.code_depth
 		self.dyn = dyn
 		self.dyn.eval()
-
-		if True:
-			self.env = RealWorld(debug=True, target_size=10, render_mode='human')
-		else:
-			self.env = RealWorld()
+		self.env = RealWorld(view_camera_id=1, width = 640, height = 480, cropped_width=64, cropped_height=64, camera_hz=20,
+				aruco_camera_id=0, marker_id=None, min_sharpness=100.0, aruco_hz=20,
+				render_mode='human', max_steps=100, env_hz=10, debug=False, rew_multiplier=8.0)
 		self.mu = vq.quantizer.embedding.weight.data.mean()
 		self.std = vq.quantizer.embedding.weight.data.std()
 		self.action_space = self.env.action_space
@@ -142,7 +140,7 @@ class SoftWrapEnv(gym.Env):
 		)
 	
 	def render(self):
-		if True:
+		if False:
 			with torch.no_grad():
 				img = self.vq.decode(self.current_latent[:, :, :]).squeeze(0).permute(1, 2, 0).cpu().numpy()
 				img = (img * 255).astype(np.uint8)
@@ -153,7 +151,7 @@ class SoftWrapEnv(gym.Env):
 				#cv2.waitKey(100)
 				return image_resized
 		else:
-			return self.current_render
+			return self.env.render()
 		
 	def close(self):
 		self.env.close()
