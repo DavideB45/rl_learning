@@ -57,6 +57,9 @@ class SoftWrapEnv(gym.Env):
 		)
 		self.to_tensor_ = T.ToTensor()
 
+	def save_next_episode(self, id):
+		self.env.save_next_episode_video(id)
+
 	def get_img(self) -> Image.Image:
 		'''
 		Renders the current frame of the environment and resizes it.
@@ -278,7 +281,7 @@ def evaluate_gathering(vq:VQVAE, lstm:LSTMQuantized, policy:BaseAlgorithm, n_sam
 		)
 	return tot_rewards, tot_success
 
-def evaluate_gathering_safe(vq, lstm, policy, n_sample:int=1000, training_set:bool=True, round:int=0) -> tuple[list[float], list[bool]]:
+def evaluate_gathering_safe(vq, lstm, policy, n_sample:int=1000, training_set:bool=True, round:int=0, save_id:str|None|int=None) -> tuple[list[float], list[bool]]:
 	"""
 	Evaluate the policy on the environment, gathering data and saving it in the same format as generate_data
 	Args:
@@ -308,6 +311,8 @@ def evaluate_gathering_safe(vq, lstm, policy, n_sample:int=1000, training_set:bo
 		os.makedirs(CURRENT_ENV['models'])
 		
 	env = SoftWrapEnv(vq, lstm)
+	if save_id is not None:
+		env.save_next_episode(save_id)
 	obs, _ = env.reset()
 	step = 0
 	episode = len(actions)

@@ -82,7 +82,11 @@ def main():
 		agent_training_time += time.time()
 
 		collecting_time -= time.time()
-		rew, succ = evaluate_gathering_safe(vq, lstm, n_sample=250, policy=agent, training_set=False, round=EXP_ID)
+		if (round % 10 == 0) or (round % 11 == 0):
+			save_id = round
+		else:
+			save_id = None
+		rew, succ = evaluate_gathering_safe(vq, lstm, n_sample=250, policy=agent, training_set=False, round=EXP_ID, save_id=save_id)
 		with open(LOG_NAME + '.csv', 'a') as f:
 			for i in range(len(rew)):
 				f.write(f'{rew[i]:.3f},{succ[i]},{torch.mean(torch.abs(vq.quantizer.embedding.weight.data)):.3f},{torch.max(vq.quantizer.embedding.weight.data):.3f},{torch.min(vq.quantizer.embedding.weight.data):.3f},{torch.std(vq.quantizer.embedding.weight.data):.5f}\n')

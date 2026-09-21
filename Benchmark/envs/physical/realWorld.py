@@ -61,8 +61,48 @@ class RealWorld(gym.Env):
 		self.current_prop = None
 		self.current_img = None
 		self.cropped_img = None
+		self.save = False
 		self.target_size = 10
 		self.current_step = 0
+
+	def save_next_episode_video(self, id):
+		'''
+		Save the next episode to disk
+		Args:
+			id: id of the episode to save
+		'''
+		self.save = True
+		self.run_id = id
+		self.frame_original = []
+		self.frame_cropped = []
+		self.frame_aruco = []
+
+	def save_now(self):
+		if self.save:
+			self.save = False
+			fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+			
+			# Helper function to dynamically save any frame list
+			def write_video(filename, frames):
+				if not frames:
+					print(f"Warning: No frames to save for {filename}")
+					return
+				height, width = frames[0].shape[:2]
+				is_color = len(frames[0].shape) == 3 and frames[0].shape[2] == 3
+				out = cv2.VideoWriter(filename, fourcc, 1/self.stepTime, (width, height), isColor=is_color)
+				for frame in frames:
+					write_frame = np.array(frame, dtype=np.uint8)
+					out.write(write_frame)
+				out.release()
+				print(f"Saved: {filename}")
+
+			write_video(f'episode_{self.run_id}.mp4', self.frame_original)
+			write_video(f'episode_{self.run_id}_cropped.mp4', self.frame_cropped)
+			write_video(f'episode_{self.run_id}_aruco.mp4', self.frame_aruco)
+			
+			self.frame_original.clear()
+			self.frame_cropped.clear()
+			self.frame_aruco.clear()
 	
 	def reset(self, seed=None, options=None):
 		'''
@@ -73,6 +113,7 @@ class RealWorld(gym.Env):
 		Returns:
 			np.ndarray: Initial observation of the environment state.
 		'''
+		self.save_now()
 		super().reset(seed=seed, options=options)
 		self.box.reset()
 		
@@ -139,13 +180,19 @@ class RealWorld(gym.Env):
 			image = Image.fromarray(np.asarray(self.cropped_img))
 			cropped_display = np.asarray(image.resize((512, 512), Image.NEAREST))
 			cv2.imshow("Cropped", cropped_display)
-			cv2.imshow("Aruco", self.arucoDetector.get_clear_image())
+			aruco_display = self.arucoDetector.get_clear_image()
+			cv2.imshow("Aruco", aruco_display)
 			cv2.waitKey(1)
+			if self.save:
+				self.frame_original.append(self.current_img)
+				self.frame_cropped.append(cropped_display)
+				self.frame_aruco.append(aruco_display)
 			return self.current_img
 		else:
 			raise RuntimeError("Available render modes for the Real World: \{'rgb_array', 'human'\}")
 		
 	def close(self):
+		self.save_now()
 		cv2.destroyAllWindows()
 		self.camera.stop()
 		self.arucoDetector.stop()
@@ -160,6 +207,7 @@ if __name__ == "__main__":
 	observation, _ = env.reset()
 	total_reward = 0
 	done = False
+	env.save_next_episode_video(2)
 	np.set_printoptions(precision=2, suppress=True)
 	while not done:
 		action = env.action_space.sample()
