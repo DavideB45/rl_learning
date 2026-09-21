@@ -80,7 +80,7 @@ class ImpalaCNN(BaseFeaturesExtractor):
 
 		self.linear = nn.Sequential(
 			nn.Linear(n_flatten, features_dim),
-			nn.ReLU(),
+			nn.ReLU(),#### aaaaaaaaaaa
 		)
 
 	def forward(self, observations: torch.Tensor) -> torch.Tensor:

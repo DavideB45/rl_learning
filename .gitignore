@@ -12,6 +12,7 @@ legacy/
 Benchmark/data/*
 Benchmark/*.out
 Benchmark/*.csv
+Benchmark/*/telegram_token.py
 Benchmark/tmp
 PPO_baseline/tensorboard_logs/*
 PPO_baseline/*.pkl

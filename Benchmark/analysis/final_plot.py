@@ -6,16 +6,30 @@ from pathlib import Path
 # ==========================================
 # CONFIGURATION
 # ==========================================
-ENV_NAME = "button-press-td"
+ENV_NAME = "button-press"
+#ENV_NAME = "button-press-td" sborra
+ENV_NAME = "drawer-open"
+#ENV_NAME = "window-open"
+#ENV_NAME = "peg-insert"
 BASE_DIR = f"data/{ENV_NAME}/full_experiments/"
+TITLE = "no_mask"
+#BASE_DIR = f"data/{ENV_NAME}/stabilization/"
 
 # Comment out the ones you DON'T want to plot
 EXPERIMENTS_TO_PLOT = [
-    "Dreamer_160",
-    "Dreamer_23",
+    #"Dreamer_160",
+    #"Dreamer_23",
     "default",
     #"no_kl",
-    #"propioception"
+    "no_mask2",
+    #"propioception",
+    #"ppo_default",
+    #"ppo_impala",
+    #"teacher_forcing",
+    #"propioception_0.01",
+    #"reset_500",
+    #"reset_conditional",
+    #"reset_conditional_restore_prop"
 ]
 
 # Evaluation parameters
@@ -111,7 +125,7 @@ def plot_results(data):
     axes[1].set_ylim(-0.05, 1.05) 
     
     plt.tight_layout()
-    plt.savefig(f'final_plot_{ENV_NAME}.png', dpi=300)
+    plt.savefig(f'final_plot_{TITLE}_{ENV_NAME}.png', dpi=300)
     plt.show()
 
 if __name__ == "__main__":
