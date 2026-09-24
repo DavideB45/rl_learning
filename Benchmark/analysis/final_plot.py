@@ -7,25 +7,25 @@ from pathlib import Path
 # ==========================================
 # CONFIGURATION
 # ==========================================
-ENV_NAME = "button-press"
-ENV_NAME = "button-press-td"
-ENV_NAME = "drawer-open"
-ENV_NAME = "window-open"
+#ENV_NAME = "button-press"
+#ENV_NAME = "button-press-td"
+#ENV_NAME = "drawer-open"
+#ENV_NAME = "window-open"
 ENV_NAME = "peg-insert"
 BASE_DIR = f"data/{ENV_NAME}/full_experiments/"
-TITLE = "no_mask"
+TITLE = "proprioception"
 #BASE_DIR = f"data/{ENV_NAME}/stabilization/"
 
 # Comment out the ones you DON'T want to plot
 EXPERIMENTS_TO_PLOT = [
-    "Dreamer_160",
-    "Dreamer_23",
-    "default",
+    #"Dreamer_160",
+    #"Dreamer_23",
+    #"default",
     #"no_kl",
     #"no_mask2",
     #"propioception",
     "ppo_default",
-    #"ppo_impala",
+    "ppo_impala",
     #"teacher_forcing",
     #"propioception_0.01",
     #"reset_500",
@@ -56,22 +56,42 @@ NO_WARMUP_PREFIXES = ("dreamer", "ppo")  # case-insensitive exp_name prefixes
 # gets the same color no matter which subset/plot it appears in. Colors 1-8
 # come from a validated CVD-safe categorical palette; the rest are a
 # secondary set for the less-frequently-combined ablations.
+#   Anchor:        "default" is green in EVERY plot - it's the one series that
+#                  is always present, so it acts as the visual reference point.
+#   Main comparison (default + both Dreamer sizes + PPO, 4 lines together):
+#                  the two Dreamer runs share the blue family (dark vs light,
+#                  same hue so they read as "the same model, different size"),
+#                  PPO variants share the orange/yellow family. Green/blue/
+#                  orange/yellow are four hues that are easy to tell apart at
+#                  a glance and none of them are reused by the ablations below.
+#   Regular ablations (each only ever plotted 2-lines-at-a-time against
+#                  "default", never against each other): they all intentionally
+#                  SHARE one color (red) since they never co-occur in a figure.
+#   Proprioception ablations: these are called out as the more important
+#                  comparison, so they get their own violet family instead of
+#                  the shared ablation red - it visually stands out as "the
+#                  interesting one" wherever it appears. The three variants
+#                  are shades of the same violet in case two of them are ever
+#                  plotted together.
 EXPERIMENT_COLORS = {
-    "default":                        "#008300",  # green - Ours (main model)
-    "Dreamer_160":                     "#2a78d6",  # blue
-    "Dreamer_23":                      "#1baf7a",  # aqua
+    "default":                        "#008300",  # green  - anchor, always "Ours"
+
+    "Dreamer_160":                     "#104281",  # dark navy blue
+    "Dreamer_23":                      "#4e75a4",  # light sky blue (same family as 160)
     "ppo_default":                     "#eb6834",  # orange
-    "ppo_impala":                      "#eda100",  # yellow
-    "no_kl":                           "#4a3aa7",  # violet
-    "no_mask":                         "#e34948",  # red
-    "no_mask2":                        "#e87ba4",  # magenta
-    "propioception":                   "#8c564b",  # brown
-    "propioception_0.01":              "#bcbd22",  # olive
-    "prop_rr":                         "#17becf",  # cyan
-    "teacher_forcing":                 "#7f7f7f",  # gray
-    "reset_500":                       "#e377c2",  # pink
-    "reset_conditional":               "#1f3b73",  # navy
-    "reset_conditional_restore_prop":  "#6b0f1a",  # maroon
+    "ppo_impala":                      "#eda100",  # yellow (same family as ppo_default)
+
+    "no_kl":                           "#e34948",  # red - shared "regular ablation" color
+    "no_mask":                         "#e34948",  # red - shared "regular ablation" color
+    "no_mask2":                        "#e34948",  # red - shared "regular ablation" color
+    "teacher_forcing":                 "#e34948",  # red - shared "regular ablation" color
+    "reset_500":                       "#e34948",  # red - shared "regular ablation" color
+    "reset_conditional":               "#e34948",  # red - shared "regular ablation" color
+    "reset_conditional_restore_prop":  "#e34948",  # red - shared "regular ablation" color
+
+    "propioception":                   "#4a3aa7",  # violet - the important comparison
+    "propioception_0.01":              "#9085e9",  # lighter violet, same family
+    "prop_rr":                         "#7a5fc4",  # mid violet, same family
 }
 
 # Human-readable legend/table labels. These are best-effort guesses based on
@@ -80,12 +100,12 @@ EXPERIMENT_LABELS = {
     "default":                        "Ours",
     "Dreamer_160":                     "DreamerV3 (160M)",
     "Dreamer_23":                      "DreamerV3 (23M)",
-    "ppo_default":                     "PPO",
+    "ppo_default":                     "PPO (NatureCNN)",
     "ppo_impala":                      "PPO (IMPALA)",
     "no_kl":                           "Ours (no KL loss)",
     "no_mask":                         "Ours (no mask)",
     "no_mask2":                        "Ours (no mask)",
-    "propioception":                   "Ours (proprioception)",
+    "propioception":                   "Ours (Multimodal)",
     "propioception_0.01":              "Ours (proprioception, 0.01)",
     "prop_rr":                         "Ours (proprioception, reduced rate)",
     "teacher_forcing":                 "Ours (teacher forcing)",
@@ -152,6 +172,23 @@ def load_and_process_data():
             chunked_df['label'] = get_label(exp_name)
             chunked_df['run'] = run_id
 
+            if needs_warmup_shift(exp_name):
+                # Anchor the line at (0, 0) so it visibly rises from the
+                # bottom during the warmup gathering phase, instead of
+                # popping in mid-air at step=WARMUP_STEPS with whatever
+                # value the first real evaluation happened to have.
+                anchor = pd.DataFrame([{
+                    'step': 0,
+                    'mrew': 0.0,
+                    'success': 0.0,
+                    'mrew_smooth': 0.0,
+                    'success_smooth': 0.0,
+                    'experiment': exp_name,
+                    'label': get_label(exp_name),
+                    'run': run_id,
+                }])
+                chunked_df = pd.concat([anchor, chunked_df], ignore_index=True)
+
             all_data.append(chunked_df)
 
     df_all = pd.concat(all_data, ignore_index=True)
@@ -215,7 +252,7 @@ def plot_results(data):
 
     plt.tight_layout()
     plt.savefig(f'final_plot_{TITLE}_{ENV_NAME}.png', dpi=300)
-    plt.show()
+    #plt.show()
 
 # ==========================================
 # FINAL SUCCESS RATE SUMMARY (for thesis tables)
