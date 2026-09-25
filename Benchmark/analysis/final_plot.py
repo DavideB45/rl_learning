@@ -14,23 +14,23 @@ from pathlib import Path
 ENV_NAME = "peg-insert"
 BASE_DIR = f"data/{ENV_NAME}/full_experiments/"
 TITLE = "proprioception"
-#BASE_DIR = f"data/{ENV_NAME}/stabilization/"
+BASE_DIR = f"data/{ENV_NAME}/stabilization/"
 
 # Comment out the ones you DON'T want to plot
 EXPERIMENTS_TO_PLOT = [
     #"Dreamer_160",
     #"Dreamer_23",
-    #"default",
+    "default",
     #"no_kl",
     #"no_mask2",
     #"propioception",
-    "ppo_default",
-    "ppo_impala",
+    #"ppo_default",
+    #"ppo_impala",
     #"teacher_forcing",
-    #"propioception_0.01",
+    "propioception_0.01",
     #"reset_500",
     #"reset_conditional",
-    #"reset_conditional_restore_prop"
+    "reset_conditional_restore_prop"
 ]
 
 # Evaluation parameters
@@ -87,10 +87,10 @@ EXPERIMENT_COLORS = {
     "teacher_forcing":                 "#e34948",  # red - shared "regular ablation" color
     "reset_500":                       "#e34948",  # red - shared "regular ablation" color
     "reset_conditional":               "#e34948",  # red - shared "regular ablation" color
-    "reset_conditional_restore_prop":  "#e34948",  # red - shared "regular ablation" color
+    "reset_conditional_restore_prop":  "#4a3aa7",  # red - shared "regular ablation" color
 
     "propioception":                   "#4a3aa7",  # violet - the important comparison
-    "propioception_0.01":              "#9085e9",  # lighter violet, same family
+    "propioception_0.01":              "#9084e7",  # lighter violet, same family
     "prop_rr":                         "#7a5fc4",  # mid violet, same family
 }
 
@@ -106,12 +106,12 @@ EXPERIMENT_LABELS = {
     "no_mask":                         "Ours (no mask)",
     "no_mask2":                        "Ours (no mask)",
     "propioception":                   "Ours (Multimodal)",
-    "propioception_0.01":              "Ours (proprioception, 0.01)",
+    "propioception_0.01":              "Ours (Multimmodal, KL=0.01)",
     "prop_rr":                         "Ours (proprioception, reduced rate)",
     "teacher_forcing":                 "Ours (teacher forcing)",
-    "reset_500":                       "Ours (reset @ 500)",
+    "reset_500":                       "Ours (Multimodal, reset @ 500)",
     "reset_conditional":               "Ours (conditional reset)",
-    "reset_conditional_restore_prop":  "Ours (conditional reset, restore prop.)",
+    "reset_conditional_restore_prop":  "Ours (Multimodal)",
 }
 
 # Overflow palette for any experiment name not registered above, so the
@@ -252,7 +252,7 @@ def plot_results(data):
 
     plt.tight_layout()
     plt.savefig(f'final_plot_{TITLE}_{ENV_NAME}.png', dpi=300)
-    #plt.show()
+    plt.show()
 
 # ==========================================
 # FINAL SUCCESS RATE SUMMARY (for thesis tables)
