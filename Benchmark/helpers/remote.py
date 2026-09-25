@@ -21,15 +21,21 @@ class RemoteConfig:
     ssh_host: str = "davide@fibonacci-brairlab"          # or "user@192.168.x.x:2302"
     ssh_key:  str = "~/.ssh/fibo_key_davide"        # path to private key
 
+    # Path of the models dir *relative to the repo root*, common to both machines.
+    # CURRENT_ENV['models'] is already an absolute path (it bakes in BASE, which
+    # depends on the local IS_SERVER flag), so it can't be reused here — re-derive
+    # the relative tail instead, the same way CURRENT_ENV['img_dir'] stays relative.
+    _models_rel: str = REAL_SOFT_DATA_DIR + MODELS_DIR + f"{EXP_ID}/"
+
     # Absolute paths on the LINUX SERVER
     server_data_root:   str = f"/home/davide/github/rl_learning/Benchmark/{CURRENT_ENV['img_dir']}"
-    server_models_root: str = f"/home/davide/github/rl_learning/Benchmark/{CURRENT_ENV['models']}"
+    server_models_root: str = f"/home/davide/github/rl_learning/Benchmark/{_models_rel}"
     server_script:      str = "/home/davide/github/rl_learning/Benchmark/policy/train_server.py"
     server_python:      str = "/home/davide/github/rl_learning/rl_env/bin/python"
 
     # Absolute paths on the MAC
     local_data_root:   str = str(Path.home() / f"Documents/github/rl_learning/Benchmark/{CURRENT_ENV['img_dir']}")
-    local_models_root: str = str(Path.home() / f"Documents/github/rl_learning/Benchmark/{CURRENT_ENV['models']}")
+    local_models_root: str = str(Path.home() / f"Documents/github/rl_learning/Benchmark/{_models_rel}")
 
     # rsync options
     # --archive  : recursive + preserve permissions/timestamps

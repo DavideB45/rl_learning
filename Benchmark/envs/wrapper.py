@@ -46,9 +46,9 @@ class SoftWrapEnv(gym.Env):
 		self.vq_dim = self.vq.latent_dim**2*self.vq.code_depth
 		self.dyn = dyn
 		self.dyn.eval()
-		self.env = RealWorld(view_camera_id=1, width = 640, height = 480, cropped_width=64, cropped_height=64, camera_hz=20,
-				aruco_camera_id=0, marker_id=None, min_sharpness=100.0, aruco_hz=20,
-				render_mode='human', max_steps=100, env_hz=10, debug=False, rew_multiplier=8.0)
+		self.env = RealWorld(view_camera_id=1, width = 480, height = 480, cropped_width=64, cropped_height=64, camera_hz=20,
+				aruco_camera_id=0, marker_id=9, min_sharpness=100.0, aruco_hz=20,
+				render_mode='human', max_steps=100, env_hz=10, debug=True, rew_multiplier=8.0)
 		self.mu = vq.quantizer.embedding.weight.data.mean()
 		self.std = vq.quantizer.embedding.weight.data.std()
 		self.action_space = self.env.action_space
