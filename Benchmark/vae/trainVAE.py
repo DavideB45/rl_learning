@@ -1,20 +1,25 @@
-import torch
-
 import os
 import sys
 sys.path.insert(1, os.path.join(sys.path[0], '../'))
+
+if 'MUJOCO_GL' not in os.environ:
+	os.environ['MUJOCO_GL'] = 'egl'
+	os.environ['MUJOCO_EGL_DEVICE_ID'] = GPU_ID
+	os.environ['CUDA_VISIBLE_DEVICES'] = GPU_ID
+import torch
 
 
 from vae.vqVae import VQVAE as VAE
 from helpers.general import best_device
 from helpers.data import make_image_dataloader_safe, get_data_path
 from helpers.model_loader import save_vq_vae
-from global_var import CURRENT_ENV, LATENT_DIM, CODE_DEPTH, CODEBOOK_SIZE, SMOOTH, VQ_EPOCS, VQ_LR, VQ_WD
+from global_var import CURRENT_ENV, LATENT_DIM, CODE_DEPTH, CODEBOOK_SIZE, SMOOTH, VQ_EPOCS, VQ_LR, VQ_WD, EXP_ID
 
+IMAGES_ID = 1
+MAX_IMAGES = 30000
 
-
-TR_DATA = get_data_path(CURRENT_ENV['img_dir'], True, 0)
-VL_DATA = get_data_path(CURRENT_ENV['img_dir'], False, 0)
+TR_DATA = get_data_path(CURRENT_ENV['img_dir'], True, IMAGES_ID)
+VL_DATA = get_data_path(CURRENT_ENV['img_dir'], False, IMAGES_ID)
 DEVICE = best_device()
 
 

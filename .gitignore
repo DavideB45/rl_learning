@@ -13,6 +13,7 @@ Benchmark/data/*
 Benchmark/*.csv
 Benchmark/*.out
 */*/telegram_token.py
+*/telegram_token.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

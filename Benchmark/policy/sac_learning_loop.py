@@ -1,0 +1,267 @@
+import os
+import sys
+sys.path.insert(1, os.path.join(sys.path[0], '../'))
+from global_var import *
+if 'MUJOCO_GL' not in os.environ:
+	os.environ['MUJOCO_GL'] = 'egl'
+	os.environ['MUJOCO_EGL_DEVICE_ID'] = GPU_ID
+	os.environ['CUDA_VISIBLE_DEVICES'] = GPU_ID
+
+import numpy as np
+from torch.optim import Adam
+from stable_baselines3 import SAC
+from torch.utils.data import DataLoader
+from helpers.telegram import send_telegram_message
+import torch
+import time
+import json
+
+
+from helpers.data import make_image_dataloader_safe, make_seq_dataloader_safe, get_data_path
+from helpers.model_loader import load_vq_vae, load_lstm_quantized, save_vq_vae, save_lstm_quantized
+from helpers.general import best_device
+from vae.vqVae import VQVAE
+from dynamics.lstm import LSTMQuantized
+
+from envs.simulator import MetaDreamEnv
+from envs.wrapper import MetaWrapEnv, evaluate_gathering, generate_data
+
+SMOOTHING = True if SMOOTH > 0 else False
+# SAC RELATED PARAMETERS
+# note: SAC uses 'qf' instead of 'vf', and has no ortho_init option
+policy_kwargs = dict(
+	net_arch=dict(
+		pi=SAC_PI_ARCH,   # actor network layers
+		qf=SAC_QF_ARCH    # critic (Q) network layers
+	),
+	n_critics=SAC_N_CRITICS
+)
+
+colors = ['\033[91m', '\033[95m', '\033[92m', '\033[93m', '\033[96m']
+reset = '\033[0m'
+
+
+def agent_path(best:bool=False) -> str:
+	# different prefix from the PPO runs so old PPO checkpoints are never overwritten
+	return CURRENT_ENV['models'] + ('sac_agent_best' if best else 'sac_agent') + f'{EXP_ID}'
+
+
+def main():
+	collecting_time = 0
+	vq_training_time = 0
+	lstm_training_time = 0
+	dataset_generation_time = 0
+	agent_training_time = 0
+	rolling_success = 0.0
+	best_success_rate = -1.0
+
+	start_time = time.time()
+	vq = VQVAE(CODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM, 0.25, best_device(), True)
+	lstm = LSTMQuantized(vq, best_device(), CURRENT_ENV['a_size'], 4, HIDDEN_DIM)
+	agent = None
+	with open(LOG_NAME + '.csv', 'w') as f:
+			f.write(f'mrew,success,space,max_space,min_space,std\n')
+
+	collecting_time -= time.time()
+	generate_data(vq, lstm, n_sample=INIT_GATHER, training_set=True, round=EXP_ID)
+	generate_data(vq, lstm, n_sample=1000, training_set=False, round=EXP_ID)
+	collecting_time += time.time()
+
+	for round in range(N_ROUNDS):
+		print(f'Training round: {round + 1} of {N_ROUNDS}')
+
+		vq_training_time -= time.time()
+		vq_changed = False
+		if round == 0:
+			vq = tune_vq(model=vq, num_epocs=VQ_EPOCS, lr=VQ_LR/np.log(round*5 + 4), reg=SMOOTH, wd=VQ_WD) # reg=-1 means no quantization
+			vq_changed = True
+		elif round % 2 == 1:
+			vq = tune_vq(model=vq, num_epocs=1, lr=VQ_LR/np.log(round*5 + 4), reg=SMOOTH, wd=VQ_WD)
+			vq_changed = True
+		vq_training_time += time.time()
+
+		dataset_generation_time -= time.time()
+		tr_seq = make_seq_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], True, EXP_ID), vq, SEQ_LEN, 128, max_ep=EP_ON_LOOP*2 if ACTION_REPEAT else EP_ON_LOOP)
+		vl_seq = make_seq_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], False, EXP_ID), vq, SEQ_LEN, 128, max_ep=15)
+		dataset_generation_time += time.time()
+		lstm_training_time -= time.time()
+		lstm = tune_lstm(lstm, tr=tr_seq, vl=vl_seq, encoder=vq, num_epocs=LSTM_EPOCS if round == 0 else 1, lr=LSTM_LR, wd=LSTM_WD)
+		lstm_training_time += time.time()
+
+		dream_env = MetaDreamEnv(vq, lstm, vl_seq, init_len=INIT_LEN, ep_len=DREAM_LEN, num_envs=DREAM_NUM_ENVS) #ep_len=SEQ_LEN - INIT_LEN
+		agent_training_time -= time.time()
+		if round % 500 == 3:
+			if rolling_success < 0.1:
+				agent = None
+				best_success_rate = -1.0
+		agent = tune_agent(agent, num_steps=SAC_STEPS, env=dream_env, vq_changed=vq_changed)
+		agent_training_time += time.time()
+
+		collecting_time -= time.time()
+		generate_data(vq, lstm, n_sample=250 if ACTION_REPEAT else 500, policy=agent, training_set=True, round=EXP_ID)
+		if round % 10 == 0:
+			rew, succ = evaluate_gathering(vq, lstm, n_sample=(250 if ACTION_REPEAT else 500)*10, policy=agent, training_set=False, round=EXP_ID)
+			current_success = sum(succ) / len(succ)
+			rolling_success = rolling_success*0.9 + 0.1*current_success
+			print(f"Average reward: {(sum(rew) / len(rew)):.2f}, Success rate: {current_success:.2%}, Rolling: {rolling_success:.2%}")
+			if round > 800:
+				if current_success >= best_success_rate - 0.11: # save but allow for 10% decrease compared to the best
+					# Agent improved or stayed the same, save this as our new "best" anchor
+					best_success_rate = max(current_success, best_success_rate)
+					if agent is not None:
+						agent.save(agent_path(best=True))
+						print(f"{colors[2]}  SAC performance stabilized/improved! Saved new best checkpoint.{reset}")
+				else:
+					# Agent got worse, revert to the previous best anchor
+					if agent is not None:
+						print(f"{colors[0]}  SAC performance dropped (Current: {current_success:.2%} < Best: {best_success_rate:.2%}). Reverting to best checkpoint!{reset}")
+						# Restore the best actor/critics, but keep the current replay buffer:
+						# it holds fresh transitions from the current world model
+						buffer = agent.replay_buffer
+						agent = SAC.load(agent_path(best=True), env=dream_env)
+						agent.replay_buffer = buffer
+						agent.save(agent_path())
+			with open(LOG_NAME + '.csv', 'a') as f:
+				for i in range(len(rew)):
+					f.write(f'{rew[i]:.3f},{succ[i]},{torch.mean(torch.abs(vq.quantizer.embedding.weight.data)):.3f},{torch.max(vq.quantizer.embedding.weight.data):.3f},{torch.min(vq.quantizer.embedding.weight.data):.3f},{torch.std(vq.quantizer.embedding.weight.data):.5f}\n')
+					if not torch.isfinite(torch.mean(torch.abs(vq.quantizer.embedding.weight.data))):
+						print("Found nan for the first time in the main loop")
+						exit()
+		collecting_time += time.time()
+
+		print(f"\033[1;31m--- {time.strftime('%H:%M:%S', time.gmtime(time.time()-start_time))} ---\033[0m")
+	with open(LOG_NAME + 'time.json', 'w') as f:
+		json.dump({
+			'collecting_time': collecting_time,
+			'vq_training_time': vq_training_time,
+			'lstm_training_time': lstm_training_time,
+			'dataset_generation_time': dataset_generation_time,
+			'agent_training_time': agent_training_time,
+		}, f, indent=1)
+	total_elapsed = time.time() - start_time
+	days = int(total_elapsed // 86400)
+	time_str = time.strftime('%H:%M:%S', time.gmtime(total_elapsed))
+	send_telegram_message(f"Learning loop (SAC) finished for {CURRENT_ENV['env_name']} with run ID {EXP_ID}. Total time: {days} days, {time_str}")
+
+
+
+
+def tune_vq(model:VQVAE, num_epocs:int=20, lr:float=1e-3, wd:float=1e-3, reg:float=1) -> VQVAE:
+	tr = make_image_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], True, EXP_ID), max_size=EP_ON_LOOP*500)
+	vl = make_image_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], False, EXP_ID), max_size=1500)
+	optim = Adam(model.parameters(), lr=lr, weight_decay=wd)
+	best_val_loss = float('inf')
+	no_improvements = 0
+	for epoch in range(num_epocs):
+		print("-" * 25 + f" {(epoch + 1):02}/{num_epocs} " + "-" * 25)
+		tr_loss = model.train_epoch(tr, optim, reg)
+		val_loss = model.eval_epoch(vl, reg)
+		if val_loss['total_loss'] < best_val_loss:
+			best_val_loss = val_loss['total_loss']
+			save_vq_vae(CURRENT_ENV, model, smooth=SMOOTHING)
+			print(f"{colors[-1]}  New best model saved!{reset}")
+		else:
+			no_improvements += 1
+			if no_improvements >= 3:
+				break
+		for i, key in enumerate(tr_loss):
+			color = colors[i % len(colors)]
+			print(f"{color}  Train {key}: {tr_loss[key]:.4f}, Val {key}: {val_loss[key]:.4f}{reset}")
+	# this last line is needed: if the loop terminated with early stopping we still use the best model found
+	del model
+	return load_vq_vae(CURRENT_ENV, CODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM, True, SMOOTHING, best_device())
+
+def tune_lstm(model: LSTMQuantized, tr:DataLoader, vl:DataLoader, encoder: VQVAE, num_epocs:int=20, lr:float=5e-5, wd=5e-4) -> LSTMQuantized:
+	model.quantizer = encoder
+	optim = Adam(model.parameters(), lr=lr, weight_decay=wd)
+	best_val_loss = float('inf')
+	no_improvements = 0
+	for epoch in range(num_epocs):
+		err_tr = model.train_rwm_style(tr, optim, init_len=INIT_LEN, err_decay=0.99, rew_weight=REW_WEIGHT)
+		err_vl = model.eval_rwm_style(vl, init_len=INIT_LEN, err_decay=0.99, rew_weight=REW_WEIGHT)
+		if err_vl['mse'] < best_val_loss:
+			print_lstm_analytics(epoch, err_tr, err_vl)
+			best_val_loss = err_vl['mse']
+			no_improvements = 0
+			save_lstm_quantized(CURRENT_ENV, model, cl=False, kl=False, tf=SMOOTHING)
+		else:
+			no_improvements += 1
+			if no_improvements >= 5:
+				break
+	if num_epocs == 1:
+		return model
+	del model
+	model = load_lstm_quantized(CURRENT_ENV, encoder, best_device(), HIDDEN_DIM, SMOOTHING, cl=False, kl=False)
+	model.compile()
+	return model
+
+def tune_agent(agent:SAC, env:MetaDreamEnv, num_steps:int=100000, vq_changed:bool=False) -> SAC:
+	if agent is None:
+		agent = SAC(
+			'MlpPolicy', env,
+			policy_kwargs=policy_kwargs,
+			learning_rate=SAC_LR,
+			buffer_size=SAC_BUFFER_SIZE,
+			learning_starts=SAC_LEARNING_STARTS,
+			batch_size=SAC_BATCH_SIZE,
+			tau=SAC_TAU,
+			gamma=SAC_GAMMA,
+			train_freq=SAC_TRAIN_FREQ,
+			gradient_steps=SAC_GRADIENT_STEPS,
+			ent_coef=SAC_ENT_COEF,
+			target_entropy=SAC_TARGET_ENTROPY,
+			use_sde=SAC_USE_SDE,
+			sde_sample_freq=SAC_SDE_SAMPLE_FREQ,
+		)
+	else:
+		# Keep the agent (and its replay buffer) in memory instead of save/load:
+		# SAC.save does not store the buffer, so reloading every round would throw it away.
+		agent.set_env(env)  # also forces an env reset at the start of learn()
+		if vq_changed and SAC_RESET_BUFFER_ON_VQ_UPDATE:
+			# the VQ-VAE was retrained -> latent codes of old transitions no longer match
+			agent.replay_buffer.reset()
+			# refill before the next gradient step (warm-up uses random actions in SB3)
+			agent.learning_starts = agent.num_timesteps + SAC_REFILL_STEPS
+	agent = agent.learn(num_steps, progress_bar=False, reset_num_timesteps=False)
+	agent.save(agent_path())
+	if SAC_SAVE_BUFFER:
+		agent.save_replay_buffer(agent_path() + '_buffer')
+	return agent
+
+
+
+
+PURPLE = "\033[95m"; YELLOW = "\033[93m"; BLUE   = "\033[94m"; RESET  = "\033[0m"
+COL1, COL2, COL3 = 15, 12, 12
+WIDTH = COL1 + COL2 + COL3 + 6
+def row(c1, c2="", c3="", color=RESET):
+	print(color + f"| {c1:<{COL1}} | {c2:>{COL2}} | {c3:>{COL3}} |" + RESET)
+def sep(color=RESET):
+	print(color + "+" + "-"*(WIDTH+2) + "+" + RESET)
+def print_lstm_analytics(epoch, err_tr, err_vl):
+	sep(PURPLE)
+	row(f"Epoch {epoch}", "Train", "Val", YELLOW)
+	sep(PURPLE)
+	row("MSE",		f"{err_tr['mse']:.4f}",			f"{err_vl['mse']:.4f}",			BLUE)
+	row("QMSE",		f"{err_tr['qmse']:.4f}",		f"{err_vl['qmse']:.4f}",		BLUE)
+	row("Prop MSE",	f"{err_tr['prop_mse']:.4f}",	f"{err_vl['prop_mse']:.4f}",	BLUE)
+	row("Rew MSE",	f"{err_tr['reward_mse']:.4f}",	f"{err_vl['reward_mse']:.4f}",	BLUE)
+	row("Accuracy",	f"{err_tr['acc']:.1f}%",		f"{err_vl['acc']:.1f}%",		PURPLE)
+	row("First Acc",f"{err_tr['first_acc']:.1f}%",	f"{err_vl['first_acc']:.1f}%", PURPLE)
+	sep(PURPLE)
+
+if __name__ == '__main__':
+	main()
+
+
+
+# STEPS
+# 1 - gather some amount of data
+# 2 - train a vector quantizer variational autoencoder
+# 3 - train an lstmc
+# 4 - a loop of some length begins
+# 4.1 - train a SAC agent in the dream (replay buffer kept across rounds, cleared when the VQ changes)
+# 4.2 - use the SAC agent to obtain data from a wrapped env
+# 4.3 - tune the vq-vae
+# 4.4 - tune the lstmc (more than the vq-vae)
+# 5 fine

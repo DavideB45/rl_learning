@@ -3,7 +3,10 @@
 # Retrieved 2026-09-08, License - CC BY-SA 4.0
 
 import requests
-from telegram_token import TOKEN  # Ensure you have a telegram_token.py file with your bot token
+import os
+import sys
+sys.path.insert(1, os.path.join(sys.path[0], '../'))
+from helpers.telegram_token import TOKEN  # Ensure you have a telegram_token.py file with your bot token
 
 
 def send_telegram_message(message: str):
@@ -12,3 +15,7 @@ def send_telegram_message(message: str):
 	response = requests.get(url)
 	if response.status_code != 200:
 		print(f"Failed to send message: {response.status_code}, {response.text}")
+
+if __name__ == "__main__":
+	send_telegram_message("Test message from the Telegram bot.\n\n\
+Second line of the message.\nThird line of the message.")

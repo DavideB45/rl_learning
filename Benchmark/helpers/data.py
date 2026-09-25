@@ -30,7 +30,8 @@ class PNGDataset(Dataset):
 			apr_json = json.load(f)
 			self.rew = apr_json["reward"]
 		if len(self.files) > max_size:
-			random.shuffle(self.files)
+			rng = random.Random(26)  # local RNG, doesn't touch global random state
+			rng.shuffle(self.files)
 			self.files = self.files[:max_size]
 		else:
 			print(f"Warning: only {len(self.files)} images found in {path}, less than the specified max_size of {max_size}")
