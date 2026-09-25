@@ -48,7 +48,7 @@ class SoftWrapEnv(gym.Env):
 		self.dyn.eval()
 		self.env = RealWorld(view_camera_id=1, width = 480, height = 480, cropped_width=64, cropped_height=64, camera_hz=20,
 				aruco_camera_id=0, marker_id=9, min_sharpness=100.0, aruco_hz=20,
-				render_mode='human', max_steps=100, env_hz=10, debug=True, rew_multiplier=8.0)
+				render_mode='human', max_steps=100, env_hz=10, debug=True, rew_multiplier=11.0)
 		self.mu = vq.quantizer.embedding.weight.data.mean()
 		self.std = vq.quantizer.embedding.weight.data.std()
 		self.action_space = self.env.action_space
@@ -186,10 +186,31 @@ def generate_data(vq:VQVAE, lstm:LSTMQuantized, n_sample:int=1000, policy:BaseAl
 	rewards.append([])
 	proprioception.append([env.current_prop.flatten().tolist()])
 	env.current_render.save(base_path + f'img_{episode}_{step}.png')
+
+	# goal oriented blabbing: when there is no policy yet, draw lines through pressure
+	# space instead of sampling i.i.d. random actions each step, so this first round of
+	# data actually sweeps the workspace instead of jittering in place (same idea as in
+	# envs/physical/realWorld.py's __main__)
+	rng = np.random.default_rng()
+	LINE_NOISE_STD = 0.15          # exploration noise added on top of the line direction
+	LINE_LEN_RANGE = (5, 15)       # steps a line segment lasts before a new target is picked
+
+	def new_line_target():
+		return rng.uniform(0.0, env.env.max_pressure, size=3).astype(np.float32)
+
+	line_target = new_line_target()
+	line_steps_left = rng.integers(*LINE_LEN_RANGE)
+
 	for i in range(n_sample):
 		step += 1
 		if policy == None:
-			action = env.action_space.sample()
+			if line_steps_left <= 0:
+				line_target = new_line_target()
+				line_steps_left = rng.integers(*LINE_LEN_RANGE)
+			line_steps_left -= 1
+			direction = (line_target - env.env.current_pressure) / 0.1
+			noise = rng.normal(0.0, LINE_NOISE_STD, size=3)
+			action = np.clip(direction + noise, -1.0, 1.0).astype(np.float32)
 		else:
 			if step % 10 == 0: # SB3 does not do this automatically since we are evaluating the model
 				policy.policy.reset_noise()
@@ -201,6 +222,8 @@ def generate_data(vq:VQVAE, lstm:LSTMQuantized, n_sample:int=1000, policy:BaseAl
 		rewards[-1].append(float(rew))
 		if ter or trunc:
 			obs, info = env.reset()
+			line_target = new_line_target()
+			line_steps_left = rng.integers(*LINE_LEN_RANGE)
 			if i < n_sample - 1:
 				episode += 1
 				step = 0
@@ -281,7 +304,7 @@ def evaluate_gathering(vq:VQVAE, lstm:LSTMQuantized, policy:BaseAlgorithm, n_sam
 		)
 	return tot_rewards, tot_success
 
-def evaluate_gathering_safe(vq, lstm, policy, n_sample:int=1000, training_set:bool=True, round:int=0, save_id:str|None|int=None) -> tuple[list[float], list[bool]]:
+def evaluate_gathering_safe(vq, lstm, policy, n_sample:int=1000, training_set:bool=True, round:int=0, save_id:str|None|int=None, auto_accept:bool=True) -> tuple[list[float], list[bool]]:
 	"""
 	Evaluate the policy on the environment, gathering data and saving it in the same format as generate_data
 	Args:
@@ -311,9 +334,12 @@ def evaluate_gathering_safe(vq, lstm, policy, n_sample:int=1000, training_set:bo
 		os.makedirs(CURRENT_ENV['models'])
 		
 	env = SoftWrapEnv(vq, lstm)
-	if save_id is not None:
-		env.save_next_episode(save_id)
 	obs, _ = env.reset()
+	if save_id is not None:
+		# must be armed *after* the initial reset: reset() itself calls save_now(),
+		# which would otherwise immediately consume/clear the flag before any frame
+		# of the episode is captured
+		env.save_next_episode(save_id)
 	step = 0
 	episode = len(actions)
 	print("Number of episodes in history:", episode)
@@ -354,11 +380,14 @@ def evaluate_gathering_safe(vq, lstm, policy, n_sample:int=1000, training_set:bo
 			if ter or trunc:
 				# --- POPUP LOGIC ---
 				env.reset()
-				print(f"\nEpisode {episode} finished in {step} steps.")
-				print(f"Reward: {tot_rewards[-1]:.2f}")
-				print(f"Success: {tot_success[-1]}")
-				answer = input("Keep this episode data? [y/n]: ").strip().lower()
-				keep_episode = answer in ('y', 'yes')
+				if auto_accept:
+					keep_episode = True
+				else:
+					print(f"\nEpisode {episode} finished in {step} steps.")
+					print(f"Reward: {tot_rewards[-1]:.2f}")
+					print(f"Success: {tot_success[-1]}")
+					answer = input("Keep this episode data? [y/n]: ").strip().lower()
+					keep_episode = answer in ('y', 'yes')
 				
 				if keep_episode:
 					# Keep the data, prep the next episode normally

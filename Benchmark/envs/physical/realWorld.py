@@ -33,9 +33,9 @@ class RealWorld(gym.Env):
 		self.render_mode = render_mode
 		self.reward_multiplier = rew_multiplier
 		self.debug = debug
-		self.max_pressure = 0.9
+		self.max_pressure = 1.1
 		if debug:
-			self.max_pressure = 0.9
+			self.max_pressure = 1.1
 		self.stepTime = 1/env_hz
 		self.max_steps = max_steps
 		self.current_pressure = np.array([0, 0, 0])
@@ -148,6 +148,16 @@ class RealWorld(gym.Env):
 			reward *= self.reward_multiplier
 		else:
 			reward = 0
+
+		# leaky-relu reward shaping, shifted slightly into the positive axis: spinning the
+		# wrong way (or not spinning at all) only costs a small, shallow-sloped penalty
+		# instead of a full negative reward, so the policy isn't attracted to a "do nothing"
+		# local optimum just to avoid the wrong-direction penalty.
+		LEAKY_SLOPE = 0.1
+		REWARD_OFFSET = 0.2
+		shifted = reward - REWARD_OFFSET
+		reward = shifted if shifted > 0 else LEAKY_SLOPE * shifted
+
 		info = {}
 		elapsed_time = time.time() - self.last_return
 		if elapsed_time < self.stepTime:
@@ -209,8 +219,47 @@ if __name__ == "__main__":
 	done = False
 	env.save_next_episode_video(2)
 	np.set_printoptions(precision=2, suppress=True)
+
+	rng = np.random.default_rng()
+
+	# goal oriented blabbing
+	# basically do lines
+	# and then follow this lines adding some noise will make the robot explore more of the workspace
+	# and possibly get reward since the reward is not dence but depends on teh contact with an gear
+	LINE_NOISE_STD = 0.15          # exploration noise added on top of the line direction
+	LINE_LEN_RANGE = (5, 15)       # steps a line segment lasts before a new target is picked
+	RESET_STEPS = 5                # steps of action=-1 to bring pressure back to zero between lines
+
+	def new_line_target():
+		'''Random pressure setpoint (bar) to draw a straight line towards, in [0, max_pressure]^3.'''
+		return rng.uniform(0.0, env.max_pressure, size=3).astype(np.float32)
+
+	phase = 'draw'  # 'draw' -> follow a line, 'reset' -> retract back to zero pressure
+	line_target = new_line_target()
+	line_steps_left = rng.integers(*LINE_LEN_RANGE)
+	reset_steps_left = 0
+
 	while not done:
-		action = env.action_space.sample()
+		if phase == 'draw' and line_steps_left <= 0:
+			phase = 'reset'
+			reset_steps_left = RESET_STEPS
+
+		if phase == 'draw':
+			line_steps_left -= 1
+			# proportional step towards the target pressure (this traces a line in pressure space)
+			# plus noise, so consecutive actions stay correlated instead of cancelling out like pure iid sampling
+			direction = (line_target - env.current_pressure) / 0.1
+			noise = rng.normal(0.0, LINE_NOISE_STD, size=3)
+			action = np.clip(direction + noise, -1.0, 1.0).astype(np.float32)
+		else:
+			# retract to zero pressure before starting the next line
+			reset_steps_left -= 1
+			action = np.full(3, -1.0, dtype=np.float32)
+			if reset_steps_left <= 0:
+				phase = 'draw'
+				line_target = new_line_target()
+				line_steps_left = rng.integers(*LINE_LEN_RANGE)
+
 		observation, reward, terminated, truncated, info = env.step(action)
 		#print(f"act: {action} rew:{reward:.2f}, obs:{observation}")
 		print(f"rew:{reward:.2f}, obs:{observation}")

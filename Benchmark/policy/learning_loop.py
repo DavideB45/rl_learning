@@ -55,7 +55,7 @@ def main():
 	
 	collecting_time -= time.time()
 	generate_data(vq, lstm, n_sample=INIT_GATHER, training_set=True, round=EXP_ID)
-	generate_data(vq, lstm, n_sample=1000, training_set=False, round=EXP_ID)
+	generate_data(vq, lstm, n_sample=202, training_set=False, round=EXP_ID)
 	collecting_time += time.time()
 
 	for round in range(N_ROUNDS):
@@ -82,7 +82,7 @@ def main():
 		agent_training_time += time.time()
 
 		collecting_time -= time.time()
-		if (round % 10 == 0) or (round % 11 == 0):
+		if (round % 10 == 0) or (round % 10 == 1):
 			save_id = round
 		else:
 			save_id = None

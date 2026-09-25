@@ -18,7 +18,7 @@ class ControlBox:
 		ports = serial.tools.list_ports.comports()
 		return [port.device for port in ports]
 
-	def connect(self, target_port='/dev/cu.usbmodem3101'):
+	def connect(self, target_port='/dev/cu.usbmodem31301'):
 		"""
 		Tries to connect to the target_port automatically. 
 		If it's not found, lists available ports and prompts the user.
