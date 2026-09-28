@@ -212,7 +212,7 @@ class RealWorld(gym.Env):
 
 if __name__ == "__main__":
 	env = RealWorld(view_camera_id=1, width = 480, height = 480, cropped_width=64, cropped_height=64, camera_hz=20,
-				  aruco_camera_id=0, marker_id=9, min_sharpness=100.0, aruco_hz=20,
+				  aruco_camera_id=0, marker_id=5, min_sharpness=100.0, aruco_hz=20,
 				  render_mode='human', max_steps=100, env_hz=10, debug=True, rew_multiplier=8.0)
 	observation, _ = env.reset()
 	total_reward = 0
