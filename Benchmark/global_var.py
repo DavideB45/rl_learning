@@ -1,5 +1,5 @@
 IS_SERVER = False
-EXP_ID = 2
+EXP_ID = 101
 LOG_NAME = f'res_{EXP_ID}'
 GPU_ID = f"{EXP_ID%4}" # window 2 - peg 3
 
@@ -51,4 +51,4 @@ PPO_STEPS = 100000
 DREAM_LEN = 30
 PPO_LR = 0.0003
 ACTION_REPEAT = True
-INIT_GATHER = 1010
+INIT_GATHER = 303

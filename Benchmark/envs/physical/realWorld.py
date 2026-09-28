@@ -64,6 +64,7 @@ class RealWorld(gym.Env):
 		self.save = False
 		self.target_size = 10
 		self.current_step = 0
+		self._windows_positioned = False
 
 	def save_next_episode_video(self, id):
 		'''
@@ -76,6 +77,7 @@ class RealWorld(gym.Env):
 		self.frame_original = []
 		self.frame_cropped = []
 		self.frame_aruco = []
+		self.frame_pressure = []
 
 	def save_now(self):
 		if self.save:
@@ -99,11 +101,55 @@ class RealWorld(gym.Env):
 			write_video(f'episode_{self.run_id}.mp4', self.frame_original)
 			write_video(f'episode_{self.run_id}_cropped.mp4', self.frame_cropped)
 			write_video(f'episode_{self.run_id}_aruco.mp4', self.frame_aruco)
-			
+			write_video(f'episode_{self.run_id}_pressure.mp4', self.frame_pressure)
+
 			self.frame_original.clear()
 			self.frame_cropped.clear()
 			self.frame_aruco.clear()
+			self.frame_pressure.clear()
 	
+	def render_pressure_window(self, width=220, height=320):
+		'''
+		Draws a small bar chart image showing how much pressure is currently sent to each of
+		the 3 chambers, out of self.max_pressure. Used as the floating debug window in
+		render(render_mode='human').
+		'''
+		img = np.full((height, width, 3), 30, dtype=np.uint8)
+		margin = 30
+		bar_area_h = height - 2 * margin
+		bar_w = (width - 2 * margin) // 3 - 10
+		colors = [(60, 180, 255), (80, 220, 100), (60, 120, 255)]  # BGR, one per chamber
+		for i in range(3):
+			x0 = margin + i * (bar_w + 10)
+			x1 = x0 + bar_w
+			y_top, y_bottom = margin, height - margin
+			frac = float(np.clip(self.current_pressure[i] / self.max_pressure, 0.0, 1.0))
+			y_fill = y_bottom - int(bar_area_h * frac)
+			cv2.rectangle(img, (x0, y_top), (x1, y_bottom), (90, 90, 90), 1)
+			cv2.rectangle(img, (x0, y_fill), (x1, y_bottom), colors[i], -1)
+			cv2.putText(img, f"C{i + 1}", (x0, y_top - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (200, 200, 200), 1, cv2.LINE_AA)
+			cv2.putText(img, f"{self.current_pressure[i]:.2f}", (x0, y_bottom + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1, cv2.LINE_AA)
+		return img
+
+	def _layout_windows_once(self, window_rows):
+		'''
+		Positions each named window in a grid (one list of (name, width, height) per row) so
+		they don't stack on top of each other, the first time render() is called in human mode.
+		Args:
+			window_rows: list of rows, each a list of (name, width, height) in display order
+		'''
+		if self._windows_positioned:
+			return
+		gap = 10
+		y = 40
+		for row in window_rows:
+			x = 0
+			for name, w, h in row:
+				cv2.moveWindow(name, x, y)
+				x += w + gap
+			y += max(h for _, _, h in row) + gap
+		self._windows_positioned = True
+
 	def reset(self, seed=None, options=None):
 		'''
 		Reset the environment with a random target
@@ -192,11 +238,24 @@ class RealWorld(gym.Env):
 			cv2.imshow("Cropped", cropped_display)
 			aruco_display = self.arucoDetector.get_clear_image()
 			cv2.imshow("Aruco", aruco_display)
+			pressure_display = self.render_pressure_window()
+			cv2.imshow("Pressure", pressure_display)
+			self._layout_windows_once([
+				[
+					("Result", self.current_img.shape[1], self.current_img.shape[0]),
+					("Cropped", cropped_display.shape[1], cropped_display.shape[0]),
+					("Aruco", aruco_display.shape[1], aruco_display.shape[0]),
+				],
+				[
+					("Pressure", pressure_display.shape[1], pressure_display.shape[0]),
+				],
+			])
 			cv2.waitKey(1)
 			if self.save:
 				self.frame_original.append(self.current_img)
 				self.frame_cropped.append(cropped_display)
 				self.frame_aruco.append(aruco_display)
+				self.frame_pressure.append(pressure_display)
 			return self.current_img
 		else:
 			raise RuntimeError("Available render modes for the Real World: \{'rgb_array', 'human'\}")
