@@ -204,15 +204,14 @@ class VQVAE(AbstractVAE):
 				recon_batch = self.decode(quantized)
 
 			rec_loss = self.reconstruction_loss(data, recon_batch)
-			rew_loss = reward_loss(self.pred_rew(z), rew)
-			loss = rec_loss + reg*flatness_loss + rew_loss + emb_loss# + self.contraction_loss(z)*0.005
+			loss = rec_loss + reg*flatness_loss + emb_loss# + self.contraction_loss(z)*0.005
 			loss.backward()
 			torch.nn.utils.clip_grad_norm_(self.parameters(), max_norm=1.0)
 			optim.step()
 			used_codes.update(indexes.view(-1).cpu().numpy().tolist())
 			losses["total_loss"] += loss.item()
 			losses["recon_loss"] += rec_loss.item()
-			losses["commit_loss"] += rew_loss.item() #emb_loss.item()
+			losses["commit_loss"] += emb_loss.item()
 			losses["flatness_loss"] += flatness_loss.item()
 		for key in losses:
 			losses[key] /= len(loader)
