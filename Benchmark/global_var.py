@@ -1,4 +1,4 @@
-EXP_ID = 6
+EXP_ID = 2
 LOG_NAME = f'res_{EXP_ID}'
 GPU_ID = f"{EXP_ID%4}" # window 2 - peg 3
 
@@ -97,7 +97,17 @@ WINDOW_OPEN = {
 	"camera_id": 2,
 }
 
-CURRENT_ENV = PEG_INSERT
+REAL_DATA_DIR = "data/real-soft/"
+REAL = {
+	"env_name": "window-open-v3",
+	"img_dir": REAL_DATA_DIR + IMG_DIR,
+	"models": REAL_DATA_DIR + MODELS_DIR + f"{EXP_ID}/",
+	"a_size": 3,
+	"render_size": 64,
+	"camera_id": 2,
+}
+
+CURRENT_ENV = REAL
 
 LATENT_DIM = 4
 CODE_DEPTH = 16

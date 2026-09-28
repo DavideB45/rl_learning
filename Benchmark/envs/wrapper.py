@@ -29,15 +29,23 @@ class MetaWrapEnv(gym.Env):
 	"""
 
 
-	def __init__(self, vq:VQVAE=None, dyn:LSTMQuantized=None):
+	def __init__(self, vq:VQVAE=None, dyn:LSTMQuantized=None, env_cfg:dict=None, seed:int=None):
 		'''
 		initialization of the wrapper to use the models trained in MetaDreamEnv
 
-		if lstm is None only the vq latent representation will be used in the representaiotn 
+		if lstm is None only the vq latent representation will be used in the representaiotn
 		this is useful if the dynamic model is a transformer based model and does not have a
 		latent space that represents the past
+
+		env_cfg: environment config dict (as in global_var.py), defaults to CURRENT_ENV so
+			existing callers are unaffected; pass explicitly to target a different task.
+		seed: forwarded to gym.make so the episode (object/goal placement) is reproducible.
+			Meta-World's domain randomization is seeded at construction time, not on reset(),
+			so this is the only way to get the same episode across two separate instances.
 		'''
 		super(MetaWrapEnv, self).__init__()
+
+		env_cfg = env_cfg or CURRENT_ENV
 
 		self.vq = vq
 		self.vq.eval()
@@ -45,9 +53,10 @@ class MetaWrapEnv(gym.Env):
 		self.dyn = dyn
 		self.dyn.eval()
 
-		self.env = gym.make('Meta-World/MT1', env_name=CURRENT_ENV['env_name'],
-				render_mode='rgb_array', camera_id=CURRENT_ENV['camera_id'],
-				width = CURRENT_ENV['render_size'], height = CURRENT_ENV['render_size'])
+		self.env = gym.make('Meta-World/MT1', env_name=env_cfg['env_name'],
+				render_mode='rgb_array', camera_id=env_cfg['camera_id'],
+				width = env_cfg['render_size'], height = env_cfg['render_size'],
+				seed=seed)
 		self.env.env.env.env.env.env.env.env.model.cam_pos[2][:]=[0.75, 0.075, 0.7]
 		self.mu = vq.quantizer.embedding.weight.data.mean()
 		self.std = vq.quantizer.embedding.weight.data.std()

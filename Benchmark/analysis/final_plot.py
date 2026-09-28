@@ -92,6 +92,8 @@ EXPERIMENT_COLORS = {
     "propioception":                   "#4a3aa7",  # violet - the important comparison
     "propioception_0.01":              "#9084e7",  # lighter violet, same family
     "prop_rr":                         "#7a5fc4",  # mid violet, same family
+
+    "SAC":                             "#17becf",  # cyan - appendix: other algorithms explored
 }
 
 # Human-readable legend/table labels. These are best-effort guesses based on
@@ -112,6 +114,8 @@ EXPERIMENT_LABELS = {
     "reset_500":                       "Ours (Multimodal, reset @ 500)",
     "reset_conditional":               "Ours (conditional reset)",
     "reset_conditional_restore_prop":  "Ours (Multimodal)",
+
+    "SAC":                             "SAC",
 }
 
 # Overflow palette for any experiment name not registered above, so the
