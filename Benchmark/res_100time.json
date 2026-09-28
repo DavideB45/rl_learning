@@ -1,0 +1,7 @@
+{
+ "collecting_time": 11411.584362745285,
+ "vq_training_time": 4713.35010933876,
+ "lstm_training_time": 13492.679862976074,
+ "dataset_generation_time": 7812.571484327316,
+ "agent_training_time": 116324.71536421776
+}

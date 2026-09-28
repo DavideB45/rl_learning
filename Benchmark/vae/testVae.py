@@ -33,7 +33,7 @@ METRIC_COLORS = {
 	"Active codes (%)": "#4e75a4",
 	"Normalized entropy (%)": "#eda100",
 }
-DATA_ID = 2
+DATA_ID = 6
 
 
 def setup_style():
