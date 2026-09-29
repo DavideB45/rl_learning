@@ -27,7 +27,7 @@ from stable_baselines3.ppo import PPO
 from helpers.model_loader import load_vq_vae, load_lstm_quantized
 from helpers.general import best_device
 from helpers.remote import rsync_push_data, rsync_pull_models, ssh_train_on_server
-from envs.wrapper import evaluate_gathering_safe, generate_data
+from envs.wrapper import evaluate_gathering_safe, generate_data, generate_data_interactive
 from vae.vqVae import VQVAE
 from dynamics.lstm import LSTMQuantized
 
@@ -60,8 +60,8 @@ def main():
     # ------------------------------------------------------------------
     print("\n[orchestrator] === Initial data collection ===")
     t = time.time()
-    generate_data(vq, lstm, policy=None, n_sample=1515, training_set=True,  round=EXP_ID)
-    generate_data(vq, lstm, policy=None, n_sample=202, training_set=False, round=EXP_ID)
+    generate_data_interactive(vq, lstm, n_sample=1510, training_set=True,  round=EXP_ID)
+    generate_data(vq, lstm, policy=None, n_sample=302, training_set=False, round=EXP_ID)
     timings['collecting_time'] += time.time() - t
 
     # ------------------------------------------------------------------
@@ -110,7 +110,7 @@ def main():
             save_id = round_idx
         else:
             save_id = None
-        rew, succ = evaluate_gathering_safe(vq, lstm, n_sample=101, policy=agent, training_set=True, round=EXP_ID, save_id=save_id)
+        rew, succ = evaluate_gathering_safe(vq, lstm, n_sample=150, policy=agent, training_set=True, round=EXP_ID, save_id=save_id)
 
         with open(LOG_NAME + '.csv', 'a') as f:
             for i in range(len(rew)):

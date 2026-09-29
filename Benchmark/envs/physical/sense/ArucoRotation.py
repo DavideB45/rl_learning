@@ -19,6 +19,7 @@ class ArucoRotationTracker:
 		start() / stop()          start / stop the background thread (also usable with `with`)
 		get_reward()              total rotation since the last reset_reward() (or since start())
 		reset_reward()            returns the same value as get_reward() and re-zeroes it
+		get_absolute_rotation()   total rotation since start(), never re-zeroed (an odometer)
 		get_clear_image(...)      latest (cropped) frame in which the marker was detected
 		seconds_since_seen()      how long ago the marker was last detected
 
@@ -112,6 +113,16 @@ class ArucoRotationTracker:
 			reward = (self._cum_angle - self._baseline) * self.scale
 			self._baseline = self._cum_angle
 			return reward
+
+	def get_absolute_rotation(self) -> float:
+		'''
+		Total unwrapped rotation since start(), in the configured units. Unlike get_reward()/
+		reset_reward(), this is never re-zeroed, so it works as a stable odometer: a caller can
+		snapshot it (e.g. at episode reset) and diff against it later to measure rotation over
+		an arbitrary span, without disturbing the step-reward baseline those two methods use.
+		'''
+		with self._cond:
+			return self._cum_angle * self.scale
 
 	def get_clear_image(self, newer_than=None, timeout=2.0):
 		'''

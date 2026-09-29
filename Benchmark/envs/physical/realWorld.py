@@ -1,4 +1,5 @@
 import cv2
+import math
 import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
@@ -33,9 +34,9 @@ class RealWorld(gym.Env):
 		self.render_mode = render_mode
 		self.reward_multiplier = rew_multiplier
 		self.debug = debug
-		self.max_pressure = 1.1
+		self.max_pressure = 0.9
 		if debug:
-			self.max_pressure = 1.1
+			self.max_pressure = 0.9
 		self.stepTime = 1/env_hz
 		self.max_steps = max_steps
 		self.current_pressure = np.array([0, 0, 0])
@@ -48,6 +49,10 @@ class RealWorld(gym.Env):
 		self.arucoDetector = ArucoRotationTracker(marker_id=marker_id, debug=debug, min_sharpness=min_sharpness, camera_index=aruco_camera_id, rate_hz=aruco_hz, units='rad')
 		self.arucoDetector.start(wait=True, timeout=5.0)
 		self.arucoDetector.reset_reward()
+		# success = the marker has rotated at least half a turn (180 deg) since the episode
+		# started; expressed in the tracker's own units so it stays correct if units != 'rad'.
+		self.success_rotation_threshold = math.pi * self.arucoDetector.scale
+		self.episode_start_rotation = self.arucoDetector.get_absolute_rotation()
 
 		# control box stuff
 		self.box = SafeControlBox(max_pressure=self.max_pressure)
@@ -64,6 +69,7 @@ class RealWorld(gym.Env):
 		self.save = False
 		self.target_size = 10
 		self.current_step = 0
+		self.reward_momentum = 0.0
 		self._windows_positioned = False
 
 	def save_next_episode_video(self, id):
@@ -165,9 +171,13 @@ class RealWorld(gym.Env):
 		
 		self.current_img, self.cropped_img = self.camera.get_clear_image(timeout=5.0)
 		self.arucoDetector.reset_reward()
+		# new episode: re-baseline the success rotation odometer too, independently of the
+		# per-step reward baseline reset_reward() just did.
+		self.episode_start_rotation = self.arucoDetector.get_absolute_rotation()
 		self.current_prop = np.array([0.0, 0.0, 0.0])
 		self.current_pressure = np.array([0.0, 0.0, 0.0])
 		self.current_step = 0
+		self.reward_momentum = 0.0
 		self.last_return = time.time()
 		return self.current_prop, {}
 
@@ -195,12 +205,27 @@ class RealWorld(gym.Env):
 		else:
 			reward = 0
 
+		# momentum reward: rolling average of the rotation that is reset when the direction
+		# changes, so a sustained rotation builds up to the full per-step reward while
+		# oscillating back and forth only ever gets the (1 - REWARD_MEMORY) fraction of a
+		# fresh step. Steps in the deadzone give no reward and slowly fade the streak
+		# instead of resetting it, so a short stall doesn't throw away a good streak.
+		REWARD_MEMORY = 0.5
+		if reward == 0:
+			self.reward_momentum *= REWARD_MEMORY
+		elif np.sign(reward) == np.sign(self.reward_momentum) or self.reward_momentum == 0:
+			self.reward_momentum = REWARD_MEMORY * self.reward_momentum + (1 - REWARD_MEMORY) * reward
+			reward = self.reward_momentum
+		else:
+			self.reward_momentum = 0
+			reward = reward
+
 		# leaky-relu reward shaping, shifted slightly into the positive axis: spinning the
 		# wrong way (or not spinning at all) only costs a small, shallow-sloped penalty
 		# instead of a full negative reward, so the policy isn't attracted to a "do nothing"
 		# local optimum just to avoid the wrong-direction penalty.
-		LEAKY_SLOPE = 0.1
-		REWARD_OFFSET = 0.2
+		LEAKY_SLOPE = 0.05
+		REWARD_OFFSET = 0.02
 		shifted = reward - REWARD_OFFSET
 		reward = shifted if shifted > 0 else LEAKY_SLOPE * shifted
 
@@ -211,10 +236,11 @@ class RealWorld(gym.Env):
 		else:
 			print(f"Warning: step took longer than expected: {elapsed_time:.3f} seconds")
 		self.last_return = time.time()
-		if reward > 0.95: #TODO: after a full circle
-			info['success'] = 1
-		else:
-			info['success'] = 0
+		# success once the marker has rotated at least half a turn (180 deg) since the episode
+		# started - not the same thing as a single big per-step reward, which is why this reads
+		# the tracker's odometer directly instead of thresholding `reward`.
+		total_rotation = self.arucoDetector.get_absolute_rotation() - self.episode_start_rotation
+		info['success'] = 1 if abs(total_rotation) >= self.success_rotation_threshold else 0
 		self.current_step += 1
 		if(self.current_step > self.max_steps):
 			terminated = True

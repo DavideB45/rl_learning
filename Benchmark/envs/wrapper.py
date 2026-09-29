@@ -11,6 +11,7 @@ from stable_baselines3.common.base_class import BaseAlgorithm
 from tqdm import tqdm
 import tkinter as tk
 from tkinter import messagebox
+import time
 
 import os
 import sys
@@ -48,7 +49,7 @@ class SoftWrapEnv(gym.Env):
 		self.dyn.eval()
 		self.env = RealWorld(view_camera_id=1, width = 480, height = 480, cropped_width=64, cropped_height=64, camera_hz=20,
 				aruco_camera_id=0, marker_id=5, min_sharpness=100.0, aruco_hz=20,
-				render_mode='human', max_steps=100, env_hz=10, debug=True, rew_multiplier=11.0)
+				render_mode='human', max_steps=150, env_hz=10, debug=True, rew_multiplier=11.0)
 		self.mu = vq.quantizer.embedding.weight.data.mean()
 		self.std = vq.quantizer.embedding.weight.data.std()
 		self.action_space = self.env.action_space
@@ -224,6 +225,7 @@ def generate_data(vq:VQVAE, lstm:LSTMQuantized, n_sample:int=1000, policy:BaseAl
 			obs, info = env.reset()
 			line_target = new_line_target()
 			line_steps_left = rng.integers(*LINE_LEN_RANGE)
+			time.sleep(2)
 			if i < n_sample - 1:
 				episode += 1
 				step = 0
@@ -231,6 +233,166 @@ def generate_data(vq:VQVAE, lstm:LSTMQuantized, n_sample:int=1000, policy:BaseAl
 				env.current_render.save(base_path + f'img_{episode}_{step}.png')
 				actions.append([])
 				rewards.append([])
+	with open(action_path, "w") as f:
+		json.dump(
+			{
+				"actions": actions,
+				"reward": rewards,
+				"proprioception": proprioception
+			},
+			f,
+			indent=4
+		)
+
+class VirtualJoystick:
+	'''
+	Semicircular on-screen joystick (OpenCV window) used by generate_data_interactive.
+	Click and drag the knob with the mouse/trackpad, on release it snaps back to the center (zero pressure).
+	The angle picks the chamber mix: left end -> only chamber 1, top -> both chambers at max,
+	right end -> only chamber 2. The distance from the center scales the pressure linearly.
+	Chamber 3 is never used.
+	'''
+	WINDOW = "Joystick"
+
+	def __init__(self, max_pressure:float, radius:int=180, margin:int=40):
+		self.max_pressure = max_pressure
+		self.radius = radius
+		self.margin = margin
+		self.width = 2 * (radius + margin)
+		self.height = radius + 2 * margin
+		self.center = (radius + margin, radius + margin)
+		self.knob = self.center
+		self.dragging = False
+		cv2.namedWindow(self.WINDOW)
+		cv2.setMouseCallback(self.WINDOW, self._on_mouse)
+		cv2.moveWindow(self.WINDOW, 230, 530) # next to RealWorld's "Pressure" window
+		self.draw()
+
+	def _clamp(self, x, y):
+		'''keeps the knob inside the upper half disk'''
+		dx, dy = x - self.center[0], min(y - self.center[1], 0)
+		r = np.hypot(dx, dy)
+		if r > self.radius:
+			dx, dy = dx * self.radius / r, dy * self.radius / r
+		return (int(round(self.center[0] + dx)), int(round(self.center[1] + dy)))
+
+	def _on_mouse(self, event, x, y, flags, param):
+		if event == cv2.EVENT_LBUTTONDOWN:
+			self.dragging = True
+			self.knob = self._clamp(x, y)
+		elif event == cv2.EVENT_MOUSEMOVE and self.dragging:
+			self.knob = self._clamp(x, y)
+		elif event == cv2.EVENT_LBUTTONUP:
+			self.dragging = False
+			self.knob = self.center
+
+	def target_pressure(self) -> np.ndarray:
+		'''
+		Returns:
+			np.ndarray: target pressure for the 3 chambers selected by the current knob position
+		'''
+		dx = self.knob[0] - self.center[0]
+		dy = self.center[1] - self.knob[1]
+		r = min(np.hypot(dx, dy) / self.radius, 1.0)
+		t = np.arctan2(dy, dx) / np.pi # 0 = right, 0.5 = top, 1 = left
+		c1 = min(1.0, 2 * t)
+		c2 = min(1.0, 2 * (1 - t))
+		return np.array([c1, c2, 0.0], dtype=np.float32) * r * self.max_pressure
+
+	def draw(self, current_pressure=None):
+		'''redraws the joystick window and pumps the OpenCV event loop (so the mouse callback runs)'''
+		img = np.full((self.height, self.width, 3), 30, dtype=np.uint8)
+		cv2.ellipse(img, self.center, (self.radius, self.radius), 0, 180, 360, (55, 55, 55), -1, cv2.LINE_AA)
+		cv2.ellipse(img, self.center, (self.radius, self.radius), 0, 180, 360, (140, 140, 140), 2, cv2.LINE_AA)
+		cv2.ellipse(img, self.center, (self.radius // 2, self.radius // 2), 0, 180, 360, (90, 90, 90), 1, cv2.LINE_AA)
+		cv2.line(img, (self.center[0] - self.radius, self.center[1]), (self.center[0] + self.radius, self.center[1]), (140, 140, 140), 2)
+		cv2.putText(img, "C1", (self.center[0] - self.radius - 32, self.center[1] + 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (60, 180, 255), 1, cv2.LINE_AA)
+		cv2.putText(img, "C2", (self.center[0] + self.radius + 8, self.center[1] + 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (80, 220, 100), 1, cv2.LINE_AA)
+		cv2.line(img, self.center, self.knob, (200, 200, 200), 2, cv2.LINE_AA)
+		cv2.circle(img, self.knob, 16, (0, 200, 255) if self.dragging else (180, 180, 180), -1, cv2.LINE_AA)
+		target = self.target_pressure()
+		text = f"target C1 {target[0]:.2f}  C2 {target[1]:.2f}"
+		if current_pressure is not None:
+			text += f"  |  now C1 {current_pressure[0]:.2f}  C2 {current_pressure[1]:.2f}"
+		cv2.putText(img, text, (10, self.height - 12), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1, cv2.LINE_AA)
+		cv2.imshow(self.WINDOW, img)
+		cv2.waitKey(1)
+
+	def wait(self, seconds:float, current_pressure=None):
+		'''like time.sleep but keeps the joystick responsive'''
+		end = time.time() + seconds
+		while time.time() < end:
+			self.draw(current_pressure)
+			time.sleep(0.02)
+
+	def close(self):
+		cv2.destroyWindow(self.WINDOW)
+
+def generate_data_interactive(vq:VQVAE, lstm:LSTMQuantized, n_sample:int=1000, training_set:bool=True, round:int=0):
+	'''
+	Same as generate_data (same episodes, same storage format) but the actions come from a human
+	driving the VirtualJoystick. The joystick sets a target pressure, the stored action is the
+	pressure delta (clipped to [-1, 1]) that moves the robot towards it, as RealWorld.step expects.
+	Args:
+		vq: VQVAE model
+		lstm: LSTM model
+		n_sample: number of steps to gather
+		training_set: whether to use the training set or the test set path for data storage
+		round: round number for data storage
+	'''
+	base_path = get_data_path(CURRENT_ENV['img_dir'], training_set, round)
+	action_path = base_path + TRANSITIONS
+	actions = []
+	rewards = []
+	proprioception = []
+	if os.path.exists(action_path):
+		with open(action_path, "r") as f:
+			f = json.load(f)
+			actions = f['actions']
+			rewards = f['reward']
+			proprioception = f['proprioception']
+	if not os.path.exists(base_path):
+		os.makedirs(base_path)
+	if not os.path.exists(CURRENT_ENV['models']):
+		os.makedirs(CURRENT_ENV['models'])
+
+	env = SoftWrapEnv(vq, lstm)
+	joystick = VirtualJoystick(env.env.max_pressure)
+	obs, _ = env.reset()
+	step = 0
+	episode = len(actions)
+	print(episode)
+	actions.append([])
+	rewards.append([])
+	total_reward = 0
+	proprioception.append([env.current_prop.flatten().tolist()])
+	env.current_render.save(base_path + f'img_{episode}_{step}.png')
+
+	for i in tqdm(range(n_sample)):
+		step += 1
+		joystick.draw(env.env.current_pressure)
+		target = joystick.target_pressure()
+		# 0.1 is the pressure gain per unit of action in RealWorld.step
+		action = np.clip((target - env.env.current_pressure) / 0.1, -1.0, 1.0).astype(np.float32)
+		obs, rew, ter, trunc, _ = env.step(action)
+		proprioception[-1].append(env.current_prop.flatten().tolist())
+		actions[-1].append(action.tolist())
+		env.current_render.save(base_path + f'img_{episode}_{step}.png')
+		rewards[-1].append(float(rew))
+		total_reward += rew
+		if ter or trunc:
+			obs, info = env.reset()
+			joystick.wait(2, env.env.current_pressure)
+			if i < n_sample - 1:
+				episode += 1
+				step = 0
+				proprioception.append([env.current_prop.flatten().tolist()])
+				env.current_render.save(base_path + f'img_{episode}_{step}.png')
+				actions.append([])
+				rewards.append([])
+	joystick.close()
+	env.close()
+	print(f'Total reward = {total_reward}')
 	with open(action_path, "w") as f:
 		json.dump(
 			{
@@ -439,6 +601,10 @@ def evaluate_gathering_safe(vq, lstm, policy, n_sample:int=1000, training_set:bo
 	return tot_rewards, tot_success
 
 if __name__ == "__main__":
+	vq   = VQVAE(CODEBOOK_SIZE, CODE_DEPTH, LATENT_DIM, 0.25, best_device(), True)
+	lstm = LSTMQuantized(vq, best_device(), CURRENT_ENV['a_size'], PROP_SIZE, HIDDEN_DIM)
+	generate_data_interactive(vq, lstm, 150, True, 3)
+	exit()
 	from random import randint
 	if 'MUJOCO_GL' not in os.environ:
 		os.environ['MUJOCO_GL'] = 'egl'

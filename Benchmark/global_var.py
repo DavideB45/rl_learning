@@ -1,5 +1,5 @@
 IS_SERVER = False
-EXP_ID = 101
+EXP_ID = 105
 LOG_NAME = f'res_{EXP_ID}'
 GPU_ID = f"{EXP_ID%4}" # window 2 - peg 3
 
@@ -46,7 +46,7 @@ LSTM_WD = 1e-3
 PROP_SIZE = 3
 
 
-N_ROUNDS = 300 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/1000
+N_ROUNDS = 90 # starts with INIT_GATHER interacitons, then add 500 each round, N_rounds=(total_interactions-INIT_GATHER*2)/1000
 PPO_STEPS = 100000
 DREAM_LEN = 30
 PPO_LR = 0.0003
