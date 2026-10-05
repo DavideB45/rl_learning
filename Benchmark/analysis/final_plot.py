@@ -7,30 +7,30 @@ from pathlib import Path
 # ==========================================
 # CONFIGURATION
 # ==========================================
-#ENV_NAME = "button-press"
+ENV_NAME = "button-press"
 #ENV_NAME = "button-press-td"
 #ENV_NAME = "drawer-open"
 #ENV_NAME = "window-open"
-ENV_NAME = "peg-insert"
+#ENV_NAME = "peg-insert"
 BASE_DIR = f"data/{ENV_NAME}/full_experiments/"
-TITLE = "proprioception"
-BASE_DIR = f"data/{ENV_NAME}/stabilization/"
+TITLE = "the missing plots"
+#BASE_DIR = f"data/{ENV_NAME}/stabilization/"
 
 # Comment out the ones you DON'T want to plot
 EXPERIMENTS_TO_PLOT = [
     #"Dreamer_160",
     #"Dreamer_23",
-    "default",
-    #"no_kl",
-    #"no_mask2",
-    #"propioception",
+    #"default",
+    "no_kl",
+    "no_mask2",
+    "propioception",
     #"ppo_default",
     #"ppo_impala",
-    #"teacher_forcing",
-    "propioception_0.01",
+    "teacher_forcing",
+    #"propioception_0.01",
     #"reset_500",
     #"reset_conditional",
-    "reset_conditional_restore_prop"
+    #"reset_conditional_restore_prop"
 ]
 
 # Evaluation parameters

@@ -33,8 +33,9 @@ from final_plot import get_color, get_label
 # CONFIGURATION
 # ==========================================
 CSV_PATH = "res_2.csv"
-EXPERIMENT_KEY = "SAC"  # must exist in EXPERIMENT_COLORS / EXPERIMENT_LABELS in final_plot.py
-ENV_NAME = "peg-insert"  # ASSUMPTION: set this to whichever env this SAC test actually used
+EXPERIMENT_KEY = "default"  # must exist in EXPERIMENT_COLORS / EXPERIMENT_LABELS in final_plot.py
+ENV_NAME = "real_robot"
+OUTPUT_NAME = "real_robot"
 
 # Evaluation parameters -- same convention as final_plot.py
 EPISODES_PER_EVAL = 1
@@ -45,9 +46,8 @@ STEPS_PER_EVAL = EPISODE_LENGTH * EPISODES_PER_EVAL
 # Pooling also pools their episodes, so the CI narrows as this grows.
 ROLLING_WINDOW = 5
 
-# SAC is a standard baseline algorithm, not "our" model, so ASSUMPTION: it
-# has no initial warmup data-gathering phase -- unlike "our" model, it
-# starts training from step 0 like Dreamer/PPO. Flip this if that's wrong.
+# Set True if the real-robot run had an initial untrained data-gathering
+# phase of WARMUP_STEPS that should shift the x-axis right.
 HAS_WARMUP_SHIFT = False
 WARMUP_STEPS = 10000
 
@@ -60,15 +60,25 @@ def load_and_process_data():
     df = pd.read_csv(CSV_PATH)
     df['success'] = df['success'].astype(float)
 
-    window_episodes = EPISODES_PER_EVAL * ROLLING_WINDOW
-    min_episodes = EPISODES_PER_EVAL  # need at least one full eval batch to plot a point
+    window_episodes = min(EPISODES_PER_EVAL * ROLLING_WINDOW, len(df))
 
-    roll_mean_rew = df['mrew'].rolling(window=window_episodes, min_periods=min_episodes).mean()
-    roll_std_rew = df['mrew'].rolling(window=window_episodes, min_periods=min_episodes).std(ddof=1)
-    roll_n_rew = df['mrew'].rolling(window=window_episodes, min_periods=min_episodes).count()
+    # A plain trailing rolling window only has 1, 2, ... episodes in it for
+    # the first few points, which makes the CI explode there (n=2 -> t~12.7).
+    # Instead, every point pools exactly `window_episodes` episodes: a
+    # trailing window, clamped to start at row 0 until enough rows exist
+    # (so the first few points share the first full window).
+    starts = (np.arange(len(df)) - window_episodes + 1).clip(min=0)
+    windows = [slice(s, s + window_episodes) for s in starts]
 
-    roll_success_mean = df['success'].rolling(window=window_episodes, min_periods=min_episodes).mean()
-    roll_success_n = df['success'].rolling(window=window_episodes, min_periods=min_episodes).count()
+    def windowed(col, fn):
+        return pd.Series([fn(df[col].iloc[w]) for w in windows], index=df.index)
+
+    roll_mean_rew = windowed('mrew', lambda x: x.mean())
+    roll_std_rew = windowed('mrew', lambda x: x.std(ddof=1))
+    roll_n_rew = windowed('mrew', lambda x: x.count())
+
+    roll_success_mean = windowed('success', lambda x: x.mean())
+    roll_success_n = windowed('success', lambda x: x.count())
 
     # Keep one row per completed evaluation batch (the last episode of each
     # batch of EPISODES_PER_EVAL), so the x-axis matches every other plot.
@@ -137,7 +147,7 @@ def plot_results(data):
     axes[1].legend()
 
     plt.tight_layout()
-    plt.savefig(f'final_plot_{EXPERIMENT_KEY.lower()}_{ENV_NAME}.png', dpi=300)
+    plt.savefig(f'{OUTPUT_NAME}.png', dpi=300)
     plt.show()
 
 def print_final_summary(data):
