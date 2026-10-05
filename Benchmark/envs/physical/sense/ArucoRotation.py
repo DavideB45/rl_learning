@@ -17,8 +17,9 @@ class ArucoRotationTracker:
 
 	Public API
 		start() / stop()          start / stop the background thread (also usable with `with`)
-		get_reward()              total rotation since the last reset_reward() (or since start())
-		reset_reward()            returns the same value as get_reward() and re-zeroes it
+		get_reward()              how far the marker is beyond the best angle reached so far (>= 0)
+		reset_reward()            returns the same value as get_reward() and raises the best angle to it
+		reset_best()              uses the current angle as the new starting point / best (e.g. per episode)
 		get_absolute_rotation()   total rotation since start(), never re-zeroed (an odometer)
 		get_clear_image(...)      latest (cropped) frame in which the marker was detected
 		seconds_since_seen()      how long ago the marker was last detected
@@ -63,7 +64,7 @@ class ArucoRotationTracker:
 		# shared state (written by the worker thread, read under the lock by everyone else)
 		self._cond = threading.Condition()
 		self._cum_angle = 0.0      # radians, unwrapped, accumulated since start()
-		self._baseline = 0.0       # value of _cum_angle at the last reset_reward()
+		self._best = 0.0           # highest _cum_angle already rewarded since the last reset_best()
 		self._image = None
 		self._image_time = 0.0
 		self._last_seen = None
@@ -103,23 +104,32 @@ class ArucoRotationTracker:
 
 	# ------------------------------------------------------------------ public reads
 	def get_reward(self) -> float:
-		'''Total rotation since the last reset_reward() (or since start()). Returns immediately.'''
+		'''
+		Progress beyond the best angle reached so far: max(0, current - best). Rotating back
+		and then forward again over already-covered ground gives nothing, only new ground pays.
+		Does not move the best angle. Returns immediately.
+		'''
 		with self._cond:
-			return (self._cum_angle - self._baseline) * self.scale
+			return max(0.0, self._cum_angle - self._best) * self.scale
 
 	def reset_reward(self) -> float:
-		'''Returns the reward accumulated so far and uses the current angle as the new zero.'''
+		'''Returns the same value as get_reward() and, if the current angle beats the best, makes it the new best.'''
 		with self._cond:
-			reward = (self._cum_angle - self._baseline) * self.scale
-			self._baseline = self._cum_angle
+			reward = max(0.0, self._cum_angle - self._best) * self.scale
+			self._best = max(self._best, self._cum_angle)
 			return reward
+
+	def reset_best(self):
+		'''Uses the current angle as the new starting point (and best), e.g. at the start of an episode.'''
+		with self._cond:
+			self._best = self._cum_angle
 
 	def get_absolute_rotation(self) -> float:
 		'''
 		Total unwrapped rotation since start(), in the configured units. Unlike get_reward()/
 		reset_reward(), this is never re-zeroed, so it works as a stable odometer: a caller can
 		snapshot it (e.g. at episode reset) and diff against it later to measure rotation over
-		an arbitrary span, without disturbing the step-reward baseline those two methods use.
+		an arbitrary span, without disturbing the best angle those two methods use.
 		'''
 		with self._cond:
 			return self._cum_angle * self.scale
@@ -220,7 +230,7 @@ class ArucoRotationTracker:
 		return cv2.Laplacian(roi, cv2.CV_64F).var()
 
 if __name__ == "__main__":
-	tracker = ArucoRotationTracker(marker_id=9, debug=True, min_sharpness=100.0, camera_index=0, rate_hz=20.0, units='rad')
+	tracker = ArucoRotationTracker(marker_id=5, debug=True, min_sharpness=100.0, camera_index=0, rate_hz=20.0, units='rad')
 	# 10 Hz = 0.1 seconds per iteration
 	interval = 1.0 / 10.0 
 	next_time = time.perf_counter()
@@ -228,9 +238,8 @@ if __name__ == "__main__":
 		while True:
 			img = tracker.get_clear_image()
 			rew = tracker.reset_reward()
-			if rew >= 0.03 or rew <= -0.03:
-				rew*=10
-				print(f"Reward: {rew:.3f}, seconds since seen: {tracker.seconds_since_seen():.2f}")
+			rew*=20
+			print(f"Reward: {rew:.3f}, seconds since seen: {tracker.seconds_since_seen():.2f}")
 			cv2.imshow("Aruco", img)
 			if cv2.waitKey(1) & 0xFF == ord('q'):
 				break

@@ -24,7 +24,7 @@ class RealWorld(gym.Env):
 	def __init__(self, 
 			  view_camera_id=1, width = 640, height = 480, cropped_width=64, cropped_height=64, camera_hz=20,
 			  aruco_camera_id=0, marker_id=None, min_sharpness=100.0, aruco_hz=20,
-			  render_mode='rgb_array', max_steps=100, env_hz=10, debug=False, rew_multiplier=8.0):
+			  render_mode='rgb_array', max_steps=100, env_hz=10, debug=False, rew_multiplier=20.0):
 		'''
 		initialize the environment by doing important initialization stuff (in the real world)
 		'''
@@ -69,7 +69,6 @@ class RealWorld(gym.Env):
 		self.save = False
 		self.target_size = 10
 		self.current_step = 0
-		self.reward_momentum = 0.0
 		self._windows_positioned = False
 
 	def save_next_episode_video(self, id):
@@ -170,14 +169,13 @@ class RealWorld(gym.Env):
 		self.box.reset()
 		
 		self.current_img, self.cropped_img = self.camera.get_clear_image(timeout=5.0)
-		self.arucoDetector.reset_reward()
+		self.arucoDetector.reset_best()
 		# new episode: re-baseline the success rotation odometer too, independently of the
-		# per-step reward baseline reset_reward() just did.
+		# per-step reward starting point reset_best() just set.
 		self.episode_start_rotation = self.arucoDetector.get_absolute_rotation()
 		self.current_prop = np.array([0.0, 0.0, 0.0])
 		self.current_pressure = np.array([0.0, 0.0, 0.0])
 		self.current_step = 0
-		self.reward_momentum = 0.0
 		self.last_return = time.time()
 		return self.current_prop, {}
 
@@ -199,35 +197,9 @@ class RealWorld(gym.Env):
 			self.current_pressure[1], 
 			self.current_pressure[2]])
 		self.current_img, self.cropped_img = self.camera.get_clear_image(timeout=self.stepTime/4)
-		reward = self.arucoDetector.reset_reward()
-		if reward > 0.03 or reward < -0.03: #ignore small rewards, they are probably noise
-			reward *= self.reward_multiplier
-		else:
-			reward = 0
-
-		# momentum reward: rolling average of the rotation that is reset when the direction
-		# changes, so a sustained rotation builds up to the full per-step reward while
-		# oscillating back and forth only ever gets the (1 - REWARD_MEMORY) fraction of a
-		# fresh step. Steps in the deadzone give no reward and slowly fade the streak
-		# instead of resetting it, so a short stall doesn't throw away a good streak.
-		REWARD_MEMORY = 0.5
-		if reward == 0:
-			self.reward_momentum *= REWARD_MEMORY
-		elif np.sign(reward) == np.sign(self.reward_momentum) or self.reward_momentum == 0:
-			self.reward_momentum = REWARD_MEMORY * self.reward_momentum + (1 - REWARD_MEMORY) * reward
-			reward = self.reward_momentum
-		else:
-			self.reward_momentum = 0
-			reward = reward
-
-		# leaky-relu reward shaping, shifted slightly into the positive axis: spinning the
-		# wrong way (or not spinning at all) only costs a small, shallow-sloped penalty
-		# instead of a full negative reward, so the policy isn't attracted to a "do nothing"
-		# local optimum just to avoid the wrong-direction penalty.
-		LEAKY_SLOPE = 0.05
-		REWARD_OFFSET = 0.02
-		shifted = reward - REWARD_OFFSET
-		reward = shifted if shifted > 0 else LEAKY_SLOPE * shifted
+		# progress beyond the best angle reached so far this episode (never negative, see
+		# ArucoRotationTracker.reset_reward), scaled by the multiplier
+		reward = self.arucoDetector.reset_reward() * self.reward_multiplier
 
 		info = {}
 		elapsed_time = time.time() - self.last_return
