@@ -24,7 +24,7 @@ class RealWorld(gym.Env):
 	def __init__(self, 
 			  view_camera_id=1, width = 640, height = 480, cropped_width=64, cropped_height=64, camera_hz=20,
 			  aruco_camera_id=0, marker_id=None, min_sharpness=100.0, aruco_hz=20,
-			  render_mode='rgb_array', max_steps=100, env_hz=10, debug=False, rew_multiplier=20.0):
+			  render_mode='rgb_array', max_steps=100, env_hz=10, debug=False, rew_multiplier=30.0):
 		'''
 		initialize the environment by doing important initialization stuff (in the real world)
 		'''

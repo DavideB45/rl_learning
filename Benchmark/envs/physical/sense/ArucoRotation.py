@@ -4,6 +4,7 @@ import time
 
 import cv2
 import numpy as np
+from PIL import Image, ImageDraw, ImageFont
 
 
 class ArucoRotationTracker:
@@ -31,7 +32,8 @@ class ArucoRotationTracker:
 
 	def __init__(self, camera_index=0, width=640, height=480, rate_hz=20.0,
 				 marker_id=None, units='rad', ccw_positive=True,
-				 min_sharpness=None, brightness=150, debug=False):
+				 min_sharpness=None, brightness=150, debug=False,
+				 overlay=True, overlay_radius=None, overlay_target_deg=90.0):
 		'''
 		width, height: size of the center crop returned by get_clear_image (same crop as the env)
 		rate_hz: processing rate cap; the real rate is also limited by the camera fps
@@ -40,6 +42,11 @@ class ArucoRotationTracker:
 		min_sharpness: optional Laplacian-variance threshold on the marker area; frames below it are
 			discarded (neither used for the angle nor returned as images). None disables the check.
 		debug: draw the detected marker and its angle on the returned images
+		overlay: draw a progress gauge around the marker on the returned images: the arc goes from
+			the orientation at the last reset_best() to the best angle reached, the dot is the current
+			orientation and the label is the progress in degrees
+		overlay_radius: gauge radius in pixels; None sizes it from the marker
+		overlay_target_deg: where to draw the target tick (and turn the arc green); None hides it
 		'''
 		if units not in self._UNITS:
 			raise ValueError(f"units must be one of {list(self._UNITS)}")
@@ -51,6 +58,9 @@ class ArucoRotationTracker:
 		self.sign = -1.0 if ccw_positive else 1.0  # image y points down: atan2 is clockwise-positive
 		self.min_sharpness = min_sharpness
 		self.debug = debug
+		self.overlay = overlay
+		self.overlay_radius = overlay_radius
+		self.overlay_target_deg = overlay_target_deg
 
 		self.cap = cv2.VideoCapture(camera_index)
 		self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)  # the camera gives whatever it wants, we crop afterwards
@@ -65,11 +75,16 @@ class ArucoRotationTracker:
 		self._cond = threading.Condition()
 		self._cum_angle = 0.0      # radians, unwrapped, accumulated since start()
 		self._best = 0.0           # highest _cum_angle already rewarded since the last reset_best()
+		self._start = 0.0          # _cum_angle at the last reset_best(), only used by the overlay
 		self._image = None
 		self._image_time = 0.0
 		self._last_seen = None
 		# worker-thread only
 		self._last_angle = None
+		self._ov_center = None     # overlay values smoothed over frames, so the gauge doesn't jitter
+		self._ov_radius = None
+		self._ov_progress = 0.0
+		self._fonts = {}
 
 		self._stop_event = threading.Event()
 		self._thread = None
@@ -123,6 +138,7 @@ class ArucoRotationTracker:
 		'''Uses the current angle as the new starting point (and best), e.g. at the start of an episode.'''
 		with self._cond:
 			self._best = self._cum_angle
+			self._start = self._cum_angle
 
 	def get_absolute_rotation(self) -> float:
 		'''
@@ -201,6 +217,14 @@ class ArucoRotationTracker:
 			cv2.putText(out, f"{math.degrees(angle):.0f} deg", (10, 25),
 						cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
 
+		if self.overlay:
+			with self._cond:
+				cum = self._cum_angle + delta
+				best, start = self._best, self._start
+			if out is img:
+				out = img.copy()
+			out = self._draw_overlay(out, pts, angle, cum, best, start)
+
 		with self._cond:
 			self._cum_angle += delta
 			self._image = out
@@ -208,6 +232,118 @@ class ArucoRotationTracker:
 			self._last_seen = t
 			self._cond.notify_all()
 		return True
+
+	# ------------------------------------------------------------------ overlay
+	_TRACK = (255, 255, 255)
+	_ARC = (36, 165, 245)        # amber (BGR)
+	_ARC_DONE = (94, 197, 34)    # green (BGR), once the target is reached
+	_SHADOW = (20, 20, 20)
+
+	def _draw_overlay(self, img, pts, angle, cum, best, start):
+		'''
+		Progress gauge centred on the marker. Angles are converted back to image space (clockwise,
+		y down, as cv2.ellipse wants them) so the dot physically follows the marker's edge.
+		'''
+		center = pts.mean(axis=0)
+		side = float(np.mean([np.linalg.norm(pts[i] - pts[(i + 1) % 4]) for i in range(4)]))
+		radius = self.overlay_radius if self.overlay_radius is not None else 1.15 * side
+		if self._ov_center is None:
+			self._ov_center, self._ov_radius = center, radius
+		else:
+			self._ov_center = 0.7 * self._ov_center + 0.3 * center
+			self._ov_radius = 0.9 * self._ov_radius + 0.1 * radius
+		# best including the current frame, so the gauge doesn't wait for the next reset_reward()
+		progress = max(0.0, max(best, cum) - start)
+		self._ov_progress += 0.35 * (progress - self._ov_progress)  # ease towards the true value
+
+		# `angle` and the cumulative values use the sign convention; image angles are raw atan2
+		now_img = math.degrees(self.sign * angle)
+		start_img = now_img - math.degrees(self.sign * (cum - start))
+		end_img = start_img + math.degrees(self.sign * min(self._ov_progress, 2.0 * math.pi))
+		done = (self.overlay_target_deg is not None
+				and math.degrees(progress) >= self.overlay_target_deg)
+
+		SHIFT = 4  # sub-pixel precision for smooth, anti-aliased shapes
+		k = 1 << SHIFT
+		cx, cy = self._ov_center
+		r = self._ov_radius
+		thick = max(4, int(round(r * 0.14)))
+		c = (int(round(cx * k)), int(round(cy * k)))
+		ax = (int(round(r * k)), int(round(r * k)))
+
+		def on_ring(deg, rr=r):
+			return (cx + rr * math.cos(math.radians(deg)), cy + rr * math.sin(math.radians(deg)))
+
+		def fixed(p):
+			return (int(round(p[0] * k)), int(round(p[1] * k)))
+
+		def arc(canvas, a0, a1, color, t):
+			a0, a1 = min(a0, a1), max(a0, a1)
+			cv2.ellipse(canvas, c, ax, 0, a0, a1, color, t, cv2.LINE_AA, SHIFT)
+			for a in (a0, a1):  # rounded caps
+				cv2.circle(canvas, fixed(on_ring(a)), (t // 2) * k, color, -1, cv2.LINE_AA, SHIFT)
+
+		# translucent layer: track ring, shadow under the arc, start / target ticks
+		layer = img.copy()
+		cv2.circle(layer, c, ax[0], self._TRACK, max(2, thick // 2), cv2.LINE_AA, SHIFT)
+		if self._ov_progress > 1e-3:
+			arc(layer, start_img, end_img, self._SHADOW, thick + 4)
+		ticks = [start_img]
+		if self.overlay_target_deg is not None:
+			ticks.append(start_img + self.sign * self.overlay_target_deg)
+		for a in ticks:
+			cv2.line(layer, fixed(on_ring(a, r - thick)), fixed(on_ring(a, r + thick)),
+					 self._TRACK, 2, cv2.LINE_AA, SHIFT)
+		img = cv2.addWeighted(layer, 0.45, img, 0.55, 0)
+
+		# opaque layer: progress arc and current-orientation dot
+		if self._ov_progress > 1e-3:
+			arc(img, start_img, end_img, self._ARC_DONE if done else self._ARC, thick)
+		dot = fixed(on_ring(now_img))
+		cv2.circle(img, dot, (thick // 2 + 3) * k, self._SHADOW, -1, cv2.LINE_AA, SHIFT)
+		cv2.circle(img, dot, (thick // 2 + 1) * k, (255, 255, 255), -1, cv2.LINE_AA, SHIFT)
+
+		label = f"{math.degrees(progress):.0f}\u00b0"
+		if self.overlay_target_deg is not None:
+			label += f" / {self.overlay_target_deg:.0f}\u00b0"
+		return self._draw_label(img, label, (cx, cy + r + thick + 8), done)
+
+	def _font(self, size):
+		if size not in self._fonts:
+			font = None
+			for path in ("/System/Library/Fonts/Avenir Next.ttc", "/System/Library/Fonts/HelveticaNeue.ttc",
+						 "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"):
+				try:
+					font = ImageFont.truetype(path, size, index=0)
+					break
+				except OSError:
+					continue
+			self._fonts[size] = font if font is not None else ImageFont.load_default(size)
+		return self._fonts[size]
+
+	def _draw_label(self, img, text, anchor, done):
+		'''Text on a rounded translucent pill, centred under `anchor` (moved above the gauge if it doesn't fit).'''
+		font = self._font(max(14, int(round(self._ov_radius * 0.32))))
+		h_img, w_img = img.shape[:2]
+		x0, y0, x1, y1 = font.getbbox(text)
+		tw, th = x1 - x0, y1 - y0
+		pad_x, pad_y = th * 0.7, th * 0.45
+		w, h = tw + 2 * pad_x, th + 2 * pad_y
+		left = min(max(anchor[0] - w / 2, 4), w_img - w - 4)
+		top = anchor[1]
+		if top + h > h_img - 4:  # no room below: put it above the gauge
+			top = 2 * self._ov_center[1] - anchor[1] - h
+		top = min(max(top, 4), h_img - h - 4)
+
+		base = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB)).convert("RGBA")
+		layer = Image.new("RGBA", base.size, (0, 0, 0, 0))
+		draw = ImageDraw.Draw(layer)
+		accent = self._ARC_DONE if done else self._ARC
+		draw.rounded_rectangle((left, top, left + w, top + h), radius=h / 2,
+							   fill=(20, 20, 20, 170), outline=accent[::-1] + (255,), width=2)
+		draw.text((left + pad_x - x0, top + pad_y - y0), text, font=font, fill=(255, 255, 255, 255))
+		out = Image.alpha_composite(base, layer).convert("RGB")
+		return cv2.cvtColor(np.asarray(out), cv2.COLOR_RGB2BGR)
 
 	# ------------------------------------------------------------------ helpers
 	def _crop(self, img):
@@ -234,11 +370,15 @@ if __name__ == "__main__":
 	# 10 Hz = 0.1 seconds per iteration
 	interval = 1.0 / 10.0 
 	next_time = time.perf_counter()
+	tot_reward = 0.0
 	with tracker:
-		while True:
+		i = 0
+		while True and i < 150:
+			i+= 1
 			img = tracker.get_clear_image()
 			rew = tracker.reset_reward()
-			rew*=20
+			rew*=30
+			tot_reward += rew
 			print(f"Reward: {rew:.3f}, seconds since seen: {tracker.seconds_since_seen():.2f}")
 			cv2.imshow("Aruco", img)
 			if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -252,3 +392,4 @@ if __name__ == "__main__":
 				# If processing took longer than 0.1s, reset the clock to prevent 
 				# the loop from firing rapidly to "catch up".
 				next_time = time.perf_counter()
+	print(f"Total Reward: {tot_reward:.3f}")
