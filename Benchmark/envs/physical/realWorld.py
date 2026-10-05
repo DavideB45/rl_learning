@@ -233,7 +233,7 @@ class RealWorld(gym.Env):
 			cv2.imshow("Result", self.current_img)
 			image = Image.fromarray(np.asarray(self.cropped_img))
 			cropped_display = np.asarray(image.resize((512, 512), Image.NEAREST))
-			cv2.imshow("Cropped", cropped_display)
+			#cv2.imshow("Cropped", cropped_display)
 			aruco_display = self.arucoDetector.get_clear_image()
 			cv2.imshow("Aruco", aruco_display)
 			pressure_display = self.render_pressure_window()
@@ -241,7 +241,7 @@ class RealWorld(gym.Env):
 			self._layout_windows_once([
 				[
 					("Result", self.current_img.shape[1], self.current_img.shape[0]),
-					("Cropped", cropped_display.shape[1], cropped_display.shape[0]),
+					#("Cropped", cropped_display.shape[1], cropped_display.shape[0]),
 					("Aruco", aruco_display.shape[1], aruco_display.shape[0]),
 				],
 				[

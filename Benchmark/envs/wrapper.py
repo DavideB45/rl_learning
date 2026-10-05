@@ -246,20 +246,24 @@ def generate_data(vq:VQVAE, lstm:LSTMQuantized, n_sample:int=1000, policy:BaseAl
 
 class VirtualJoystick:
 	'''
-	Semicircular on-screen joystick (OpenCV window) used by generate_data_interactive.
+	Circular on-screen joystick (OpenCV window) used by generate_data_interactive.
 	Click and drag the knob with the mouse/trackpad, on release it snaps back to the center (zero pressure).
-	The angle picks the chamber mix: left end -> only chamber 1, top -> both chambers at max,
-	right end -> only chamber 2. The distance from the center scales the pressure linearly.
-	Chamber 3 is never used.
+	The three chambers sit 120 deg apart (C1 upper left, C2 upper right, C3 bottom) and the angle picks
+	the mix: a chamber is at max within 60 deg of its direction (so halfway between two chambers both
+	are at max) and fades linearly to zero at the neighbouring chambers. The distance from the center
+	scales the pressure linearly.
 	'''
 	WINDOW = "Joystick"
+	CHAMBER_ANGLES = np.array([150.0, 30.0, 270.0]) # degrees, counter-clockwise from the right (screen view)
+	CHAMBER_COLORS = [(60, 180, 255), (80, 220, 100), (255, 140, 80)] # BGR
+	TEXT_HEIGHT = 50 # space under the disk for the pressure readout
 
 	def __init__(self, max_pressure:float, radius:int=180, margin:int=40):
 		self.max_pressure = max_pressure
 		self.radius = radius
 		self.margin = margin
 		self.width = 2 * (radius + margin)
-		self.height = radius + 2 * margin
+		self.height = 2 * (radius + margin) + self.TEXT_HEIGHT
 		self.center = (radius + margin, radius + margin)
 		self.knob = self.center
 		self.dragging = False
@@ -269,8 +273,8 @@ class VirtualJoystick:
 		self.draw()
 
 	def _clamp(self, x, y):
-		'''keeps the knob inside the upper half disk'''
-		dx, dy = x - self.center[0], min(y - self.center[1], 0)
+		'''keeps the knob inside the disk'''
+		dx, dy = x - self.center[0], y - self.center[1]
 		r = np.hypot(dx, dy)
 		if r > self.radius:
 			dx, dy = dx * self.radius / r, dy * self.radius / r
@@ -286,6 +290,11 @@ class VirtualJoystick:
 			self.dragging = False
 			self.knob = self.center
 
+	def _on_screen(self, angle_deg, r):
+		'''pixel position at angle_deg (counter-clockwise from the right, as seen on screen) and distance r'''
+		a = np.radians(angle_deg)
+		return (int(round(self.center[0] + r * np.cos(a))), int(round(self.center[1] - r * np.sin(a))))
+
 	def target_pressure(self) -> np.ndarray:
 		'''
 		Returns:
@@ -294,27 +303,30 @@ class VirtualJoystick:
 		dx = self.knob[0] - self.center[0]
 		dy = self.center[1] - self.knob[1]
 		r = min(np.hypot(dx, dy) / self.radius, 1.0)
-		t = np.arctan2(dy, dx) / np.pi # 0 = right, 0.5 = top, 1 = left
-		c1 = min(1.0, 2 * t)
-		c2 = min(1.0, 2 * (1 - t))
-		return np.array([c1, c2, 0.0], dtype=np.float32) * r * self.max_pressure
+		angle = np.degrees(np.arctan2(dy, dx))
+		diff = np.abs((angle - self.CHAMBER_ANGLES + 180.0) % 360.0 - 180.0) # angular distance to each chamber
+		weights = np.clip((120.0 - diff) / 60.0, 0.0, 1.0)
+		return weights.astype(np.float32) * r * self.max_pressure
 
 	def draw(self, current_pressure=None):
 		'''redraws the joystick window and pumps the OpenCV event loop (so the mouse callback runs)'''
 		img = np.full((self.height, self.width, 3), 30, dtype=np.uint8)
-		cv2.ellipse(img, self.center, (self.radius, self.radius), 0, 180, 360, (55, 55, 55), -1, cv2.LINE_AA)
-		cv2.ellipse(img, self.center, (self.radius, self.radius), 0, 180, 360, (140, 140, 140), 2, cv2.LINE_AA)
-		cv2.ellipse(img, self.center, (self.radius // 2, self.radius // 2), 0, 180, 360, (90, 90, 90), 1, cv2.LINE_AA)
-		cv2.line(img, (self.center[0] - self.radius, self.center[1]), (self.center[0] + self.radius, self.center[1]), (140, 140, 140), 2)
-		cv2.putText(img, "C1", (self.center[0] - self.radius - 32, self.center[1] + 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (60, 180, 255), 1, cv2.LINE_AA)
-		cv2.putText(img, "C2", (self.center[0] + self.radius + 8, self.center[1] + 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (80, 220, 100), 1, cv2.LINE_AA)
+		cv2.circle(img, self.center, self.radius, (55, 55, 55), -1, cv2.LINE_AA)
+		cv2.circle(img, self.center, self.radius, (140, 140, 140), 2, cv2.LINE_AA)
+		cv2.circle(img, self.center, self.radius // 2, (90, 90, 90), 1, cv2.LINE_AA)
+		for i, (a, color) in enumerate(zip(self.CHAMBER_ANGLES, self.CHAMBER_COLORS)):
+			cv2.line(img, self.center, self._on_screen(a, self.radius), (100, 100, 100), 1, cv2.LINE_AA)
+			cv2.circle(img, self._on_screen(a, self.radius), 5, color, -1, cv2.LINE_AA)
+			x, y = self._on_screen(a, self.radius + 22)
+			cv2.putText(img, f"C{i + 1}", (x - 10, y + 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
 		cv2.line(img, self.center, self.knob, (200, 200, 200), 2, cv2.LINE_AA)
 		cv2.circle(img, self.knob, 16, (0, 200, 255) if self.dragging else (180, 180, 180), -1, cv2.LINE_AA)
 		target = self.target_pressure()
-		text = f"target C1 {target[0]:.2f}  C2 {target[1]:.2f}"
+		lines = ["target " + "  ".join(f"C{i + 1} {p:.2f}" for i, p in enumerate(target))]
 		if current_pressure is not None:
-			text += f"  |  now C1 {current_pressure[0]:.2f}  C2 {current_pressure[1]:.2f}"
-		cv2.putText(img, text, (10, self.height - 12), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1, cv2.LINE_AA)
+			lines.append("now    " + "  ".join(f"C{i + 1} {p:.2f}" for i, p in enumerate(current_pressure[:3])))
+		for j, text in enumerate(lines):
+			cv2.putText(img, text, (10, self.height - self.TEXT_HEIGHT + 18 + 20 * j), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1, cv2.LINE_AA)
 		cv2.imshow(self.WINDOW, img)
 		cv2.waitKey(1)
 
