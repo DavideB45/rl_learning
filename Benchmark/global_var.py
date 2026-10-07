@@ -1,5 +1,5 @@
 IS_SERVER = False
-EXP_ID = 105
+EXP_ID = 109
 LOG_NAME = f'res_{EXP_ID}'
 GPU_ID = f"{EXP_ID%4}" # window 2 - peg 3
 

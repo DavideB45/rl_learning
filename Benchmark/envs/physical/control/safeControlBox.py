@@ -45,8 +45,8 @@ class SafeControlBox(ControlBox):
 
 if __name__ == "__main__":
 	# Create an instance of our control box
-	max_pressure = 0.9
-	chamber_idx = 2
+	max_pressure = 0.8
+	chamber_idx = 1
 	tot = 10
 	box = SafeControlBox(max_pressure=max_pressure)
 	box.connect()
@@ -56,5 +56,5 @@ if __name__ == "__main__":
 			i/tot*max_pressure if chamber_idx == 1 else 0.0, 
 			i/tot*max_pressure if chamber_idx == 2 else 0.0)
 		print(f"Sent pressure: \033[34m{i/tot*max_pressure:.3f}\033[0m bar to chamber {chamber_idx}")
-		sleep(1)
+		sleep(0.5)
 	box.send_pressure(0, 0, 0)

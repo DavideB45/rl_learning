@@ -61,6 +61,7 @@ def main():
     print("\n[orchestrator] === Initial data collection ===")
     t = time.time()
     generate_data_interactive(vq, lstm, n_sample=1510, training_set=True,  round=EXP_ID)
+    #generate_data(vq, lstm, policy=None, n_sample=1510, training_set=True, round=EXP_ID)
     generate_data(vq, lstm, policy=None, n_sample=302, training_set=False, round=EXP_ID)
     timings['collecting_time'] += time.time() - t
 

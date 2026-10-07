@@ -34,9 +34,9 @@ class RealWorld(gym.Env):
 		self.render_mode = render_mode
 		self.reward_multiplier = rew_multiplier
 		self.debug = debug
-		self.max_pressure = 0.9
+		self.max_pressure = 0.8
 		if debug:
-			self.max_pressure = 0.9
+			self.max_pressure = 0.8
 		self.stepTime = 1/env_hz
 		self.max_steps = max_steps
 		self.current_pressure = np.array([0, 0, 0])
