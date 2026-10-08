@@ -38,8 +38,8 @@ from global_var import REAL, REAL_DATA_DIR, CODEBOOK_SIZE, CODE_DEPTH, LATENT_DI
 # ==========================================
 # CONFIGURATION
 # ==========================================
-EXP_ID = 101   # checkpoint folder under data/real-soft/models/ (also: 2, 105, 109 are available)
-ROUND = 101    # recorded round to pull the seed episode from, data/real-soft/imgs/{SPLIT}/round_<ROUND>
+EXP_ID = 109   # checkpoint folder under data/real-soft/models/ (also: 2, 105, 109 are available)
+ROUND = 109    # recorded round to pull the seed episode from, data/real-soft/imgs/{SPLIT}/round_<ROUND>
 SPLIT = "tr"   # "tr" or "vl"
 EPISODE = 80    # which episode within that round/split to imagine from
 
@@ -205,7 +205,12 @@ def main():
 	print("Imagining the same rollout with the world model...")
 	imagined_imgs, init_len = imagine_rollout(vq, lstm, latents, props, actions, INIT_LEN, device)
 
-	tag = f"real-soft_{EXP_ID}_ep{EPISODE}"
+	exp_name = {
+		101: "Counterclockwise, teleoperated init",
+		105: "Clockwise, random init",
+		109: "Far gear, teleoperated init",
+	}
+	tag = f"real-robot ({exp_name.get(EXP_ID, f'run {EXP_ID}')})"
 
 	video1 = [pil_pixelated(f, UPSCALE_SIZE) for f in real_frames]
 	save_video(video1, os.path.join(OUT_DIR, f"rollout_real_pixelated_{tag}.mp4"))
