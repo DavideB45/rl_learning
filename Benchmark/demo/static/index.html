@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Come impara un robot?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="phase-idle">
+
+<div id="sky" aria-hidden="true">
+  <div class="cloud c1"></div><div class="cloud c2"></div><div class="cloud c3"></div>
+  <div id="stars"></div>
+</div>
+
+<header id="topbar">
+  <div class="brand"><span class="logo">🐙</span> Come impara un robot?</div>
+  <ol id="journey">
+    <li data-stage="0"><span class="dot">1</span>Prova</li>
+    <li data-stage="1"><span class="dot">💭</span>Sogno</li>
+    <li data-stage="2"><span class="dot">2</span>Prova</li>
+    <li data-stage="3"><span class="dot">💭</span>Sogno</li>
+    <li data-stage="4"><span class="dot">3</span>Prova</li>
+    <li data-stage="5"><span class="dot">🏆</span>Fine</li>
+  </ol>
+  <button id="stopBtn" title="Ferma tutto (Esc)">■ Stop</button>
+</header>
+
+<main id="stage">
+  <!-- left: what the robot does (camera) or dreams (cloud) -->
+  <section id="viewPanel" class="panel">
+    <div class="panel-title" id="viewTitle">📷 Il robot visto dalla telecamera</div>
+    <div id="viewBox">
+      <img id="liveVideo" alt="">
+      <canvas id="recCanvas" width="64" height="64"></canvas>
+      <div id="dreamBubble">
+        <div class="puff p1"></div><div class="puff p2"></div><div class="puff p3"></div>
+        <canvas id="dreamCanvas" width="64" height="64"></canvas>
+        <div id="dreamLabel"></div>
+      </div>
+      <img id="wheelVideo" alt="">
+      <div id="caption"></div>
+    </div>
+    <div id="dreamTiles"></div>
+  </section>
+
+  <!-- right: muscles + wheel -->
+  <aside id="sidePanels">
+    <section class="panel" id="musclePanel">
+      <div class="panel-title">🎈 I muscoli d'aria</div>
+      <div id="balloons">
+        <div class="balloon-wrap"><div class="balloon b1"><span>1</span></div><div class="string"></div><div class="pct" id="pct0">0%</div></div>
+        <div class="balloon-wrap"><div class="balloon b2"><span>2</span></div><div class="string"></div><div class="pct" id="pct1">0%</div></div>
+        <div class="balloon-wrap"><div class="balloon b3"><span>3</span></div><div class="string"></div><div class="pct" id="pct2">0%</div></div>
+      </div>
+    </section>
+    <section class="panel" id="wheelPanel">
+      <div class="panel-title">⚙️ Quanto gira la ruota?</div>
+      <div id="gauge">
+        <svg viewBox="-110 -110 220 220" aria-hidden="true">
+          <circle r="96" class="track"/>
+          <path id="arc" class="arc" d=""/>
+          <g id="goalFlag"><line x1="0" y1="-84" x2="0" y2="-108" class="flag-pole"/><path d="M0,-108 L18,-102 L0,-96 Z" class="flag"/></g>
+          <g id="gear"></g>
+        </svg>
+        <div id="deg"><span id="degNum">0</span>°</div>
+      </div>
+      <div id="goalText">Traguardo: mezzo giro</div>
+    </section>
+  </aside>
+</main>
+
+<!-- big centered cards -->
+<div id="overlay">
+  <div id="card">
+    <div id="cardEmoji"></div>
+    <h1 id="cardTitle"></h1>
+    <p id="cardText"></p>
+    <div id="chart"></div>
+    <button id="startBtn" class="big-btn">▶ Inizia!</button>
+    <button id="nextBtn" class="big-btn secondary">Avanti ▶</button>
+    <div id="cardTimer"><div></div></div>
+  </div>
+</div>
+
+<canvas id="confetti"></canvas>
+<div id="modeTag"></div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
