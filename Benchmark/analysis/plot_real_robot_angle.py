@@ -67,6 +67,11 @@ WARMUP_STEPS = 1500
 
 REFERENCE_LINE_STEP_DEG = 90  # horizontal guides every this many degrees
 
+# Side-by-side-in-slides options.
+SQUARE_FIGURE = False   # square figsize instead of the default wide one
+SHARE_Y_MAX = False     # use the same y-axis max (the tallest run's CI, with margin) on every plot,
+                        # so angles are visually comparable across runs placed next to each other
+
 OUT_DIR = "images"
 
 
@@ -122,29 +127,72 @@ def load_and_process_data(csv_path):
 # ==========================================
 # PLOTTING
 # ==========================================
-def plot_results(data, label, color, out_path):
-	sns.set_theme(style="darkgrid")
-	fig, ax = plt.subplots(figsize=(8, 5))
+def _draw_warmup_marker(ax):
+	"""Shaded band + dotted boundary marking the untrained warmup phase, so the flat lead-in
+	doesn't read as "training wasn't working"."""
+	ax.axvspan(0, WARMUP_STEPS, color="gray", alpha=0.12, zorder=0)
+	ax.axvline(WARMUP_STEPS, color="gray", linestyle=":", linewidth=1.3, alpha=0.8, zorder=0)
+	ax.text(WARMUP_STEPS / 2, 0.97, "Initial data\ncollection", transform=ax.get_xaxis_transform(),
+			ha="center", va="top", fontsize=9, color="dimgray", style="italic")
 
-	ax.plot(data["step"], data["angle_smooth"], color=color, label=label, linewidth=2)
-	ax.fill_between(data["step"], data["angle_lo"], data["angle_hi"], color=color, alpha=0.2)
 
-	# Horizontal reference lines every REFERENCE_LINE_STEP_DEG degrees, up to whatever the
-	# policy actually reached, so the viewer can read off how many quarter/half/full turns
-	# were achieved.
-	max_angle = data["angle_smooth"].max()
+def _draw_reference_lines(ax, max_angle, x_right):
+	"""Horizontal guides every REFERENCE_LINE_STEP_DEG degrees up to max_angle, so the viewer
+	can read off how many quarter/half/full turns were achieved."""
 	n_lines = int(max_angle // REFERENCE_LINE_STEP_DEG) + 1
 	for k in range(1, n_lines + 1):
 		deg = k * REFERENCE_LINE_STEP_DEG
 		ax.axhline(deg, color="gray", linestyle="--", linewidth=0.8, alpha=0.6, zorder=0)
 		ref_label = f"{deg}°" + (f" ({deg // 360} turn{'s' if deg // 360 != 1 else ''})" if deg % 360 == 0 else "")
-		ax.text(data["step"].max(), deg, f"  {ref_label}", va="center", ha="left", fontsize=8, color="gray")
+		ax.text(x_right, deg, f"  {ref_label}", va="center", ha="left", fontsize=8, color="gray")
+
+
+def plot_results(data, label, color, out_path, ylim_top=None):
+	sns.set_theme(style="darkgrid")
+	figsize = (7, 7) if SQUARE_FIGURE else (8, 5)
+	fig, ax = plt.subplots(figsize=figsize)
+
+	_draw_warmup_marker(ax)
+
+	ax.plot(data["step"], data["angle_smooth"], color=color, label=label, linewidth=2)
+	ax.fill_between(data["step"], data["angle_lo"], data["angle_hi"], color=color, alpha=0.2)
+
+	_draw_reference_lines(ax, data["angle_smooth"].max(), data["step"].max())
 
 	ax.set_title(f"Reached Angle ({CI}% CI) — {label}", fontweight="bold")
 	ax.set_xlabel("Environment Steps")
 	ax.set_ylabel("Reached angle (degrees)")
 	ax.yaxis.set_major_formatter(mtick.FormatStrFormatter("%d°"))
-	ax.legend(loc="upper left")
+	if ylim_top is not None:
+		ax.set_ylim(-5, ylim_top)
+	ax.legend(loc="lower right")
+
+	plt.tight_layout()
+	plt.savefig(out_path, dpi=300, bbox_inches="tight")
+	plt.close(fig)
+	print(f"Saved {out_path}")
+
+
+def plot_combined(all_data, out_path):
+	"""All runs overlaid on one (always rectangular, regardless of SQUARE_FIGURE) plot."""
+	sns.set_theme(style="darkgrid")
+	fig, ax = plt.subplots(figsize=(7, 5.5))
+
+	_draw_warmup_marker(ax)
+
+	for run, data in all_data:
+		ax.plot(data["step"], data["angle_smooth"], color=run["color"], label=run["label"], linewidth=2)
+		ax.fill_between(data["step"], data["angle_lo"], data["angle_hi"], color=run["color"], alpha=0.15)
+
+	max_angle = max(data["angle_smooth"].max() for _, data in all_data)
+	x_right = max(data["step"].max() for _, data in all_data)
+	_draw_reference_lines(ax, max_angle, x_right)
+
+	ax.set_title(f"Reached Angle ({CI}% CI) — All Runs", fontweight="bold")
+	ax.set_xlabel("Environment Steps")
+	ax.set_ylabel("Reached angle (degrees)")
+	ax.yaxis.set_major_formatter(mtick.FormatStrFormatter("%d°"))
+	ax.legend(loc="lower right")
 
 	plt.tight_layout()
 	plt.savefig(out_path, dpi=300, bbox_inches="tight")
@@ -162,9 +210,17 @@ def print_final_summary(data, label):
 if __name__ == "__main__":
 	import os
 	os.makedirs(OUT_DIR, exist_ok=True)
-	for run in RUNS:
+
+	all_data = [(run, load_and_process_data(run["csv"])) for run in RUNS]
+
+	# Same y-axis top (tallest run's CI, plus a little headroom) on every plot, computed
+	# once up front across all runs, so angles line up visually when placed side by side.
+	shared_ylim_top = max(d["angle_hi"].max() for _, d in all_data) * 1.05 if SHARE_Y_MAX else None
+
+	for run, data in all_data:
 		print(f"Processing {run['csv']}...")
-		data = load_and_process_data(run["csv"])
 		out_path = os.path.join(OUT_DIR, f"real_robot_angle_{run['exp_id']}.png")
-		plot_results(data, run["label"], run["color"], out_path)
+		plot_results(data, run["label"], run["color"], out_path, ylim_top=shared_ylim_top)
 		print_final_summary(data, run["label"])
+
+	plot_combined(all_data, os.path.join(OUT_DIR, "real_robot_angle_combined.png"))
