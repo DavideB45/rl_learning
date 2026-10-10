@@ -62,7 +62,7 @@ if __name__ == "__main__":
 			plt.title('Reconstructed Images')
 
 		plt.subplot(5, num_images, i + 1 + 2 * num_images)
-		plt.imshow(masks[i].numpy())#[::-1, ::-1])
+		plt.imshow(1 - masks[i].numpy())#[::-1, ::-1])
 		plt.axis('off')
 		if i == 0:
 			plt.title('Masks')

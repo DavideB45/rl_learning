@@ -27,7 +27,7 @@ TRY_ROUNDS = [1, 20, 90]
 # the "dreams" between the tries: DREAM_CLIPS episodes picked from these round ranges
 # (inclusive), shown sorted from worst to best so the dream visibly gets better
 DREAM_ROUND_RANGES = [(2, 19), (21, 89)]
-DREAM_CLIPS = 5
+DREAM_CLIPS = 2
 DREAM_FPS = 30            # recorded at 10 Hz, dreams play 3x faster
 DREAM_CLIP_PAUSE = 1.0    # seconds of pause after each dream clip (shows its score)
 
@@ -37,7 +37,7 @@ RESULT_TIME = 7.0         # result card after each real try (robot deflates mean
 REPLAY_HZ = 10            # same rate as the RealWorld env (env_hz)
 HOLD_AFTER_REPLAY = 1.0   # keep the last pressure a moment before deflating
 # if True, intro/result cards wait for the "Avanti" button (or space bar) instead of the timer
-WAIT_FOR_CLICK = True
+WAIT_FOR_CLICK = False
 
 # reward = rotation [rad] * REW_MULTIPLIER in the dataset (same as envs/wrapper.py)
 REW_MULTIPLIER = 30.0
