@@ -188,7 +188,7 @@ def tune_agent(agent: PPO, env: SoftDreamEnv, num_steps: int) -> PPO:
             print("[server] Loaded existing PPO agent checkpoint.")
         except FileNotFoundError:
             print("[server] No existing agent found — initialising fresh PPO.")
-            agent = PPO( MlpPolicy, env, policy_kwargs = policy_kwargs, n_steps = 500, batch_size = 1000, learning_rate = PPO_LR, ent_coef = 0.01, sde_sample_freq = 10, use_sde = True )
+            agent = PPO( MlpPolicy, env, policy_kwargs = policy_kwargs, n_steps = 20, batch_size = 250, learning_rate = PPO_LR, ent_coef = 0.01, sde_sample_freq = 10, use_sde = True )
     agent = agent.learn(num_steps, progress_bar=True, reset_num_timesteps=False)
     agent.save(agent_path)
     return agent
