@@ -15,7 +15,7 @@ GRASP = {
 	"models": GRASP_DATA_DIR + MODELS_DIR + f"{EXP_ID}/",
 	"a_size": 7,
 	"render_size": 64,
-	"camera": "front", # a view of eleanor_sim/configs/cameras.yaml: front, side, three_quarter
+	"camera": "close", # a view of eleanor_sim/configs/cameras.yaml: front, close, side, three_quarter
 	"yaw_range": (-30.0, 30.0), # start pose turn [deg], the default training setup of the eleanor-sim notes
 	"randomize_defects": False,
 }
