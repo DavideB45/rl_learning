@@ -204,7 +204,8 @@ class VQVAE(AbstractVAE):
 				recon_batch = self.decode(quantized)
 
 			rec_loss = self.reconstruction_loss(data, recon_batch)
-			rew_loss = reward_loss(self.pred_rew(z), rew)
+			has_rew = torch.isfinite(rew).squeeze(1) # frame 0 of an episode has no reward (NaN), see PNGDataset
+			rew_loss = reward_loss(self.pred_rew(z)[has_rew], rew[has_rew]) if has_rew.any() else z.sum()*0
 			loss = rec_loss + reg*flatness_loss + rew_loss + emb_loss# + self.contraction_loss(z)*0.005
 			loss.backward()
 			torch.nn.utils.clip_grad_norm_(self.parameters(), max_norm=1.0)

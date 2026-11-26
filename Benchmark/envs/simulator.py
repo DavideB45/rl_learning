@@ -50,7 +50,7 @@ class MetaDreamEnv(VecEnv):
 		)
 		self.action_space = spaces.Box(
 			low=-1, high=1, 
-			shape=(4,),
+			shape=(CURRENT_ENV['a_size'],),
 			dtype=np.float32
 		)
 		super(MetaDreamEnv, self).__init__(

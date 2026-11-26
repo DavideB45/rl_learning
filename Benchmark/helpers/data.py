@@ -45,10 +45,12 @@ class PNGDataset(Dataset):
 			img = im.convert('RGB')
 		parts = self.files[idx].split('_')
 		episode = int(parts[2])
-		step = int(parts[3].split('.')[0]) - 1
-			
+		step = int(parts[3].split('.')[0])
+		# rew[e][j] is earned arriving at frame j+1, so frame s gets rew[e][s-1]; frame 0 (the reset) has no reward:
+		# NaN marks it, and VQVAE.train_epoch leaves it out of the reward loss (rew[e][-1] would be the final outcome)
+		reward = self.rew[episode][step - 1] if step > 0 else float('nan')
 		img = self.transform(img)
-		return img, self.rew[episode][step]
+		return img, reward
 
 def make_image_dataloader_safe(data_dir:str, batch_size:int=256, max_size:int=10000) -> DataLoader:
 	print(f'Creating dataloaded from {data_dir}')

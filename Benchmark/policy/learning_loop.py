@@ -2,7 +2,7 @@ import os
 import sys
 sys.path.insert(1, os.path.join(sys.path[0], '../'))
 from global_var import *
-if 'MUJOCO_GL' not in os.environ:
+if 'MUJOCO_GL' not in os.environ and sys.platform != 'darwin': # no EGL on macOS, MuJoCo picks its default there
 	os.environ['MUJOCO_GL'] = 'egl'
 	os.environ['MUJOCO_EGL_DEVICE_ID'] = GPU_ID
 	os.environ['CUDA_VISIBLE_DEVICES'] = GPU_ID
@@ -24,7 +24,7 @@ from vae.vqVae import VQVAE
 from dynamics.lstm import LSTMQuantized
 
 from envs.simulator import MetaDreamEnv
-from envs.wrapper import MetaWrapEnv, evaluate_gathering, generate_data
+from envs.wrapper import evaluate_gathering, generate_data
 
 SMOOTHING = True if SMOOTH > 0 else False
 # PPO RELATED PARAMETERS
@@ -71,8 +71,8 @@ def main():
 		vq_training_time += time.time()
 
 		dataset_generation_time -= time.time()
-		tr_seq = make_seq_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], True, EXP_ID), vq, SEQ_LEN, 128, max_ep=EP_ON_LOOP*2 if ACTION_REPEAT else EP_ON_LOOP)
-		vl_seq = make_seq_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], False, EXP_ID), vq, SEQ_LEN, 128, max_ep=15)
+		tr_seq = make_seq_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], True, EXP_ID), vq, SEQ_LEN, 128, max_ep=SEQ_EP_TR)
+		vl_seq = make_seq_dataloader_safe(get_data_path(CURRENT_ENV['img_dir'], False, EXP_ID), vq, SEQ_LEN, 128, max_ep=SEQ_EP_VL)
 		dataset_generation_time += time.time()
 		lstm_training_time -= time.time()
 		lstm = tune_lstm(lstm, tr=tr_seq, vl=vl_seq, encoder=vq, num_epocs=LSTM_EPOCS if round == 0 else 1, lr=LSTM_LR, wd=LSTM_WD)
@@ -88,9 +88,9 @@ def main():
 		agent_training_time += time.time()
 
 		collecting_time -= time.time()
-		generate_data(vq, lstm, n_sample=250 if ACTION_REPEAT else 500, policy=agent, training_set=True, round=EXP_ID)
+		generate_data(vq, lstm, n_sample=500, policy=agent, training_set=True, round=EXP_ID)
 		if round % 10 == 0:
-			rew, succ = evaluate_gathering(vq, lstm, n_sample=(250 if ACTION_REPEAT else 500)*10, policy=agent, training_set=False, round=EXP_ID)
+			rew, succ = evaluate_gathering(vq, lstm, n_sample=15*10, policy=agent, training_set=False, round=EXP_ID)
 			current_success = sum(succ) / len(succ)
 			rolling_success = rolling_success*0.9 + 0.1*current_success
 			print(f"Average reward: {(sum(rew) / len(rew)):.2f}, Success rate: {current_success:.2%}, Rolling: {rolling_success:.2%}")
