@@ -226,15 +226,18 @@ if __name__ == "__main__":
 	total_reward = 0
 	step_count = 0
 	agent = PPO.load(CURRENT_ENV['models'] + 'agent' + f'{EXP_ID}', env)
-	while not done:
-		action, _states = agent.predict(observation, deterministic=True)
-		observation, reward, terminated, truncated, info = env.step(action)
-		print(f"Step {step_count} Reward: {reward:+.3f} | action: {action}")
-		frames.append(env.render())
-		done = terminated or truncated
-		total_reward += reward
-		step_count += 1
-	print(f"Total reward: {total_reward:+.2f}, success: {info['success'] == 1}")
+	for _ in range(3):
+		while not done:
+			action, _states = agent.predict(observation, deterministic=True)
+			observation, reward, terminated, truncated, info = env.step(action)
+			print(f"Step {step_count} Reward: {reward:+.3f} | action: {action}")
+			frames.append(env.render())
+			done = terminated or truncated
+			total_reward += reward
+			step_count += 1
+		print(f"Total reward: {total_reward:+.2f}, success: {info['success'] == 1}")
+		env.reset()
+		done = False
 	env.close()
 
 	GIF_PATH = "output.gif"

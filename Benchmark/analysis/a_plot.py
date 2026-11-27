@@ -1,47 +1,29 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import subprocess
 
-#data=[float(x) for x in subprocess.check_output("grep , res.csv | tail n +1 |awk -F',' '{print $1}'", shell=True).decode().split()]
-data = [float(x) for x in subprocess.check_output(
-    "tail -n +2 data/drawer-open/numbers/4_norm_lrdec_noinit/res.csv | cut -d',' -f1",
-    shell=True
-).decode().split()]
-data = [float(str(x)) for x in subprocess.check_output(
-    "tail -n +2 res_peg.csv | cut -d',' -f1",
-    shell=True
-).decode().split()]
-#data = [1 if x == "b'True'" else 0 for x in data]
-# data = [float(x.split('%')[0]) for x in subprocess.check_output(
-#     'grep -e "Accurac" log3.out | cut -d "|" -f4',
-#     shell=True
-# ).decode().split()]
-# data = [float(x) for x in subprocess.check_output(
-#     'grep -e "Rew" data/drawer-open/numbers/4_norm_lrdec_noinit/log3.out | cut -d "|" -f4',
-#     shell=True
-# ).decode().split()]
-# data = [float(x.split('\x1b[0m')[0]) for x in subprocess.check_output(
-#     'grep -e "recon_loss" log3.out | cut -d ":" -f3',
-#     shell=True
-# ).decode().split()]
-# data = [float(x.split('\x1b[96m')[0].split('\x1b[0m')[0]) for x in subprocess.check_output(
-#     'grep -e "flat" data/drawer-open/numbers/4_norm_lrdec_noinit/log3.out | cut -d ":" -f3',
-#     shell=True
-# ).decode().split()]
-# Convert to pandas Series
-min_ = 0
-max_ = 3000
-series = pd.Series(data)
+RUNS_PER_POLICY = 10
+SMOOTH_WINDOW = 3  # try 3 or 4
 
-print(max(data))
-# Compute rolling mean (window size = 3)
-rolling_mean = series.rolling(window=30).mean()
+data = pd.read_csv("res_0.csv").iloc[:, 0]
 
-# Plot only the rolling mean
-plt.plot(rolling_mean)
-plt.ylim(min_, max_)
-plt.title("Rolling Mean")
-plt.xlabel("Index")
-plt.ylabel("Rolling Mean")
-plt.savefig('vq_rec_default.png')
+# Average each block of 10 consecutive runs (one block = one policy)
+per_policy = data.groupby(np.arange(len(data)) // RUNS_PER_POLICY).mean()
+
+# Light smoothing across policies
+smoothed = per_policy.rolling(window=SMOOTH_WINDOW, min_periods=1).mean()
+
+EVAL_EVERY = 5100
+steps = (per_policy.index + 1) * EVAL_EVERY
+
+plt.plot(steps, per_policy, alpha=0.3, label="per-policy mean")
+plt.plot(steps, smoothed, label=f"smoothed (window={SMOOTH_WINDOW})")
+plt.ylim(-22, 4)
+plt.xlabel("Training steps")
+plt.ylabel("Mean result")
+plt.legend()
+plt.minorticks_on()
+plt.grid(True, which="major", alpha=0.4)
+plt.grid(True, which="minor", alpha=0.15, linestyle=":")
+plt.gca().xaxis.set_major_formatter(lambda x, _: f"{x/1000:.0f}k")
+plt.savefig("vq_rec_default.png")
